@@ -1,0 +1,63 @@
+source: './uat' # Source folder, mandatory
+dest: './prod' # Destination folder, mandatory
+
+include: # Files to process, if not set, all YAML files are processed, other files are copied as-is, default: all files
+  - '**/values.yaml'
+  - '**/chart.yaml'
+  - 'charts/**/xxxx.yaml'
+prune: true # Remove files in dest that are not in source, default: false
+
+skipPath: # JSON paths to skip during processing for specific files, default: none = process all paths
+  '**/values.yaml':
+    - 'replicaCount'
+    - 'image.tag'
+    - 'secrets[*].password' # JSONPath-style for nested values
+
+  '**/chart.yaml':
+    - 'annotations.createdAt'
+    - 'annotations.lastModified'
+
+outputFormat: # Output formatting options
+  indent: 2 # YAML indent size, default: 2
+  quoteValues: true # Only values (right side of `:`) are double-quoted, default: true
+
+# transforms:
+#   "database.url":
+#     - find: "uat-db\\.(.*)"
+#       replace: "prod-db.$1"
+#   "$.secrets[*].password":
+#     - find: "uat-redis"
+#       replace: "prod-redis"
+
+orders: # Key orders for specific result yaml files, default: none = alphabetical order
+  '**/values.yaml':
+    - 'image'
+    - 'resources'
+    - 'service'
+    - 'ingress'
+    - 'resources.requests'
+    - 'resources.limits'
+
+  '**/chart.yaml':
+    - 'name'
+    - 'version'
+    - 'description'
+    - 'maintainers'
+
+stopRules: # Rules to block running operations, default: none = allow all changes
+  '**/chart.yaml':
+    - type: 'semverMajor'
+      path: 'version' # Block major SemVer bumps in chart.yaml
+
+  '**/values.yaml':
+    - type: 'semverMajor'
+      path: 'image.tag' # Block major SemVer bump of image tag
+    - type: 'numeric'
+      path: 'replicaCount'
+      min: 2 # Reject scaling to <2 replicas
+      max: 10 # Reject scaling above 10
+
+  'charts/**/xxxx.yaml':
+    - type: 'regex'
+      path: 'database.url'
+      regex: 'prod-db-backup'
