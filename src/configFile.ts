@@ -174,13 +174,13 @@ export type OutputFormat = z.infer<typeof outputFormatSchema>;
  * const config = parseConfig(rawData, './config.yaml');
  * ```
  */
-export function parseConfig(data: unknown, configPath?: string): Config {
+export const parseConfig = (data: unknown, configPath?: string): Config => {
   const result = configSchema.safeParse(data);
 
   if (!result.success) throw new ConfigValidationError(result.error, configPath);
 
   return result.data;
-}
+};
 
 // ============================================================================
 // Error Handling
@@ -203,7 +203,7 @@ export class ConfigValidationError extends Error {
   /**
    * Formats Zod validation errors into user-friendly messages.
    */
-  private static formatError(zodError: z.ZodError, configPath?: string): string {
+  private static formatError = (zodError: z.ZodError, configPath?: string): string => {
     const header = configPath
       ? `Configuration validation failed in ${configPath}:\n`
       : 'Configuration validation failed:\n';
@@ -227,12 +227,12 @@ export class ConfigValidationError extends Error {
     });
 
     return header + errors.join('\n');
-  }
+  };
 }
 
 /**
  * Type guard to check if an error is a ConfigValidationError.
  */
-export function isConfigValidationError(error: unknown): error is ConfigValidationError {
+export const isConfigValidationError = (error: unknown): error is ConfigValidationError => {
   return error instanceof ConfigValidationError;
-}
+};

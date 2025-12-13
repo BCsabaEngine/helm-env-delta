@@ -44,12 +44,11 @@ export interface CliOptions {
  * const options = parseCommandLine(['node', 'hed', '-c', 'prod.yaml', '--dry-run']);
  * ```
  */
-export function parseCommandLine(argv?: string[]): CliOptions {
+export const parseCommandLine = (argv?: string[]): CliOptions => {
   const program = new Command();
 
   program
     .name('helm-env-delta')
-    .description('Environment-aware Helm YAML diff & sync tool')
     .option('-c, --config <file>', 'Path to config YAML (required)')
     .option('--dry-run', 'Preview changes only', false)
     .option(
@@ -69,4 +68,4 @@ export function parseCommandLine(argv?: string[]): CliOptions {
   }
 
   return options;
-}
+};

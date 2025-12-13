@@ -12,7 +12,8 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool for environment-aware YAM
 
 ```bash
 npm run build          # Clean build (tsc --build --clean && tsc --build --force)
-npm run dev            # Watch mode development with nodemon
+npm run dev            # Run with tsx and example config (tsx src/index.ts -c ./config.example.yaml)
+npm run dev:watch      # Watch mode with nodemon
 npm run clean          # Clean TypeScript build artifacts
 ```
 
@@ -24,7 +25,7 @@ npm run test:watch     # Run tests in watch mode
 npm run test:coverage  # Generate coverage report (60% minimum threshold)
 ```
 
-Tests are configured in `vitest.config.ts` and should be placed in `test/**/*.test.ts` directory (which doesn't exist yet).
+Tests should be placed in `test/**/*.test.ts` directory.
 
 ### Code Quality
 
@@ -39,26 +40,38 @@ npm run all            # Run fix + build + test
 
 ### Running the CLI
 
-The project provides two bin aliases after building:
+After building, two bin aliases are available:
 
 ```bash
-helm-env-delta         # Main CLI command
-hed                    # Short alias
+helm-env-delta --config config.yaml   # Main CLI command
+hed --config config.yaml              # Short alias
 ```
 
-During development, run with: `node bin/index.js` (which loads from `dist/index.js`)
+During development: `node bin/index.js --config config.example.yaml`
+
+**Important:** The `--config` option is required. The CLI will show an error and help output if not provided.
 
 ## Architecture
 
-### Entry Point
+### Entry Point Flow
 
-- `bin/index.js` - Shebang entry point that requires `dist/index.js`
-- `src/index.ts` - Main application entry (currently empty, needs implementation)
+1. `bin/index.js` - Shebang entry point that requires `dist/index.js`
+2. `src/index.ts` - Main application entry:
+   - Displays app header with version from package.json
+   - Parses CLI arguments
+   - Loads and validates YAML config
+   - Orchestrates sync logic (in progress)
 
-### Core Modules (Planned)
+### Core Modules
 
-- `src/commandLine.ts` - CLI argument parsing using `commander` library
-- `src/configFile.ts` - Configuration file parsing with Zod schema validation
+- `src/commandLine.ts` - CLI argument parsing with `commander`
+  - Validates required `--config` option
+  - Supports `--dry-run`, `--force`, `--html-report` flags
+
+- `src/configFile.ts` - Config validation with Zod schemas
+  - Discriminated union for stop rules (semverMajor, numeric, regex)
+  - User-friendly error messages via `ConfigValidationError`
+  - Type-safe config with full TypeScript inference
 
 ### Configuration Schema
 
@@ -91,24 +104,31 @@ The tool uses a YAML configuration file (see `config.example.yaml`) with the fol
 ### Dependencies
 
 - **CLI**: `commander` for argument parsing
-- **YAML Processing**: No YAML library yet (needs selection)
-- **Validation**: `zod` for config schema validation
-- **Templating**: `handlebars` for potential templating features
+- **YAML Processing**: `yaml` library (currently used for parsing)
+- **Validation**: `zod` (v4+) for config schema validation
+- **Templating**: `handlebars` for potential future templating features
 - **Glob**: `picomatch` and `tinyglobby` for file pattern matching
 
 ## Code Style and Conventions
 
+### Function Style
+
+- **Use const arrow functions** for all function declarations
+- Pattern: `const functionName = (params): ReturnType => { ... };`
+- This applies to exported functions, class methods, and local functions
+
 ### TypeScript Configuration
 
 - Target: ES2020, CommonJS modules
+- `rootDir: "./src"` ensures clean output to `dist/`
+- `resolveJsonModule: true` allows importing package.json directly
 - Strict mode enabled with comprehensive safety checks
 - No unused locals/parameters allowed
-- Output: `dist/` directory with declaration files
 
 ### ESLint Rules
 
 - Uses `@typescript-eslint` recommended rules
-- `eslint-plugin-unicorn` for additional conventions (with some rules disabled)
+- `eslint-plugin-unicorn` for additional conventions (some disabled: filename-case, no-process-exit, switch-case-braces, no-array-reduce, prefer-global-this, no-nested-ternary)
 - `simple-import-sort` for automatic import ordering
 - Multi-line curly braces style: `curly: ['error', 'multi']`
 - No debugger or alert statements
@@ -128,14 +148,28 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Format check → Lint check → Build → Test
 - Requires `npm ci` for reproducible builds
 
+## Implementation Status
+
+### Completed
+
+- CLI argument parsing with required `--config` validation
+- Configuration schema with Zod validation
+- Application header displaying name/version from package.json
+- YAML config file loading and parsing
+- User-friendly error messages for config validation
+
+### TODO
+
+- Core sync logic (file reading, transformation, writing)
+- Stop rules validation enforcement
+- HTML report generation
+- Dry-run mode implementation
+- Force mode to skip stop rules
+- Unit tests in `test/` directory
+
 ## Notes for Development
 
-- The source files are currently empty - this is a greenfield project
-- Tests directory doesn't exist yet but should be created as `test/`
-- No YAML parsing library is selected yet - consider options based on requirements:
-  - Preserve comments/formatting: `yaml` package with custom serialization
-  - Performance-focused: `js-yaml`
-  - Type-safe: Consider pairing with Zod schemas
-- The CLI will need to handle both interactive and non-interactive modes
 - Configuration file supports glob patterns with `picomatch` syntax
 - JSON path expressions use JSONPath-style syntax (e.g., `$.secrets[*].password`)
+- The `yaml` package is used for parsing; preserves structure but may need custom serialization for formatting control
+- Static methods in classes should also use arrow function syntax: `private static methodName = (...): Type => { ... };`

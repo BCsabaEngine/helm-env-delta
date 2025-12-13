@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import YAML from 'yaml';
 
+import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
 import { isConfigValidationError, parseConfig } from './configFile';
 
@@ -9,7 +10,12 @@ import { isConfigValidationError, parseConfig } from './configFile';
  * Main entry point for helm-env-delta CLI tool.
  * Orchestrates CLI argument parsing, config loading, and sync execution.
  */
-async function main(): Promise<void> {
+const main = async (): Promise<void> => {
+  // Display application header
+  console.log(`${packageJson.name} v${packageJson.version}`);
+  console.log(packageJson.description);
+  console.log();
+
   // Parse command-line arguments
   const options = parseCommandLine();
 
@@ -72,7 +78,7 @@ async function main(): Promise<void> {
   // - Generate HTML report (if options.htmlReport is specified)
 
   console.log('✓ CLI parsing successful (core logic not yet implemented)');
-}
+};
 
 // Execute main function with error handling
 // eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS doesn't support top-level await
