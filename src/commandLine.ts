@@ -6,8 +6,7 @@ import { Command } from 'commander';
  */
 export interface CliOptions {
   /**
-   * Path to configuration YAML file.
-   * @default "config.yaml"
+   * Path to configuration YAML file (required).
    */
   config: string;
 
@@ -51,12 +50,23 @@ export function parseCommandLine(argv?: string[]): CliOptions {
   program
     .name('helm-env-delta')
     .description('Environment-aware Helm YAML diff & sync tool')
-    .option('-c, --config <file>', 'Path to config YAML', 'config.yaml')
+    .option('-c, --config <file>', 'Path to config YAML (required)')
     .option('--dry-run', 'Preview changes only', false)
-    .option('--force', 'Skip stop rules', false)
-    .option('--html-report <file>', 'Write diff report HTML and open it');
+    .option(
+      '--html-report <file>',
+      'Write diff report HTML and open it. Used with --dry-run when many files are changed.'
+    )
+    .option('--force', 'Skip stop rules', false);
 
   program.parse(argv || process.argv);
 
-  return program.opts<CliOptions>();
+  const options = program.opts<CliOptions>();
+
+  // Validate that required --config option is provided
+  if (!options.config) {
+    console.error('Error: --config option is required\n');
+    program.help();
+  }
+
+  return options;
 }
