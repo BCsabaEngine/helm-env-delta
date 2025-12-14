@@ -93,14 +93,14 @@ const configSchema = z.object({
   outputFormat: z
     .object({
       indent: z.number().int().min(1).max(10).default(2),
-      quoteValues: z.boolean().default(true)
+      keySeparator: z.boolean().default(false),
+      quoteValues: z.record(z.string(), z.array(z.string())).optional(),
+      keyOrders: z.record(z.string(), z.array(z.string())).optional()
     })
     .optional()
-    .default({ indent: 2, quoteValues: true }),
+    .default({ indent: 2, keySeparator: false }),
 
   // transforms: z.record(z.string(), z.array(transformRuleSchema)).optional(),
-
-  orders: z.record(z.string(), z.array(z.string())).optional(),
 
   stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional()
 });

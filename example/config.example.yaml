@@ -25,7 +25,25 @@ skipPath: # JSON paths to skip during processing for specific files, default: no
 
 outputFormat: # Output formatting options
   indent: 2 # YAML indent size, default: 2
-  quoteValues: true # Only values (right side of `:`) are double-quoted, default: true
+  keySeparator: true # Add new line between different top-level keys, default: false
+  quoteValues:
+    "svc/**/values.yaml":
+      - "microservice.env[*].value"
+  keyOrders: # Key orders for specific result yaml files, default: none = alphabetical order
+    "apps/*.yaml":
+      - "apiVersion"
+      - "kind"
+      - "metaadata.namespace"
+      - "metaadata.name"
+      - "spec.project"
+      - "spec.source"
+      - "spec.destination"
+
+    "svc/**/Chart.yaml":
+      - "xxx"
+
+    "svc/**/values.yaml":
+      - "xxx"
 
 # transforms:
 #   "database.url":
@@ -34,22 +52,6 @@ outputFormat: # Output formatting options
 #   "$.secrets[*].password":
 #     - find: "uat-redis"
 #       replace: "prod-redis"
-
-orders: # Key orders for specific result yaml files, default: none = alphabetical order
-  "apps/*.yaml":
-    - "apiVersion"
-    - "kind"
-    - "metaadata.namespace"
-    - "metaadata.name"
-    - "spec.project"
-    - "spec.source"
-    - "spec.destination"
-
-  "svc/**/Chart.yaml":
-    - "xxx"
-
-  "svc/**/values.yaml":
-    - "xxx"
 
 stopRules: # Rules to block running operations, default: none = allow all changes
   "apps/*.yaml":

@@ -106,7 +106,6 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 
 - `skipPath` - JSON/YAML paths to skip during processing (per-file patterns)
 - `transforms` - Find/replace transformations for specific paths (future feature)
-- `orders` - Custom key ordering for output YAML files
 
 **Validation Rules:**
 
@@ -118,7 +117,9 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 **Output Formatting:**
 
 - `outputFormat.indent` - YAML indentation (default: 2)
-- `outputFormat.quoteValues` - Quote values on right side of `:` (default: true)
+- `outputFormat.keySeparator` - Add blank line between top-level keys (default: false)
+- `outputFormat.quoteValues` - Quote values for specific keys on right side of `:` (per-file patterns, supports wildcards)
+- `outputFormat.keyOrders` - Custom key ordering for output YAML files (per-file patterns)
 
 ### Dependencies
 
