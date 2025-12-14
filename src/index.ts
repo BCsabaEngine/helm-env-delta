@@ -52,7 +52,7 @@ const main = async (): Promise<void> => {
   await updateFiles(diffResult, sourceFiles, config, options.dryRun);
 
   // Generate HTML report if requested
-  if (options.htmlReport) await generateHtmlReport(diffResult, sourceFiles, config, options.dryRun);
+  if (options.htmlReport) await generateHtmlReport(diffResult, config, options.dryRun);
 };
 
 // Execute main function with error handling

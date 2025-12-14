@@ -9,7 +9,6 @@ import YAML from 'yaml';
 
 import { Config } from './configFile';
 import { ChangedFile, FileDiffResult } from './fileDiff';
-import { FileMap } from './fileLoader';
 
 // Types
 export interface ReportMetadata {
@@ -113,62 +112,10 @@ const generateChangedFileSection = (file: ChangedFile): string => {
   `;
 };
 
-const generateAddedFileSection = (relativePath: string, content: string): string => {
-  const unifiedDiff = generateUnifiedDiff(
-    relativePath,
-    '', // Empty old content
-    content
-  );
-
-  const diffHtml = diff2html(unifiedDiff, {
-    drawFileList: false,
-    matching: 'lines',
-    outputFormat: 'side-by-side'
-  });
-
-  return `
-    <details class="file-section" open>
-      <summary>${relativePath}</summary>
-      <div class="diff-container">
-        ${diffHtml}
-      </div>
-    </details>
-  `;
-};
-
-const generateDeletedFileSection = (relativePath: string, sourceFiles: FileMap): string => {
-  const content = sourceFiles.get(relativePath) || '';
-
-  const unifiedDiff = generateUnifiedDiff(
-    relativePath,
-    content,
-    '' // Empty new content
-  );
-
-  const diffHtml = diff2html(unifiedDiff, {
-    drawFileList: false,
-    matching: 'lines',
-    outputFormat: 'side-by-side'
-  });
-
-  return `
-    <details class="file-section" open>
-      <summary>${relativePath}</summary>
-      <div class="diff-container">
-        ${diffHtml}
-      </div>
-    </details>
-  `;
-};
-
 const generateHtmlTemplate = (
   diffResult: FileDiffResult,
   metadata: ReportMetadata,
-  sections: {
-    changed: string[];
-    added: string[];
-    deleted: string[];
-  }
+  changedSections: string[]
 ): string => {
   return `
 <!DOCTYPE html>
@@ -302,6 +249,11 @@ const generateHtmlTemplate = (
       padding: 0;
     }
 
+    /* Hide diff2html file header with rename badge */
+    .d2h-file-header {
+      display: none;
+    }
+
     .file-list {
       margin: 20px 0;
     }
@@ -351,18 +303,36 @@ const generateHtmlTemplate = (
 
   <main>
     <section id="changed" class="tab-content active">
-      ${sections.changed.join('\n')}
-      ${sections.changed.length === 0 ? '<p style="color: #586069; text-align: center; padding: 40px;">No changed files</p>' : ''}
+      ${changedSections.join('\n')}
+      ${changedSections.length === 0 ? '<p style="color: #586069; text-align: center; padding: 40px;">No changed files</p>' : ''}
     </section>
 
     <section id="added" class="tab-content">
-      ${sections.added.join('\n')}
-      ${sections.added.length === 0 ? '<p style="color: #586069; text-align: center; padding: 40px;">No added files</p>' : ''}
+      ${
+        diffResult.addedFiles.length > 0
+          ? `
+        <div class="file-list">
+          <ul>
+            ${diffResult.addedFiles.map((file) => `<li>${file}</li>`).join('\n')}
+          </ul>
+        </div>
+      `
+          : '<p style="color: #586069; text-align: center; padding: 40px;">No added files</p>'
+      }
     </section>
 
     <section id="deleted" class="tab-content">
-      ${sections.deleted.join('\n')}
-      ${sections.deleted.length === 0 ? '<p style="color: #586069; text-align: center; padding: 40px;">No deleted files</p>' : ''}
+      ${
+        diffResult.deletedFiles.length > 0
+          ? `
+        <div class="file-list">
+          <ul>
+            ${diffResult.deletedFiles.map((file) => `<li>${file}</li>`).join('\n')}
+          </ul>
+        </div>
+      `
+          : '<p style="color: #586069; text-align: center; padding: 40px;">No deleted files</p>'
+      }
     </section>
 
     <section id="unchanged" class="tab-content">
@@ -430,12 +400,9 @@ const openInBrowser = async (filePath: string): Promise<void> => {
 // Public API
 export const generateHtmlReport = async (
   diffResult: FileDiffResult,
-  sourceFiles: FileMap,
   config: Config,
   dryRun: boolean
 ): Promise<void> => {
-  console.log('\nGenerating HTML report...');
-
   // Generate random temp file path
   const reportPath = generateTemporaryFilePath();
 
@@ -448,36 +415,18 @@ export const generateHtmlReport = async (
   };
 
   // Generate file sections
-  console.log(`  Processing ${diffResult.changedFiles.length} changed file(s)...`);
   const changedSections = diffResult.changedFiles.map((file) => generateChangedFileSection(file));
 
-  console.log(`  Processing ${diffResult.addedFiles.length} added file(s)...`);
-  const addedSections = diffResult.addedFiles.map((relativePath) =>
-    generateAddedFileSection(relativePath, sourceFiles.get(relativePath)!)
-  );
-
-  console.log(`  Processing ${diffResult.deletedFiles.length} deleted file(s)...`);
-  const deletedSections = diffResult.deletedFiles.map((relativePath) =>
-    generateDeletedFileSection(relativePath, sourceFiles)
-  );
-
   // Generate complete HTML
-  const htmlContent = generateHtmlTemplate(diffResult, metadata, {
-    changed: changedSections,
-    added: addedSections,
-    deleted: deletedSections
-  });
+  const htmlContent = generateHtmlTemplate(diffResult, metadata, changedSections);
 
   // Write HTML file
-  console.log(`  Writing HTML to: ${reportPath}`);
   await writeHtmlFile(htmlContent, reportPath);
-  console.log(`✓ HTML report generated: ${reportPath}`);
+  console.log(`✓ HTML report generated: ${reportPath}, opening in browser...`);
 
   // Open in browser
-  console.log('  Opening in browser...');
   try {
     await openInBrowser(reportPath);
-    console.log('✓ Report opened in default browser');
   } catch {
     const absolutePath = path.resolve(reportPath);
     console.log('⚠ Could not open browser automatically. Please open manually:');
