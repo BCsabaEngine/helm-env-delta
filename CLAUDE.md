@@ -12,7 +12,7 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool for environment-aware YAM
 
 ```bash
 npm run build          # Clean build (tsc --build --clean && tsc --build --force)
-npm run dev            # Run with tsx and example config (tsx src/index.ts -c ./config.example.yaml)
+npm run dev            # Run with tsx and example config (tsx src/index.ts -c ./example/config.example.yaml)
 npm run dev:watch      # Watch mode with nodemon
 npm run clean          # Clean TypeScript build artifacts
 ```
@@ -73,20 +73,26 @@ During development: `node bin/index.js --config config.example.yaml`
   - User-friendly error messages via `ConfigValidationError`
   - Type-safe config with full TypeScript inference
 
+- `src/ZodError.ts` - Custom error formatting for Zod validation failures
+  - Formats validation errors into readable messages
+  - Adds contextual help for common error types
+  - Exported as `ZodValidationError` with type guard `isZodValidationError`
+
 ### Configuration Schema
 
-The tool uses a YAML configuration file (see `config.example.yaml`) with the following features:
+The tool uses a YAML configuration file (see `example/config.example.yaml`) with the following features:
 
 **Core Settings:**
 
 - `source` / `dest` - Source and destination folder paths (mandatory)
 - `include` - Glob patterns for files to process (defaults to all YAML files)
+- `exclude` - Glob patterns for files to exclude from processing
 - `prune` - Remove files in dest not present in source
 
 **Processing Control:**
 
 - `skipPath` - JSON/YAML paths to skip during processing (per-file patterns)
-- `transforms` - Find/replace transformations for specific paths
+- `transforms` - Find/replace transformations for specific paths (future feature)
 - `orders` - Custom key ordering for output YAML files
 
 **Validation Rules:**
@@ -98,8 +104,8 @@ The tool uses a YAML configuration file (see `config.example.yaml`) with the fol
 
 **Output Formatting:**
 
-- `indent` - YAML indentation (default: 2)
-- `quoteValues` - Quote values on right side of `:` (default: true)
+- `outputFormat.indent` - YAML indentation (default: 2)
+- `outputFormat.quoteValues` - Quote values on right side of `:` (default: true)
 
 ### Dependencies
 
@@ -116,6 +122,13 @@ The tool uses a YAML configuration file (see `config.example.yaml`) with the fol
 - **Use const arrow functions** for all function declarations
 - Pattern: `const functionName = (params): ReturnType => { ... };`
 - This applies to exported functions, class methods, and local functions
+- Static methods in classes should also use arrow function syntax: `private static methodName = (...): Type => { ... };`
+
+### Comment Style
+
+- Comments must be shorter than the code they belong to
+- Do not use detailed examples in comments
+- Use just block separators (e.g., `// ============================================================================`)
 
 ### TypeScript Configuration
 
@@ -172,4 +185,3 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Configuration file supports glob patterns with `picomatch` syntax
 - JSON path expressions use JSONPath-style syntax (e.g., `$.secrets[*].password`)
 - The `yaml` package is used for parsing; preserves structure but may need custom serialization for formatting control
-- Static methods in classes should also use arrow function syntax: `private static methodName = (...): Type => { ... };`
