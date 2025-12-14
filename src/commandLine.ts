@@ -1,49 +1,21 @@
 import { Command } from 'commander';
 
-/**
- * Command-line options for helm-env-delta CLI.
- * Parsed from process.argv by Commander.js.
- */
+// Command-line options for helm-env-delta CLI.
 export interface CliOptions {
-  /**
-   * Path to configuration YAML file (required).
-   */
+  // Path to configuration YAML file (required).
   config: string;
 
-  /**
-   * Preview changes only without writing files.
-   * @default false
-   */
+  // Preview changes only without writing files.
   dryRun: boolean;
 
-  /**
-   * Skip stop rules validation.
-   * @default false
-   */
+  // Skip stop rules validation.
   force: boolean;
 
-  /**
-   * Path to HTML report file to generate.
-   * @default undefined
-   */
+  // Path to HTML report file to generate.
   htmlReport?: string;
 }
 
-/**
- * Parses command-line arguments using Commander.js.
- *
- * @param argv - Optional array of arguments to parse (defaults to process.argv)
- * @returns Parsed CLI options with type safety
- *
- * @example
- * ```typescript
- * // Parse default process.argv
- * const options = parseCommandLine();
- *
- * // Parse custom arguments (useful for testing)
- * const options = parseCommandLine(['node', 'hed', '-c', 'prod.yaml', '--dry-run']);
- * ```
- */
+// Parses command-line arguments using Commander.js
 export const parseCommandLine = (argv?: string[]): CliOptions => {
   const program = new Command();
 

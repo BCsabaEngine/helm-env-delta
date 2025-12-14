@@ -4,7 +4,8 @@ import YAML from 'yaml';
 
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
-import { isConfigValidationError, parseConfig } from './configFile';
+import { parseConfig } from './configFile';
+import { isZodValidationError } from './ZodError';
 
 /**
  * Main entry point for helm-env-delta CLI tool.
@@ -68,6 +69,7 @@ const main = async (): Promise<void> => {
   console.log(`  Destination: ${config.dest}`);
   console.log(`  Prune: ${config.prune}`);
   if (config.include) console.log(`  Include patterns: ${config.include.length} pattern(s)`);
+  if (config.exclude) console.log(`  Exclude patterns: ${config.exclude.length} pattern(s)`);
   if (config.stopRules) console.log(`  Stop rules: ${Object.keys(config.stopRules).length} file pattern(s)`);
 
   // TODO: Implement core sync logic
@@ -86,7 +88,7 @@ const main = async (): Promise<void> => {
   try {
     await main();
   } catch (error: unknown) {
-    if (isConfigValidationError(error)) {
+    if (isZodValidationError(error)) {
       // User-friendly validation error messages
       console.error(error.message);
       process.exit(1);

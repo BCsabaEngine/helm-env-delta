@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-// ============================================================================
+import { ZodValidationError } from './ZodError';
+
 // Stop Rule Schemas (Discriminated Union)
-// ============================================================================
 
 /**
  * Validates semver major version changes.
@@ -10,7 +10,7 @@ import { z } from 'zod';
  */
 const semverMajorRuleSchema = z.object({
   type: z.literal('semverMajor'),
-  path: z.string().min(1).describe('JSONPath to the semver field')
+  path: z.string().min(1)
 });
 
 /**
@@ -20,9 +20,9 @@ const semverMajorRuleSchema = z.object({
 const numericRuleSchema = z
   .object({
     type: z.literal('numeric'),
-    path: z.string().min(1).describe('JSONPath to the numeric field'),
-    min: z.number().optional().describe('Minimum allowed value (inclusive)'),
-    max: z.number().optional().describe('Maximum allowed value (inclusive)')
+    path: z.string().min(1),
+    min: z.number().optional(),
+    max: z.number().optional()
   })
   .refine(
     (data) => {
@@ -42,8 +42,8 @@ const numericRuleSchema = z
 const regexRuleSchema = z
   .object({
     type: z.literal('regex'),
-    path: z.string().min(1).describe('JSONPath to the field to validate'),
-    regex: z.string().min(1).describe('Regular expression pattern to match against')
+    path: z.string().min(1),
+    regex: z.string().min(1)
   })
   .refine(
     (data) => {
@@ -60,28 +60,7 @@ const regexRuleSchema = z
     }
   );
 
-/**
- * Discriminated union of all stop rule types.
- * Stop rules prevent dangerous operations from being applied.
- */
 const stopRuleSchema = z.discriminatedUnion('type', [semverMajorRuleSchema, numericRuleSchema, regexRuleSchema]);
-
-// ============================================================================
-// Output Format Schema
-// ============================================================================
-
-/**
- * YAML output formatting options.
- * Controls how the synchronized YAML files are formatted.
- */
-const outputFormatSchema = z
-  .object({
-    indent: z.number().int().min(1).max(10).default(2).describe('Number of spaces for YAML indentation'),
-    quoteValues: z.boolean().default(true).describe('Whether to quote values (right side of :) in output YAML')
-  })
-  .strict()
-  .optional()
-  .default({ indent: 2, quoteValues: true });
 
 // ============================================================================
 // Transform Schema (Future Feature - Commented Out)
@@ -97,142 +76,53 @@ const outputFormatSchema = z
  * });
  */
 
-// ============================================================================
 // Main Configuration Schema
-// ============================================================================
+const configSchema = z.object({
+  source: z.string().min(1),
 
-/**
- * Complete configuration schema for helm-env-delta.
- * Defines how YAML files are synchronized from source to destination environments.
- */
-const configSchema = z
-  .object({
-    source: z.string().min(1).describe('Source folder path (e.g., ./uat)'),
+  dest: z.string().min(1),
 
-    dest: z.string().min(1).describe('Destination folder path (e.g., ./prod)'),
+  include: z.array(z.string().min(1)).optional(),
 
-    include: z
-      .array(z.string().min(1))
-      .optional()
-      .describe('Glob patterns for files to process. If not set, all YAML files are processed.'),
+  exclude: z.array(z.string().min(1)).optional(),
 
-    prune: z.boolean().default(false).describe('Remove files in dest that are not in source'),
+  prune: z.boolean().default(false),
 
-    skipPath: z
-      .record(z.string(), z.array(z.string()))
-      .optional()
-      .describe('Map of file patterns to JSONPath arrays indicating paths to skip during sync'),
+  skipPath: z.record(z.string(), z.array(z.string())).optional(),
 
-    outputFormat: outputFormatSchema,
+  outputFormat: z
+    .object({
+      indent: z.number().int().min(1).max(10).default(2),
+      quoteValues: z.boolean().default(true)
+    })
+    .optional()
+    .default({ indent: 2, quoteValues: true }),
 
-    // transforms: z
-    //   .record(z.string(), z.array(transformRuleSchema))
-    //   .optional()
-    //   .describe('Map of JSONPaths to transform rules (FUTURE FEATURE)'),
+  // transforms: z.record(z.string(), z.array(transformRuleSchema)).optional(),
 
-    orders: z
-      .record(z.string(), z.array(z.string()))
-      .optional()
-      .describe('Map of file patterns to key ordering arrays for consistent YAML structure'),
+  orders: z.record(z.string(), z.array(z.string())).optional(),
 
-    stopRules: z
-      .record(z.string(), z.array(stopRuleSchema))
-      .optional()
-      .describe('Map of file patterns to validation rules that can block operations')
-  })
-  .strict();
+  stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional()
+});
 
-// ============================================================================
-// Type Exports
-// ============================================================================
-
+//Types
 export type Config = z.infer<typeof configSchema>;
 export type StopRule = z.infer<typeof stopRuleSchema>;
 export type SemverMajorRule = z.infer<typeof semverMajorRuleSchema>;
 export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
-export type OutputFormat = z.infer<typeof outputFormatSchema>;
+export type OutputFormat = Config['outputFormat'];
 
-// ============================================================================
-// Parser Function
-// ============================================================================
-
-/**
- * Parses and validates configuration data.
- *
- * @param data - Raw configuration object (typically from YAML.parse)
- * @param configPath - Optional path to config file for error messages
- * @returns Validated configuration object
- * @throws {ConfigValidationError} If validation fails with user-friendly error messages
- *
- * @example
- * ```typescript
- * import * as YAML from 'yaml';
- * import { parseConfig } from './configFile';
- *
- * const rawData = YAML.parse(configFileContent);
- * const config = parseConfig(rawData, './config.yaml');
- * ```
- */
+//Parses and validates configuration data
 export const parseConfig = (data: unknown, configPath?: string): Config => {
   const result = configSchema.safeParse(data);
 
-  if (!result.success) throw new ConfigValidationError(result.error, configPath);
+  if (!result.success) throw new ZodValidationError(result.error, configPath);
 
   return result.data;
 };
 
-// ============================================================================
-// Error Handling
-// ============================================================================
-
-/**
- * Custom error class for configuration validation failures.
- * Provides user-friendly error messages with context.
- */
-export class ConfigValidationError extends Error {
-  constructor(
-    public readonly zodError: z.ZodError,
-    public readonly configPath?: string
-  ) {
-    const errorMessage = ConfigValidationError.formatError(zodError, configPath);
-    super(errorMessage);
-    this.name = 'ConfigValidationError';
-  }
-
-  /**
-   * Formats Zod validation errors into user-friendly messages.
-   */
-  private static formatError = (zodError: z.ZodError, configPath?: string): string => {
-    const header = configPath
-      ? `Configuration validation failed in ${configPath}:\n`
-      : 'Configuration validation failed:\n';
-
-    const errors = zodError.issues.map((error) => {
-      const path = error.path.length > 0 ? error.path.join('.') : 'root';
-
-      let message = `  - ${path}: ${error.message}`;
-
-      // Add helpful context for common errors
-      if (error.code === 'invalid_type' && 'expected' in error && 'received' in error)
-        message += ` (expected ${error.expected}, got ${error.received})`;
-
-      if (error.code === 'unrecognized_keys' && 'keys' in error) {
-        const keys = error.keys as string[];
-        message += `\n    Unknown fields: ${keys.join(', ')}`;
-        message += '\n    Check for typos or remove unsupported fields';
-      }
-
-      return message;
-    });
-
-    return header + errors.join('\n');
-  };
-}
-
-/**
- * Type guard to check if an error is a ConfigValidationError.
- */
-export const isConfigValidationError = (error: unknown): error is ConfigValidationError => {
-  return error instanceof ConfigValidationError;
-};
+export {
+  ZodValidationError as ConfigValidationError,
+  isZodValidationError as isConfigValidationError
+} from './ZodError';
