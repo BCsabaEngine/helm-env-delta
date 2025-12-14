@@ -6,6 +6,7 @@ import YAML from 'yaml';
 import { Config } from './configFile';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { FileMap } from './fileLoader';
+import { formatYaml } from './yamlFormatter';
 
 // Types
 export interface FileUpdateError {
@@ -165,6 +166,7 @@ const addFile = async (
   relativePath: string,
   content: string,
   absoluteDestinationDirectory: string,
+  config: Config,
   dryRun: boolean
 ): Promise<void> => {
   const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
@@ -174,9 +176,12 @@ const addFile = async (
     return;
   }
 
+  let contentToWrite = content;
+  if (isYamlFile(relativePath)) contentToWrite = formatYaml(content, relativePath, config.outputFormat);
+
   try {
     await ensureParentDirectory(absolutePath);
-    await writeFile(absolutePath, content, 'utf8');
+    await writeFile(absolutePath, contentToWrite, 'utf8');
     console.log(`  + ${relativePath}`);
   } catch (error) {
     throw new FileUpdaterError(
@@ -191,6 +196,7 @@ const addFile = async (
 const updateFile = async (
   changedFile: ChangedFile,
   absoluteDestinationDirectory: string,
+  config: Config,
   dryRun: boolean
 ): Promise<void> => {
   const absolutePath = path.join(absoluteDestinationDirectory, changedFile.path);
@@ -200,10 +206,11 @@ const updateFile = async (
     return;
   }
 
-  // YAML: In-place merge, Non-YAML: Simple replacement
-  const contentToWrite: string = isYamlFile(changedFile.path)
+  let contentToWrite: string = isYamlFile(changedFile.path)
     ? mergeYamlContent(changedFile.destinationContent, changedFile.processedSourceContent, changedFile.path)
     : changedFile.sourceContent;
+
+  if (isYamlFile(changedFile.path)) contentToWrite = formatYaml(contentToWrite, changedFile.path, config.outputFormat);
 
   try {
     await ensureParentDirectory(absolutePath);
@@ -256,7 +263,7 @@ export const updateFiles = async (
   sourceFiles: FileMap,
   config: Config,
   dryRun: boolean
-): Promise<void> => {
+): Promise<string[]> => {
   console.log('\nUpdating files...');
 
   const absoluteDestinationDirectory = await validateDestinationDirectory(config.destination);
@@ -269,7 +276,7 @@ export const updateFiles = async (
   for (const relativePath of diffResult.addedFiles)
     try {
       const content = sourceFiles.get(relativePath)!;
-      await addFile(relativePath, content, absoluteDestinationDirectory, dryRun);
+      await addFile(relativePath, content, absoluteDestinationDirectory, config, dryRun);
     } catch (error) {
       errors.push({ operation: 'add', path: relativePath, error: error as Error });
     }
@@ -277,10 +284,34 @@ export const updateFiles = async (
   // Update changed files
   for (const changedFile of diffResult.changedFiles)
     try {
-      await updateFile(changedFile, absoluteDestinationDirectory, dryRun);
+      await updateFile(changedFile, absoluteDestinationDirectory, config, dryRun);
     } catch (error) {
       errors.push({ operation: 'update', path: changedFile.path, error: error as Error });
     }
+
+  // Format unchanged YAML files
+  const formattedFiles: string[] = [];
+  for (const relativePath of diffResult.unchangedFiles)
+    if (isYamlFile(relativePath))
+      try {
+        const content = sourceFiles.get(relativePath)!;
+        const formatted = formatYaml(content, relativePath, config.outputFormat);
+
+        if (formatted !== content) {
+          const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
+
+          if (dryRun) console.log(`  [DRY RUN] Would format: ${relativePath}`);
+          else {
+            await ensureParentDirectory(absolutePath);
+            await writeFile(absolutePath, formatted, 'utf8');
+            console.log(`  ≈ ${relativePath}`);
+          }
+
+          formattedFiles.push(relativePath);
+        }
+      } catch (error) {
+        errors.push({ operation: 'update', path: relativePath, error: error as Error });
+      }
 
   // Delete removed files
   for (const relativePath of diffResult.deletedFiles)
@@ -295,11 +326,13 @@ export const updateFiles = async (
     console.log('\n[DRY RUN] Would perform:');
     console.log(`  ${diffResult.addedFiles.length} files would be added`);
     console.log(`  ${diffResult.changedFiles.length} files would be updated`);
+    console.log(`  ${formattedFiles.length} files would be formatted`);
     console.log(`  ${diffResult.deletedFiles.length} files would be deleted`);
   } else {
     console.log('\n✓ Files updated successfully:');
     console.log(`  ${diffResult.addedFiles.length} files added`);
     console.log(`  ${diffResult.changedFiles.length} files updated`);
+    console.log(`  ${formattedFiles.length} files formatted`);
     console.log(`  ${diffResult.deletedFiles.length} files deleted`);
   }
 
@@ -311,4 +344,6 @@ export const updateFiles = async (
 
     throw new FileUpdaterError(`Failed to update ${errors.length} file(s)`, 'UPDATE_FAILED');
   }
+
+  return formattedFiles;
 };

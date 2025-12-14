@@ -40,10 +40,26 @@ outputFormat: # Output formatting options
       - "spec.destination"
 
     "svc/**/Chart.yaml":
-      - "xxx"
+      - "apiVersion"
+      - "name"
+      - "description"
+      - "version"
+      - "dependencies"
 
     "svc/**/values.yaml":
-      - "xxx"
+      - "microservice.nameOverride"
+      - "microservice.image"
+      - "microservice.replicaCount"
+      - "microservice.env"
+      - "microservice.env.[*].name"
+      - "microservice.service"
+      - "microservice.serviceAccount"
+      - "microservice.resources"
+  arraySort:
+    "svc/**/values.yaml":
+      - path: "microservice.env"
+        sortBy: "name"
+        order: "asc" # or "desc"
 
 # transforms:
 #   "database.url":

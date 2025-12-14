@@ -49,10 +49,10 @@ const main = async (): Promise<void> => {
   // TODO: Check stop rules (config.stopRules, unless options.force is true)
 
   // Update files
-  await updateFiles(diffResult, sourceFiles, config, options.dryRun);
+  const formattedFiles = await updateFiles(diffResult, sourceFiles, config, options.dryRun);
 
   // Generate HTML report if requested
-  if (options.htmlReport) await generateHtmlReport(diffResult, config, options.dryRun);
+  if (options.htmlReport) await generateHtmlReport(diffResult, formattedFiles, config, options.dryRun);
 };
 
 // Execute main function with error handling

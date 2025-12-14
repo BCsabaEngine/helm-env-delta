@@ -114,6 +114,8 @@ const generateChangedFileSection = (file: ChangedFile): string => {
 
 const generateHtmlTemplate = (
   diffResult: FileDiffResult,
+  formattedFiles: string[],
+  trulyUnchangedFiles: string[],
   metadata: ReportMetadata,
   changedSections: string[]
 ): string => {
@@ -180,6 +182,7 @@ const generateHtmlTemplate = (
     .stat.added { background: #d4edda; color: #155724; }
     .stat.changed { background: #fff3cd; color: #856404; }
     .stat.deleted { background: #f8d7da; color: #721c24; }
+    .stat.formatted { background: #d1ecf1; color: #0c5460; }
     .stat.unchanged { background: #e2e3e5; color: #383d41; }
 
     .tabs {
@@ -290,7 +293,8 @@ const generateHtmlTemplate = (
       <span class="stat added">${diffResult.addedFiles.length} Added</span>
       <span class="stat changed">${diffResult.changedFiles.length} Changed</span>
       <span class="stat deleted">${diffResult.deletedFiles.length} Deleted</span>
-      <span class="stat unchanged">${diffResult.unchangedFiles.length} Unchanged</span>
+      <span class="stat formatted">${formattedFiles.length} Formatted</span>
+      <span class="stat unchanged">${trulyUnchangedFiles.length} Unchanged</span>
     </div>
   </header>
 
@@ -298,7 +302,8 @@ const generateHtmlTemplate = (
     <button class="tab active" data-tab="changed">Changed (${diffResult.changedFiles.length})</button>
     <button class="tab" data-tab="added">Added (${diffResult.addedFiles.length})</button>
     <button class="tab" data-tab="deleted">Deleted (${diffResult.deletedFiles.length})</button>
-    <button class="tab" data-tab="unchanged">Unchanged (${diffResult.unchangedFiles.length})</button>
+    <button class="tab" data-tab="formatted">Formatted (${formattedFiles.length})</button>
+    <button class="tab" data-tab="unchanged">Unchanged (${trulyUnchangedFiles.length})</button>
   </nav>
 
   <main>
@@ -335,13 +340,27 @@ const generateHtmlTemplate = (
       }
     </section>
 
-    <section id="unchanged" class="tab-content">
+    <section id="formatted" class="tab-content">
       ${
-        diffResult.unchangedFiles.length > 0
+        formattedFiles.length > 0
           ? `
         <div class="file-list">
           <ul>
-            ${diffResult.unchangedFiles.map((file) => `<li>${file}</li>`).join('\n')}
+            ${formattedFiles.map((file) => `<li>${file}</li>`).join('\n')}
+          </ul>
+        </div>
+      `
+          : '<p style="color: #586069; text-align: center; padding: 40px;">No files with only formatting changes</p>'
+      }
+    </section>
+
+    <section id="unchanged" class="tab-content">
+      ${
+        trulyUnchangedFiles.length > 0
+          ? `
+        <div class="file-list">
+          <ul>
+            ${trulyUnchangedFiles.map((file) => `<li>${file}</li>`).join('\n')}
           </ul>
         </div>
       `
@@ -400,6 +419,7 @@ const openInBrowser = async (filePath: string): Promise<void> => {
 // Public API
 export const generateHtmlReport = async (
   diffResult: FileDiffResult,
+  formattedFiles: string[],
   config: Config,
   dryRun: boolean
 ): Promise<void> => {
@@ -414,11 +434,15 @@ export const generateHtmlReport = async (
     dryRun
   };
 
+  // Separate truly unchanged from formatted files
+  const formattedSet = new Set(formattedFiles);
+  const trulyUnchangedFiles = diffResult.unchangedFiles.filter((file) => !formattedSet.has(file));
+
   // Generate file sections
   const changedSections = diffResult.changedFiles.map((file) => generateChangedFileSection(file));
 
   // Generate complete HTML
-  const htmlContent = generateHtmlTemplate(diffResult, metadata, changedSections);
+  const htmlContent = generateHtmlTemplate(diffResult, formattedFiles, trulyUnchangedFiles, metadata, changedSections);
 
   // Write HTML file
   await writeHtmlFile(htmlContent, reportPath);

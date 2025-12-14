@@ -59,11 +59,10 @@ microservice:
           name: database-credentials
     - name: FF_SUPPLIERS_ENABLED
       value: 'false'
-
     - name: FF_DATABASE_READONLY
       value: 'false'
     - name: FF_CUSTOMERS_ENABLED
-      value: true
+      value: 'true'
 
   cronJobs:
     - name: job-service-a-clear
