@@ -10,9 +10,10 @@ prune: true # Remove files in dest that are not in source, default: false
 
 skipPath: # JSON paths to skip during processing for specific files, default: none = process all paths
   "apps/*.yaml":
-    - "replicaCount"
-    - "image.tag"
-    - "secrets[*].password" # JSONPath-style for nested values
+    - "apiVersion"
+    - "spec.destination.namespace"
+    - "spec.ignoreDifferences[*].kind" # JSONPath-style for nested values
+    - "spec.ignoreDifferences[*].jsonPointers" # JSONPath-style for nested values
 
   "svc/**/Chart.yaml":
     - "annotations.createdAt"
@@ -36,24 +37,19 @@ outputFormat: # Output formatting options
 
 orders: # Key orders for specific result yaml files, default: none = alphabetical order
   "apps/*.yaml":
-    - "image"
-    - "resources"
-    - "service"
-    - "ingress"
-    - "resources.requests"
-    - "resources.limits"
+    - "apiVersion"
+    - "kind"
+    - "metaadata.namespace"
+    - "metaadata.name"
+    - "spec.project"
+    - "spec.source"
+    - "spec.destination"
 
   "svc/**/Chart.yaml":
-    - "name"
-    - "version"
-    - "description"
-    - "maintainers"
+    - "xxx"
 
   "svc/**/values.yaml":
-    - "name"
-    - "version"
-    - "description"
-    - "maintainers"
+    - "xxx"
 
 stopRules: # Rules to block running operations, default: none = allow all changes
   "apps/*.yaml":

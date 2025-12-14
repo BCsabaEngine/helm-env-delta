@@ -78,36 +78,42 @@ const parseJsonPath = (path: string): string[] => {
     .filter((part: string) => part.length > 0);
 };
 
-const navigateToParent = (object: Record<string, unknown>, parts: string[]): Record<string, unknown> | undefined => {
-  let current: unknown = object;
+const deleteJsonPathRecursive = (object: unknown, parts: string[], index: number): void => {
+  // Base case: reached end of path
+  if (index >= parts.length) return;
 
-  for (let index = 0; index < parts.length - 1; index++) {
-    const part = parts[index];
+  // Not an object - cannot navigate further
+  if (!object || typeof object !== 'object') return;
 
-    if (!part || part === '*') return current as Record<string, unknown>;
+  const currentPart = parts[index];
+  if (!currentPart) return;
 
-    if (!current || typeof current !== 'object') return undefined;
+  // Last part of path - perform deletion
+  if (index === parts.length - 1) {
+    if (currentPart === '*' && Array.isArray(object))
+      // Delete entire array
+      (object as unknown[]).length = 0;
+    else
+      // Delete specific key
+      delete (object as Record<string, unknown>)[currentPart];
 
-    current = (current as Record<string, unknown>)[part];
+    return;
   }
 
-  return current as Record<string, unknown>;
+  // Wildcard in middle of path - recurse into all array items
+  if (currentPart === '*' && Array.isArray(object)) {
+    for (const item of object) deleteJsonPathRecursive(item, parts, index + 1);
+    return;
+  }
+
+  // Normal key - navigate deeper
+  const nextObject = (object as Record<string, unknown>)[currentPart];
+  deleteJsonPathRecursive(nextObject, parts, index + 1);
 };
 
 const deleteJsonPath = (object: Record<string, unknown>, path: string): void => {
   const parts = parseJsonPath(path);
-
-  const parent = navigateToParent(object, parts);
-  if (parent && parts.length > 0) {
-    const lastKey = parts.at(-1)!;
-
-    if (lastKey === '*' && Array.isArray(parent)) {
-      const fieldToDelete = parts.at(-2);
-      if (fieldToDelete)
-        for (const item of parent)
-          if (item && typeof item === 'object') delete (item as Record<string, unknown>)[fieldToDelete];
-    } else delete parent[lastKey];
-  }
+  deleteJsonPathRecursive(object, parts, 0);
 };
 
 const applySkipPaths = (data: unknown, skipPaths: string[]): unknown => {
