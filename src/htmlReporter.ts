@@ -1,4 +1,6 @@
+import { randomBytes } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { createTwoFilesPatch } from 'diff';
@@ -55,6 +57,13 @@ export class HtmlReporterError extends Error {
 export const isHtmlReporterError = (error: unknown): error is HtmlReporterError => error instanceof HtmlReporterError;
 
 // Helper Functions
+const generateTemporaryFilePath = (): string => {
+  const randomName = randomBytes(8).toString('hex');
+  const timestamp = new Date().toISOString().replaceAll(/[.:]/g, '-');
+  const filename = `helm-env-delta-${timestamp}-${randomName}.html`;
+  return path.join(tmpdir(), filename);
+};
+
 const serializeForDiff = (content: unknown, isYaml: boolean): string => {
   if (!isYaml) return String(content);
 
@@ -357,13 +366,17 @@ const generateHtmlTemplate = (
     </section>
 
     <section id="unchanged" class="tab-content">
-      <details class="file-list">
-        <summary>Show ${diffResult.unchangedFiles.length} unchanged files</summary>
-        <ul>
-          ${diffResult.unchangedFiles.map((file) => `<li>${file}</li>`).join('\n')}
-        </ul>
-      </details>
-      ${diffResult.unchangedFiles.length === 0 ? '<p style="color: #586069; text-align: center; padding: 40px;">No unchanged files</p>' : ''}
+      ${
+        diffResult.unchangedFiles.length > 0
+          ? `
+        <div class="file-list">
+          <ul>
+            ${diffResult.unchangedFiles.map((file) => `<li>${file}</li>`).join('\n')}
+          </ul>
+        </div>
+      `
+          : '<p style="color: #586069; text-align: center; padding: 40px;">No unchanged files</p>'
+      }
     </section>
   </main>
 
@@ -419,16 +432,19 @@ export const generateHtmlReport = async (
   diffResult: FileDiffResult,
   sourceFiles: FileMap,
   config: Config,
-  options: { htmlReport: string; dryRun: boolean }
+  dryRun: boolean
 ): Promise<void> => {
   console.log('\nGenerating HTML report...');
+
+  // Generate random temp file path
+  const reportPath = generateTemporaryFilePath();
 
   // Generate metadata
   const metadata: ReportMetadata = {
     timestamp: new Date().toISOString(),
     source: config.source,
     destination: config.destination,
-    dryRun: options.dryRun
+    dryRun
   };
 
   // Generate file sections
@@ -453,17 +469,17 @@ export const generateHtmlReport = async (
   });
 
   // Write HTML file
-  console.log(`  Writing HTML to: ${options.htmlReport}`);
-  await writeHtmlFile(htmlContent, options.htmlReport);
-  console.log(`✓ HTML report generated: ${options.htmlReport}`);
+  console.log(`  Writing HTML to: ${reportPath}`);
+  await writeHtmlFile(htmlContent, reportPath);
+  console.log(`✓ HTML report generated: ${reportPath}`);
 
   // Open in browser
   console.log('  Opening in browser...');
   try {
-    await openInBrowser(options.htmlReport);
+    await openInBrowser(reportPath);
     console.log('✓ Report opened in default browser');
   } catch {
-    const absolutePath = path.resolve(options.htmlReport);
+    const absolutePath = path.resolve(reportPath);
     console.log('⚠ Could not open browser automatically. Please open manually:');
     console.log(`  file://${absolutePath}`);
   }

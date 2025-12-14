@@ -11,8 +11,8 @@ export interface CliOptions {
   // Skip stop rules validation.
   force: boolean;
 
-  // Path to HTML report file to generate.
-  htmlReport?: string;
+  // Generate HTML diff report in temp folder and open it.
+  htmlReport: boolean;
 }
 
 // Parses command-line arguments using Commander.js
@@ -23,10 +23,7 @@ export const parseCommandLine = (argv?: string[]): CliOptions => {
     .name('helm-env-delta')
     .option('-c, --config <file>', 'Path to config YAML (required)')
     .option('--dry-run', 'Preview changes only', false)
-    .option(
-      '--html-report <file>',
-      'Write diff report HTML and open it. Used with --dry-run when many files are changed.'
-    )
+    .option('--html-report', 'Generate HTML diff report in temp folder and open it', false)
     .option('--force', 'Skip stop rules', false);
 
   program.parse(argv || process.argv);
