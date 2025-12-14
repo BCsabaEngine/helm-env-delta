@@ -4,6 +4,7 @@ import { isConfigLoaderError, loadConfigFile } from './configLoader';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
+import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
 import { isZodValidationError } from './ZodError';
 
 /**
@@ -50,7 +51,12 @@ const main = async (): Promise<void> => {
   // Update files
   await updateFiles(diffResult, sourceFiles, config, options.dryRun);
 
-  // TODO: Generate HTML report (if options.htmlReport is specified)
+  // Generate HTML report if requested
+  if (options.htmlReport)
+    await generateHtmlReport(diffResult, sourceFiles, config, {
+      htmlReport: options.htmlReport,
+      dryRun: options.dryRun
+    });
 };
 
 // Execute main function with error handling
@@ -64,6 +70,7 @@ const main = async (): Promise<void> => {
     else if (isFileLoaderError(error)) console.error(error.message);
     else if (isFileDiffError(error)) console.error(error.message);
     else if (isFileUpdaterError(error)) console.error(error.message);
+    else if (isHtmlReporterError(error)) console.error(error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
   }

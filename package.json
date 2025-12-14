@@ -31,6 +31,7 @@
   "scripts": {
     "dev": "tsx src/index.ts -c ./example/config.example.yaml",
     "dev:watch": "nodemon src/index.ts  -c ./example/config.example.yaml",
+    "dev:clear": "rm -rf ./example/prod",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -57,7 +58,8 @@
     "automation"
   ],
   "devDependencies": {
-    "@types/node": "^25.0.1",
+    "@types/hogan.js": "^3.0.5",
+    "@types/node": "^25.0.2",
     "@types/picomatch": "^4.0.2",
     "@typescript-eslint/eslint-plugin": "^8.49.0",
     "@typescript-eslint/parser": "^8.49.0",
@@ -75,7 +77,10 @@
   },
   "dependencies": {
     "commander": "^14.0.2",
+    "diff": "^8.0.2",
+    "diff2html": "^3.4.52",
     "handlebars": "^4.7.8",
+    "open": "^11.0.0",
     "picomatch": "^4.0.3",
     "tinyglobby": "^0.2.15",
     "yaml": "^2.8.2",
