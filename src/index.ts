@@ -3,6 +3,7 @@ import { parseCommandLine } from './commandLine';
 import { isConfigLoaderError, loadConfigFile } from './configLoader';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
+import { isFileUpdaterError, updateFiles } from './fileUpdater';
 import { isZodValidationError } from './ZodError';
 
 /**
@@ -43,11 +44,13 @@ const main = async (): Promise<void> => {
   console.log(`  Changed files: ${diffResult.changedFiles.length}`);
   console.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
 
-  // TODO: Implement remaining sync logic
-  // - Apply transformations (config.transforms)
-  // - Check stop rules (config.stopRules, unless options.force is true)
-  // - Write to destination (config.destination, unless options.dryRun is true)
-  // - Generate HTML report (if options.htmlReport is specified)
+  // TODO: Apply transformations (config.transforms)
+  // TODO: Check stop rules (config.stopRules, unless options.force is true)
+
+  // Update files
+  await updateFiles(diffResult, sourceFiles, config, options.dryRun);
+
+  // TODO: Generate HTML report (if options.htmlReport is specified)
 };
 
 // Execute main function with error handling
@@ -60,6 +63,7 @@ const main = async (): Promise<void> => {
     else if (isZodValidationError(error)) console.error(error.message);
     else if (isFileLoaderError(error)) console.error(error.message);
     else if (isFileDiffError(error)) console.error(error.message);
+    else if (isFileUpdaterError(error)) console.error(error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
   }
