@@ -1,6 +1,7 @@
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
 import { isConfigLoaderError, loadConfigFile } from './configLoader';
+import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isZodValidationError } from './ZodError';
 
@@ -33,6 +34,15 @@ const main = async (): Promise<void> => {
   });
   console.log(`✓ Loaded ${destinationFiles.size} destination file(s)`);
 
+  // Compute file differences
+  console.log('\nComputing differences...');
+  const diffResult = computeFileDiff(sourceFiles, destinationFiles, config);
+
+  console.log(`  New files: ${diffResult.addedFiles.length}`);
+  console.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
+  console.log(`  Changed files: ${diffResult.changedFiles.length}`);
+  console.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
+
   // TODO: Implement remaining sync logic
   // - Apply transformations (config.transforms)
   // - Check stop rules (config.stopRules, unless options.force is true)
@@ -49,6 +59,7 @@ const main = async (): Promise<void> => {
     if (isConfigLoaderError(error)) console.error(error.message);
     else if (isZodValidationError(error)) console.error(error.message);
     else if (isFileLoaderError(error)) console.error(error.message);
+    else if (isFileDiffError(error)) console.error(error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
   }
