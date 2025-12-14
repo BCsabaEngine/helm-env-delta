@@ -80,11 +80,11 @@ const stopRuleSchema = z.discriminatedUnion('type', [semverMajorRuleSchema, nume
 const configSchema = z.object({
   source: z.string().min(1),
 
-  dest: z.string().min(1),
+  destination: z.string().min(1),
 
-  include: z.array(z.string().min(1)).optional(),
+  include: z.array(z.string().min(1)).default(['**/*']),
 
-  exclude: z.array(z.string().min(1)).optional(),
+  exclude: z.array(z.string().min(1)).default([]),
 
   prune: z.boolean().default(false),
 

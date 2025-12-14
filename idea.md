@@ -26,17 +26,17 @@ The project is valid, practical, and complements existing Helm/GitOps tooling by
 The tool operates on two folders per run:
 
 - **source**: newer or reference configuration (e.g., UAT repo subtree).
-- **dest**: environment to update (e.g., PROD repo subtree).
+- **destination**: environment to update (e.g., PROD repo subtree).
 
 Main steps for a run:
 
-1. Load a YAML config file describing source/dest paths, glob patterns, transforms, exclusions, ordering rules, and stop rules.
+1. Load a YAML config file describing source/destination paths, glob patterns, transforms, exclusions, ordering rules, and stop rules.
 2. Recursively discover matching YAML files in both folders using configured include masks.[^4]
 3. For each file path:
-   - If present in both: compute deep diff (source vs dest), apply exclusions, apply regex-based transformations, and build a preview of the new dest content.[^5]
-   - If present only in source: treat as **new file**, copy and format into dest according to ordering and quoting rules.
+   - If present in both: compute deep diff (source vs destination), apply exclusions, apply regex-based transformations, and build a preview of the new destination content.[^5]
+   - If present only in source: treat as **new file**, copy and format into destination according to ordering and quoting rules.
 4. In **dry-run** mode: do not write any files; instead produce a summary and, optionally, an HTML report opened automatically in a browser.[^2][^6]
-5. In **apply** mode (no `--dry-run`): write all applicable changes and new files in dest, ready for manual `git diff`, commit, and Argo CD sync.[^1][^3]
+5. In **apply** mode (no `--dry-run`): write all applicable changes and new files in destination, ready for manual `git diff`, commit, and Argo CD sync.[^1][^3]
 
 No git operations are performed by the tool itself; commits are intentionally left to the user after reviewing changes.
 
@@ -48,7 +48,7 @@ The main configuration file (YAML) defines behavior and rules.
 
 ```yaml
 source: './uat' # Source folder
-dest: './prod' # Destination folder
+destination: './prod' # Destination folder
 
 include: # Files to process
   - '**/values.yaml'
@@ -247,13 +247,13 @@ HTML is written to a configurable path and opened automatically in the system br
 
 ## 6. New File Handling
 
-If a YAML file exists in source but not in dest:
+If a YAML file exists in source but not in destination:
 
 - It is treated as **new**.
 - Its contents are loaded from source.
 - Ordering rules and value quoting are applied according to the same glob-based logic used for existing files.
 - In dry-run, the file appears as “NEW FILE” with the formatted output previewed.
-- In apply mode, the file is created in dest with the formatted content.[^7]
+- In apply mode, the file is created in destination with the formatted content.[^7]
 
 ## 7. Implementation Stack (Current Plan)
 

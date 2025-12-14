@@ -5,6 +5,7 @@ import YAML from 'yaml';
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
 import { parseConfig } from './configFile';
+import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isZodValidationError } from './ZodError';
 
 /**
@@ -66,20 +67,35 @@ const main = async (): Promise<void> => {
   // Log successfully loaded config
   console.log('\nLoaded configuration:');
   console.log(`  Source: ${config.source}`);
-  console.log(`  Destination: ${config.dest}`);
+  console.log(`  Destination: ${config.destination}`);
   console.log(`  Prune: ${config.prune}`);
   if (config.include) console.log(`  Include patterns: ${config.include.length} pattern(s)`);
   if (config.exclude) console.log(`  Exclude patterns: ${config.exclude.length} pattern(s)`);
   if (config.stopRules) console.log(`  Stop rules: ${Object.keys(config.stopRules).length} file pattern(s)`);
 
-  // TODO: Implement core sync logic
-  // - Read source files (using config.source and config.include patterns)
+  // Load source files
+  console.log('\nLoading files...');
+  const sourceFiles = await loadFiles({
+    baseDirectory: config.source,
+    include: config.include,
+    exclude: config.exclude
+  });
+
+  // Load destination files
+  const destinationFiles = await loadFiles({
+    baseDirectory: config.destination,
+    include: config.include,
+    exclude: config.exclude
+  });
+
+  console.log(`✓ Loaded ${sourceFiles.size} source file(s)`);
+  console.log(`✓ Loaded ${destinationFiles.size} destination file(s)`);
+
+  // TODO: Implement remaining sync logic
   // - Apply transformations (config.transforms)
   // - Check stop rules (config.stopRules, unless options.force is true)
-  // - Write to destination (config.dest, unless options.dryRun is true)
+  // - Write to destination (config.destination, unless options.dryRun is true)
   // - Generate HTML report (if options.htmlReport is specified)
-
-  console.log('✓ CLI parsing successful (core logic not yet implemented)');
 };
 
 // Execute main function with error handling
@@ -89,7 +105,11 @@ const main = async (): Promise<void> => {
     await main();
   } catch (error: unknown) {
     if (isZodValidationError(error)) {
-      // User-friendly validation error messages
+      console.error(error.message);
+      process.exit(1);
+    }
+
+    if (isFileLoaderError(error)) {
       console.error(error.message);
       process.exit(1);
     }

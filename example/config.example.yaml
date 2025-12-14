@@ -1,5 +1,5 @@
 source: "./example/uat" # Source folder, mandatory
-dest: "./example/prod" # Destination folder, mandatory
+destination: "./example/prod" # Destination folder, mandatory
 
 include: # Files to process, if not set, all YAML files are processed, other files are copied as-is, default: all files
   - "**/*.yaml"

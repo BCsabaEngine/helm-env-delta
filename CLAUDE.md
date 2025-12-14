@@ -73,6 +73,13 @@ During development: `node bin/index.js --config config.example.yaml`
   - User-friendly error messages via `ConfigValidationError`
   - Type-safe config with full TypeScript inference
 
+- `src/fileLoader.ts` - File loading with glob pattern matching
+  - Uses `tinyglobby` for fast file discovery
+  - Loads files in parallel for performance
+  - Returns `Map<string, string>` with sorted relative paths as keys
+  - Binary file detection (throws error on null bytes)
+  - Custom `FileLoaderError` with detailed error messages
+
 - `src/ZodError.ts` - Custom error formatting for Zod validation failures
   - Formats validation errors into readable messages
   - Adds contextual help for common error types
@@ -84,10 +91,10 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 
 **Core Settings:**
 
-- `source` / `dest` - Source and destination folder paths (mandatory)
-- `include` - Glob patterns for files to process (defaults to all YAML files)
-- `exclude` - Glob patterns for files to exclude from processing
-- `prune` - Remove files in dest not present in source
+- `source` / `destination` - Source and destination folder paths (mandatory)
+- `include` - Glob patterns for files to process (defaults to `['**/*']` - all files)
+- `exclude` - Glob patterns for files to exclude from processing (defaults to `[]`)
+- `prune` - Remove files in destination not present in source (default: false)
 
 **Processing Control:**
 
@@ -170,18 +177,51 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Application header displaying name/version from package.json
 - YAML config file loading and parsing
 - User-friendly error messages for config validation
+- File loader module with glob pattern matching
+- Parallel file reading from source and destination folders
+- Binary file detection and error handling
 
-### TODO
+### In Progress
 
-- Core sync logic (file reading, transformation, writing)
+- Core sync logic (transformation, diffing, writing)
 - Stop rules validation enforcement
 - HTML report generation
 - Dry-run mode implementation
 - Force mode to skip stop rules
-- Unit tests in `test/` directory
+
+### TODO
+
+- Unit tests in `test/` directory (particularly for fileLoader.ts)
+- YAML transformation logic
+- File writing to destination
+- Prune logic for removing files not in source
+
+## Error Handling Pattern
+
+All modules follow a consistent error handling pattern:
+
+1. **Custom Error Classes** - Each module has its own error class (e.g., `FileLoaderError`, `ZodValidationError`)
+2. **Static formatMessage method** - Provides user-friendly error messages with context
+3. **Type Guards** - Export `isXxxError()` functions for error type checking
+4. **Error Codes** - Include NodeJS.ErrnoException codes (ENOENT, EACCES, etc.) for file operations
+
+Example from `src/fileLoader.ts`:
+
+```typescript
+export class FileLoaderError extends Error {
+  constructor(message: string, code?: string, path?: string, cause?: Error) {
+    super(FileLoaderError.formatMessage(message, code, path, cause));
+  }
+  private static formatMessage = (...) => { /* friendly formatting */ };
+}
+export const isFileLoaderError = (error: unknown): error is FileLoaderError =>
+  error instanceof FileLoaderError;
+```
 
 ## Notes for Development
 
-- Configuration file supports glob patterns with `picomatch` syntax
+- Configuration file supports glob patterns with `tinyglobby` (picomatch-based) syntax
 - JSON path expressions use JSONPath-style syntax (e.g., `$.secrets[*].password`)
 - The `yaml` package is used for parsing; preserves structure but may need custom serialization for formatting control
+- File loader returns `Map<string, string>` with relative paths sorted alphabetically
+- All file operations use async/await with parallel processing via `Promise.all`
