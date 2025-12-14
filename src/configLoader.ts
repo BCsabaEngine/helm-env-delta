@@ -10,7 +10,7 @@ export class ConfigLoaderError extends Error {
     message: string,
     public readonly code?: string,
     public readonly path?: string,
-    public readonly cause?: Error
+    public override readonly cause?: Error
   ) {
     super(ConfigLoaderError.formatMessage(message, code, path, cause));
     this.name = 'ConfigLoaderError';

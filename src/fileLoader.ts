@@ -18,7 +18,7 @@ export class FileLoaderError extends Error {
     message: string,
     public readonly code?: string,
     public readonly path?: string,
-    public readonly cause?: Error
+    public override readonly cause?: Error
   ) {
     super(FileLoaderError.formatMessage(message, code, path, cause));
     this.name = 'FileLoaderError';
