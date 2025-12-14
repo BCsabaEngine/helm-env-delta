@@ -1,0 +1,8 @@
+apiVersion: v2
+description: SKIP B instance of skip
+name: ms-skip
+version: 1.0.0
+dependencies:
+  - name: microservice
+    version: 2.4.6
+    repository: oci://hed-harbor/

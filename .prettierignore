@@ -1,10 +1,7 @@
 .DS_Store
 node_modules
 dist
-demo
-.env
-.env.*
-!.env.example
+example
 
 # Ignore files for PNPM, NPM and YARN
 pnpm-lock.yaml
