@@ -73,6 +73,12 @@ During development: `node bin/index.js --config config.example.yaml`
   - User-friendly error messages via `ConfigValidationError`
   - Type-safe config with full TypeScript inference
 
+- `src/configLoader.ts` - Config file loading and parsing
+  - Reads YAML config file from disk
+  - Parses YAML content
+  - Validates config using parseConfig from configFile.ts
+  - Custom `ConfigLoaderError` with detailed error messages
+
 - `src/fileLoader.ts` - File loading with glob pattern matching
   - Uses `tinyglobby` for fast file discovery
   - Loads files in parallel for performance
@@ -200,7 +206,7 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 
 All modules follow a consistent error handling pattern:
 
-1. **Custom Error Classes** - Each module has its own error class (e.g., `FileLoaderError`, `ZodValidationError`)
+1. **Custom Error Classes** - Each module has its own error class (e.g., `ConfigLoaderError`, `FileLoaderError`, `ZodValidationError`)
 2. **Static formatMessage method** - Provides user-friendly error messages with context
 3. **Type Guards** - Export `isXxxError()` functions for error type checking
 4. **Error Codes** - Include NodeJS.ErrnoException codes (ENOENT, EACCES, etc.) for file operations
