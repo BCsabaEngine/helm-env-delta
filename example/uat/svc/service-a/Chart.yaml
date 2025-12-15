@@ -1,7 +1,7 @@
 apiVersion: v2
 description: UAT instance of ms-service-a
 name: ms-service-a
-version: 1.7.2
+version: 0.7.2
 dependencies:
   - name: microservice
     version: 4.1.9

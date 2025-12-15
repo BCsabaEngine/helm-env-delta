@@ -5,6 +5,7 @@ import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
 import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
+import { validateStopRules } from './stopRulesValidator';
 import { isZodValidationError } from './ZodError';
 
 /**
@@ -46,7 +47,47 @@ const main = async (): Promise<void> => {
   console.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
 
   // TODO: Apply transformations (config.transforms)
-  // TODO: Check stop rules (config.stopRules, unless options.force is true)
+
+  // Validate stop rules
+  const validationResult = validateStopRules(diffResult, config.stopRules);
+
+  if (validationResult.violations.length > 0)
+    if (options.force) {
+      console.warn('\n⚠️  WARNING: Stop rule violations detected (continuing due to --force):');
+      for (const violation of validationResult.violations) {
+        console.warn(`  • ${violation.file}`);
+        console.warn(`    Path: ${violation.path}`);
+        console.warn(`    ${violation.message}`);
+        if (violation.oldValue !== undefined) console.warn(`    Old: ${violation.oldValue}`);
+
+        console.warn(`    New: ${violation.updatedValue}`);
+        console.warn('');
+      }
+    } else if (options.dryRun) {
+      console.warn('\n⚠️  Stop rule violations detected in dry-run:');
+      for (const violation of validationResult.violations) {
+        console.warn(`  • ${violation.file}`);
+        console.warn(`    Path: ${violation.path}`);
+        console.warn(`    ${violation.message}`);
+        if (violation.oldValue !== undefined) console.warn(`    Old: ${violation.oldValue}`);
+
+        console.warn(`    New: ${violation.updatedValue}`);
+        console.warn('');
+      }
+    } else {
+      console.error('\n❌ Stop rule violations detected:');
+      for (const violation of validationResult.violations) {
+        console.error(`  • ${violation.file}`);
+        console.error(`    Path: ${violation.path}`);
+        console.error(`    ${violation.message}`);
+        if (violation.oldValue !== undefined) console.error(`    Old: ${violation.oldValue}`);
+
+        console.error(`    New: ${violation.updatedValue}`);
+        console.error('');
+      }
+      console.error('Use --force to override stop rules or --dry-run to preview changes.');
+      process.exit(1);
+    }
 
   // Update files
   const formattedFiles = await updateFiles(diffResult, sourceFiles, config, options.dryRun);

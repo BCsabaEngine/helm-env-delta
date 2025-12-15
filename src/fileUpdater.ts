@@ -269,8 +269,8 @@ export const updateFiles = async (
   const absoluteDestinationDirectory = await validateDestinationDirectory(config.destination);
   const errors: FileUpdateError[] = [];
 
-  // TODO: Validate against config.stopRules before writing
-  // Current: No validation, writes all changes
+  // Stop rules validation is performed in src/index.ts before updateFiles is called
+  // This function assumes validation has already passed or --force was used
 
   // Add new files
   for (const relativePath of diffResult.addedFiles)

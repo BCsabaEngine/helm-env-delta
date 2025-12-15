@@ -5,11 +5,20 @@ import { ZodValidationError } from './ZodError';
 // Stop Rule Schemas (Discriminated Union)
 
 /**
- * Validates semver major version changes.
+ * Validates semver major version upgrades.
  * Blocks changes that would increment the major version (e.g., 1.x.x -> 2.0.0).
  */
-const semverMajorRuleSchema = z.object({
-  type: z.literal('semverMajor'),
+const semverMajorUpgradeRuleSchema = z.object({
+  type: z.literal('semverMajorUpgrade'),
+  path: z.string().min(1)
+});
+
+/**
+ * Validates semver major version downgrades.
+ * Blocks changes that would decrement the major version (e.g., 2.x.x -> 1.0.0).
+ */
+const semverDowngradeRuleSchema = z.object({
+  type: z.literal('semverDowngrade'),
   path: z.string().min(1)
 });
 
@@ -60,7 +69,12 @@ const regexRuleSchema = z
     }
   );
 
-const stopRuleSchema = z.discriminatedUnion('type', [semverMajorRuleSchema, numericRuleSchema, regexRuleSchema]);
+const stopRuleSchema = z.discriminatedUnion('type', [
+  semverMajorUpgradeRuleSchema,
+  semverDowngradeRuleSchema,
+  numericRuleSchema,
+  regexRuleSchema
+]);
 
 // Array Sort Schema
 const arraySortRuleSchema = z.object({
@@ -116,7 +130,8 @@ const configSchema = z.object({
 //Types
 export type Config = z.infer<typeof configSchema>;
 export type StopRule = z.infer<typeof stopRuleSchema>;
-export type SemverMajorRule = z.infer<typeof semverMajorRuleSchema>;
+export type SemverMajorUpgradeRule = z.infer<typeof semverMajorUpgradeRuleSchema>;
+export type SemverDowngradeRule = z.infer<typeof semverDowngradeRuleSchema>;
 export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;

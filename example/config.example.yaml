@@ -71,20 +71,17 @@ outputFormat: # Output formatting options
 
 stopRules: # Rules to block running operations, default: none = allow all changes
   "apps/*.yaml":
-    - type: "semverMajor"
+    - type: "semverMajorUpgrade"
       path: "version" # Block major SemVer bumps in chart.yaml
 
   "svc/**/Chart.yaml":
-    - type: "semverMajor"
-      path: "image.tag" # Block major SemVer bump of image tag
-    - type: "numeric"
-      path: "replicaCount"
-      min: 2 # Reject scaling to <2 replicas
-      max: 10 # Reject scaling above 10
+    - type: "semverDowngrade"
+      path: "version" # Block SemVer downgrade of image tag
+    - type: "regex"
+      path: "version" # Reject any image tag starting with v0.
+      regex: "^0\\."
 
   "svc/**/values.yaml":
-    - type: "semverMajor"
-      path: "image.tag" # Block major SemVer bump of image tag
     - type: "numeric"
       path: "replicaCount"
       min: 2 # Reject scaling to <2 replicas
