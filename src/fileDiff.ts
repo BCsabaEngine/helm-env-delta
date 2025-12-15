@@ -18,6 +18,8 @@ export interface ChangedFile {
   destinationContent: string;
   processedSourceContent: unknown;
   processedDestContent: unknown;
+  rawParsedSource: unknown;
+  rawParsedDest: unknown;
 }
 
 // Error Handling
@@ -126,20 +128,49 @@ const applySkipPaths = (data: unknown, skipPaths: string[]): unknown => {
   return cloned;
 };
 
-const deepEqual = (a: unknown, b: unknown): boolean => {
-  const normalizedA = YAML.stringify(a, {
+export const normalizeForComparison = (value: unknown): unknown => {
+  if (value === null || value === undefined) return value;
+
+  const valueType = typeof value;
+  if (valueType === 'string' || valueType === 'number' || valueType === 'boolean') return value;
+
+  if (Array.isArray(value)) {
+    const normalized = value.map((item) => normalizeForComparison(item));
+
+    return normalized.toSorted((a, b) => {
+      const stringA = YAML.stringify(a, { sortMapEntries: true });
+      const stringB = YAML.stringify(b, { sortMapEntries: true });
+      return stringA.localeCompare(stringB);
+    });
+  }
+
+  if (typeof value === 'object') {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, value_] of Object.entries(value)) normalized[key] = normalizeForComparison(value_);
+
+    return normalized;
+  }
+
+  return value;
+};
+
+export const deepEqual = (a: unknown, b: unknown): boolean => {
+  const normalizedA = normalizeForComparison(a);
+  const normalizedB = normalizeForComparison(b);
+
+  const stringA = YAML.stringify(normalizedA, {
     indent: 2,
     lineWidth: 0,
     sortMapEntries: true
   });
 
-  const normalizedB = YAML.stringify(b, {
+  const stringB = YAML.stringify(normalizedB, {
     indent: 2,
     lineWidth: 0,
     sortMapEntries: true
   });
 
-  return normalizedA === normalizedB;
+  return stringA === stringB;
 };
 
 export const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, string[]>): string[] => {
@@ -190,7 +221,10 @@ const processYamlFile = (
   const destinationFiltered =
     pathsToSkip.length > 0 ? applySkipPaths(destinationParsed, pathsToSkip) : destinationParsed;
 
-  const areEqual = deepEqual(sourceFiltered, destinationFiltered);
+  const normalizedSource = normalizeForComparison(sourceFiltered);
+  const normalizedDestination = normalizeForComparison(destinationFiltered);
+
+  const areEqual = deepEqual(normalizedSource, normalizedDestination);
 
   if (areEqual) return undefined;
 
@@ -198,8 +232,10 @@ const processYamlFile = (
     path: filePath,
     sourceContent,
     destinationContent: destinationContent,
-    processedSourceContent: sourceFiltered,
-    processedDestContent: destinationFiltered
+    processedSourceContent: normalizedSource,
+    processedDestContent: normalizedDestination,
+    rawParsedSource: sourceFiltered,
+    rawParsedDest: destinationFiltered
   };
 };
 
@@ -230,7 +266,9 @@ const processChangedFiles = (
         sourceContent,
         destinationContent: destinationContent,
         processedSourceContent: sourceContent,
-        processedDestContent: destinationContent
+        processedDestContent: destinationContent,
+        rawParsedSource: sourceContent,
+        rawParsedDest: destinationContent
       });
   }
 

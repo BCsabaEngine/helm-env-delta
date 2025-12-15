@@ -7,8 +7,9 @@ import { createTwoFilesPatch } from 'diff';
 import { html as diff2html } from 'diff2html';
 import YAML from 'yaml';
 
+import { diffArrays, findArrayPaths, hasArrays } from './arrayDiffer';
 import { Config } from './configFile';
-import { ChangedFile, FileDiffResult } from './fileDiff';
+import { ChangedFile, deepEqual, FileDiffResult, normalizeForComparison } from './fileDiff';
 
 // Types
 export interface ReportMetadata {
@@ -85,28 +86,151 @@ const generateUnifiedDiff = (filePath: string, destinationContent: string, sourc
   );
 };
 
+const getValueAtPath = (object: unknown, path: string[]): unknown => {
+  let current = object;
+  for (const key of path) {
+    if (typeof current !== 'object' || current === null) return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+};
+
+const escapeHtml = (text: string): string => {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+};
+
+const generateArrayDiffHtml = (sourceArray: unknown[], destinationArray: unknown[]): string => {
+  const diff = diffArrays(sourceArray, destinationArray);
+
+  let html = '<div class="array-diff">';
+
+  if (diff.removed.length > 0) {
+    html += '<div class="removed-items">';
+    html += `<h4>Removed (${diff.removed.length})</h4>`;
+    html += '<ul>';
+    for (const item of diff.removed) {
+      const yaml = YAML.stringify(item, { indent: 2 });
+      html += `<li class="removed"><pre>${escapeHtml(yaml)}</pre></li>`;
+    }
+    html += '</ul></div>';
+  }
+
+  if (diff.added.length > 0) {
+    html += '<div class="added-items">';
+    html += `<h4>Added (${diff.added.length})</h4>`;
+    html += '<ul>';
+    for (const item of diff.added) {
+      const yaml = YAML.stringify(item, { indent: 2 });
+      html += `<li class="added"><pre>${escapeHtml(yaml)}</pre></li>`;
+    }
+    html += '</ul></div>';
+  }
+
+  if (diff.unchanged.length > 0) html += `<div class="unchanged-count">Unchanged: ${diff.unchanged.length} items</div>`;
+
+  html += '</div>';
+  return html;
+};
+
 const generateChangedFileSection = (file: ChangedFile): string => {
   const isYaml = /\.ya?ml$/i.test(file.path);
 
-  // Serialize processed content for diff
-  const destinationContent = serializeForDiff(file.processedDestContent, isYaml);
-  const sourceContent = serializeForDiff(file.processedSourceContent, isYaml);
+  if (!isYaml) {
+    const destinationContent = serializeForDiff(file.processedDestContent, false);
+    const sourceContent = serializeForDiff(file.processedSourceContent, false);
+    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
+    const diffHtml = diff2html(unifiedDiff, {
+      drawFileList: false,
+      matching: 'lines',
+      outputFormat: 'side-by-side'
+    });
 
-  // Generate unified diff
+    return `
+    <details class="file-section" open>
+      <summary>${file.path}</summary>
+      <div class="diff-container">
+        ${diffHtml}
+      </div>
+    </details>
+  `;
+  }
+
+  const hasArraysInFile = hasArrays(file.rawParsedSource) || hasArrays(file.rawParsedDest);
+
+  if (!hasArraysInFile) {
+    const destinationContent = serializeForDiff(file.processedDestContent, true);
+    const sourceContent = serializeForDiff(file.processedSourceContent, true);
+    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
+    const diffHtml = diff2html(unifiedDiff, {
+      drawFileList: false,
+      matching: 'lines',
+      outputFormat: 'side-by-side'
+    });
+
+    return `
+    <details class="file-section" open>
+      <summary>${file.path}</summary>
+      <div class="diff-container">
+        ${diffHtml}
+      </div>
+    </details>
+  `;
+  }
+
+  const destinationContent = serializeForDiff(file.processedDestContent, true);
+  const sourceContent = serializeForDiff(file.processedSourceContent, true);
   const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-
-  // Convert to HTML using diff2html
   const diffHtml = diff2html(unifiedDiff, {
     drawFileList: false,
     matching: 'lines',
     outputFormat: 'side-by-side'
   });
 
+  const arrayPaths = findArrayPaths(file.rawParsedSource);
+  const hasArrayChanges = arrayPaths.some((path) => {
+    const sourceArray = getValueAtPath(file.rawParsedSource, path);
+    const destinationArray = getValueAtPath(file.rawParsedDest, path);
+    if (!Array.isArray(sourceArray) || !Array.isArray(destinationArray)) return false;
+    return !deepEqual(normalizeForComparison(sourceArray), normalizeForComparison(destinationArray));
+  });
+
+  let arrayDiffsHtml = '';
+
+  if (hasArrayChanges) {
+    arrayDiffsHtml = '<div class="array-details"><h3>Array-specific details:</h3>';
+
+    for (const path of arrayPaths) {
+      const pathString = path.join('.');
+      const sourceArray = getValueAtPath(file.rawParsedSource, path);
+      const destinationArray = getValueAtPath(file.rawParsedDest, path);
+
+      if (!Array.isArray(sourceArray)) continue;
+      if (!Array.isArray(destinationArray)) continue;
+
+      const normalizedSource = normalizeForComparison(sourceArray);
+      const normalizedDestination = normalizeForComparison(destinationArray);
+
+      if (deepEqual(normalizedSource, normalizedDestination)) continue;
+
+      arrayDiffsHtml += `<div class="array-section"><h4>${pathString}:</h4>`;
+      arrayDiffsHtml += generateArrayDiffHtml(normalizedSource as unknown[], normalizedDestination as unknown[]);
+      arrayDiffsHtml += '</div>';
+    }
+
+    arrayDiffsHtml += '</div>';
+  }
+
   return `
     <details class="file-section" open>
       <summary>${file.path}</summary>
       <div class="diff-container">
         ${diffHtml}
+        ${arrayDiffsHtml}
       </div>
     </details>
   `;
@@ -277,6 +401,98 @@ const generateHtmlTemplate = (
 
     .file-list li:hover {
       background: #f6f8fa;
+    }
+
+    .array-details {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f6f8fa;
+      border-radius: 6px;
+      border-left: 3px solid #0969da;
+    }
+
+    .array-details h3 {
+      margin: 0 0 15px 0;
+      color: #0969da;
+      font-size: 16px;
+    }
+
+    .array-section {
+      margin: 15px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #d0d7de;
+    }
+
+    .array-section h4 {
+      margin: 0 0 10px 0;
+      color: #24292e;
+      font-size: 14px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    .array-unchanged {
+      padding: 8px;
+      color: #586069;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .added-items, .removed-items {
+      margin: 10px 0;
+    }
+
+    .added-items h4 {
+      color: #1a7f37;
+      margin: 0 0 8px 0;
+      font-size: 13px;
+    }
+
+    .removed-items h4 {
+      color: #cf222e;
+      margin: 0 0 8px 0;
+      font-size: 13px;
+    }
+
+    .added-items ul, .removed-items ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .added-items li {
+      padding: 6px 10px;
+      background: #dafbe1;
+      border-left: 3px solid #1a7f37;
+      margin: 4px 0;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .removed-items li {
+      padding: 6px 10px;
+      background: #ffebe9;
+      border-left: 3px solid #cf222e;
+      margin: 4px 0;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .added-items pre, .removed-items pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .unchanged-count {
+      padding: 8px 10px;
+      color: #586069;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      background: #f6f8fa;
+      border-radius: 4px;
+      margin: 10px 0;
     }
   </style>
 </head>

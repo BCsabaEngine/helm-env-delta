@@ -2,6 +2,7 @@ import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
 import { isConfigLoaderError, loadConfigFile } from './configLoader';
 import { showConsoleDiff } from './consoleDiffReporter';
+import { formatProgressMessage, formatStopRuleViolation } from './consoleFormatter';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
@@ -24,22 +25,22 @@ const main = async (): Promise<void> => {
   const config = loadConfigFile(options.config);
 
   // Load source + destination files
-  console.log('\nLoading files...');
+  console.log('\n' + formatProgressMessage('Loading files...', 'loading'));
   const sourceFiles = await loadFiles({
     baseDirectory: config.source,
     include: config.include,
     exclude: config.exclude
   });
-  console.log(`✓ Loaded ${sourceFiles.size} source file(s)`);
+  console.log(formatProgressMessage(`Loaded ${sourceFiles.size} source file(s)`, 'success'));
   const destinationFiles = await loadFiles({
     baseDirectory: config.destination,
     include: config.include,
     exclude: config.exclude
   });
-  console.log(`✓ Loaded ${destinationFiles.size} destination file(s)`);
+  console.log(formatProgressMessage(`Loaded ${destinationFiles.size} destination file(s)`, 'success'));
 
   // Compute file differences
-  console.log('\nComputing differences...');
+  console.log('\n' + formatProgressMessage('Computing differences...', 'info'));
   const diffResult = computeFileDiff(sourceFiles, destinationFiles, config);
 
   // Show console diff if requested
@@ -57,40 +58,17 @@ const main = async (): Promise<void> => {
   const validationResult = validateStopRules(diffResult, config.stopRules);
 
   if (validationResult.violations.length > 0)
-    if (options.force) {
-      console.warn('\n⚠️  WARNING: Stop rule violations detected (continuing due to --force):');
-      for (const violation of validationResult.violations) {
-        console.warn(`  • ${violation.file}`);
-        console.warn(`    Path: ${violation.path}`);
-        console.warn(`    ${violation.message}`);
-        if (violation.oldValue !== undefined) console.warn(`    Old: ${violation.oldValue}`);
+    if (options.force)
+      for (const violation of validationResult.violations)
+        console.warn('\n' + formatStopRuleViolation(violation, 'force'));
+    else if (options.dryRun)
+      for (const violation of validationResult.violations)
+        console.warn('\n' + formatStopRuleViolation(violation, 'warning'));
+    else {
+      for (const violation of validationResult.violations)
+        console.error('\n' + formatStopRuleViolation(violation, 'error'));
 
-        console.warn(`    New: ${violation.updatedValue}`);
-        console.warn('');
-      }
-    } else if (options.dryRun) {
-      console.warn('\n⚠️  Stop rule violations detected in dry-run:');
-      for (const violation of validationResult.violations) {
-        console.warn(`  • ${violation.file}`);
-        console.warn(`    Path: ${violation.path}`);
-        console.warn(`    ${violation.message}`);
-        if (violation.oldValue !== undefined) console.warn(`    Old: ${violation.oldValue}`);
-
-        console.warn(`    New: ${violation.updatedValue}`);
-        console.warn('');
-      }
-    } else {
-      console.error('\n❌ Stop rule violations detected:');
-      for (const violation of validationResult.violations) {
-        console.error(`  • ${violation.file}`);
-        console.error(`    Path: ${violation.path}`);
-        console.error(`    ${violation.message}`);
-        if (violation.oldValue !== undefined) console.error(`    Old: ${violation.oldValue}`);
-
-        console.error(`    New: ${violation.updatedValue}`);
-        console.error('');
-      }
-      console.error('Use --force to override stop rules or --dry-run to preview changes.');
+      console.error('\nUse --force to override stop rules or --dry-run to preview changes.');
       process.exit(1);
     }
 

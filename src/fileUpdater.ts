@@ -4,6 +4,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 
 import { Config } from './configFile';
+import { colorizeFileOperation, formatProgressMessage } from './consoleFormatter';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { FileMap } from './fileLoader';
 import { formatYaml } from './yamlFormatter';
@@ -172,7 +173,7 @@ const addFile = async (
   const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
   if (dryRun) {
-    console.log(`  [DRY RUN] Would add: ${relativePath}`);
+    console.log(colorizeFileOperation('add', relativePath, true));
     return;
   }
 
@@ -182,7 +183,7 @@ const addFile = async (
   try {
     await ensureParentDirectory(absolutePath);
     await writeFile(absolutePath, contentToWrite, 'utf8');
-    console.log(`  + ${relativePath}`);
+    console.log(colorizeFileOperation('add', relativePath, false));
   } catch (error) {
     throw new FileUpdaterError(
       'Failed to add file',
@@ -202,7 +203,7 @@ const updateFile = async (
   const absolutePath = path.join(absoluteDestinationDirectory, changedFile.path);
 
   if (dryRun) {
-    console.log(`  [DRY RUN] Would update: ${changedFile.path}`);
+    console.log(colorizeFileOperation('update', changedFile.path, true));
     return;
   }
 
@@ -215,7 +216,7 @@ const updateFile = async (
   try {
     await ensureParentDirectory(absolutePath);
     await writeFile(absolutePath, contentToWrite, 'utf8');
-    console.log(`  ~ ${changedFile.path}`);
+    console.log(colorizeFileOperation('update', changedFile.path, false));
   } catch (error) {
     throw new FileUpdaterError(
       'Failed to update file',
@@ -234,17 +235,17 @@ const deleteFile = async (
   const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
   if (dryRun) {
-    console.log(`  [DRY RUN] Would delete: ${relativePath}`);
+    console.log(colorizeFileOperation('delete', relativePath, true));
     return;
   }
 
   try {
     await unlink(absolutePath);
-    console.log(`  - ${relativePath}`);
+    console.log(colorizeFileOperation('delete', relativePath, false));
   } catch (error) {
     // Ignore if file doesn't exist (already deleted)
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.log(`  - ${relativePath} (already deleted)`);
+      console.log(colorizeFileOperation('delete', relativePath, false, true));
       return;
     }
 
@@ -265,7 +266,7 @@ export const updateFiles = async (
   config: Config,
   dryRun: boolean
 ): Promise<string[]> => {
-  console.log('\nUpdating files...');
+  console.log('\n' + formatProgressMessage('Updating files...', 'info'));
 
   const absoluteDestinationDirectory = await validateDestinationDirectory(config.destination);
   const errors: FileUpdateError[] = [];
@@ -301,11 +302,11 @@ export const updateFiles = async (
         if (formatted !== content) {
           const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
-          if (dryRun) console.log(`  [DRY RUN] Would format: ${relativePath}`);
+          if (dryRun) console.log(colorizeFileOperation('format', relativePath, true));
           else {
             await ensureParentDirectory(absolutePath);
             await writeFile(absolutePath, formatted, 'utf8');
-            console.log(`  ≈ ${relativePath}`);
+            console.log(colorizeFileOperation('format', relativePath, false));
           }
 
           formattedFiles.push(relativePath);

@@ -2,8 +2,9 @@ import chalk from 'chalk';
 import { createTwoFilesPatch } from 'diff';
 import YAML from 'yaml';
 
+import { diffArrays, findArrayPaths, hasArrays } from './arrayDiffer';
 import { Config } from './configFile';
-import { ChangedFile, FileDiffResult, getSkipPathsForFile } from './fileDiff';
+import { ChangedFile, deepEqual, FileDiffResult, getSkipPathsForFile, normalizeForComparison } from './fileDiff';
 
 // ============================================================================
 // Helper Functions
@@ -49,12 +50,104 @@ const formatDeletedFiles = (files: string[]): string => {
   return `${header}\n${fileList}\n`;
 };
 
+const getValueAtPath = (object: unknown, path: string[]): unknown => {
+  let current = object;
+  for (const key of path) {
+    if (typeof current !== 'object' || current === null) return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+};
+
+const formatArrayDiff = (sourceArray: unknown[], destinationArray: unknown[]): string => {
+  const diff = diffArrays(sourceArray, destinationArray);
+
+  let output = '';
+
+  if (diff.removed.length > 0) {
+    output += chalk.red.bold(`\n  Removed (${diff.removed.length}):\n`);
+    for (const item of diff.removed) {
+      const yaml = YAML.stringify(item, { indent: 4 });
+      const lines = yaml.split('\n').filter((l) => l.trim());
+      output += lines.map((l) => chalk.red(`    - ${l}`)).join('\n');
+      output += '\n';
+    }
+  }
+
+  if (diff.added.length > 0) {
+    output += chalk.green.bold(`\n  Added (${diff.added.length}):\n`);
+    for (const item of diff.added) {
+      const yaml = YAML.stringify(item, { indent: 4 });
+      const lines = yaml.split('\n').filter((l) => l.trim());
+      output += lines.map((l) => chalk.green(`    + ${l}`)).join('\n');
+      output += '\n';
+    }
+  }
+
+  if (diff.unchanged.length > 0) output += chalk.gray(`\n  Unchanged: ${diff.unchanged.length} items\n`);
+
+  return output;
+};
+
 const formatChangedFile = (file: ChangedFile, config: Config): string => {
   const isYaml = /\.ya?ml$/i.test(file.path);
+  const separator = chalk.yellow('━'.repeat(60));
+  const skipPaths = getSkipPathsForFile(file.path, config.skipPath);
+  const skipPathInfo =
+    skipPaths.length > 0
+      ? chalk.dim(`SkipPath patterns applied: ${skipPaths.join(', ')}`)
+      : chalk.dim('No skipPath patterns applied');
 
-  const destinationContent = serializeForDiff(file.processedDestContent, isYaml);
-  const sourceContent = serializeForDiff(file.processedSourceContent, isYaml);
+  if (!isYaml) {
+    const destinationContent = String(file.processedDestContent);
+    const sourceContent = String(file.processedSourceContent);
+    const unifiedDiff = createTwoFilesPatch(
+      file.path,
+      file.path,
+      destinationContent,
+      sourceContent,
+      'Destination',
+      'Source'
+    );
+    const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
 
+    return `
+${separator}
+${chalk.yellow.bold(`File: ${file.path}`)}
+${skipPathInfo}
+
+${colorizedDiff}
+`;
+  }
+
+  const hasArraysInFile = hasArrays(file.rawParsedSource) || hasArrays(file.rawParsedDest);
+
+  if (!hasArraysInFile) {
+    const destinationContent = serializeForDiff(file.processedDestContent, true);
+    const sourceContent = serializeForDiff(file.processedSourceContent, true);
+    const unifiedDiff = createTwoFilesPatch(
+      file.path,
+      file.path,
+      destinationContent,
+      sourceContent,
+      'Destination',
+      'Source'
+    );
+    const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
+
+    return `
+${separator}
+${chalk.yellow.bold(`File: ${file.path}`)}
+${skipPathInfo}
+
+${colorizedDiff}
+`;
+  }
+
+  let output = `\n${separator}\n${chalk.yellow.bold(`File: ${file.path}`)}\n${skipPathInfo}\n`;
+
+  const destinationContent = serializeForDiff(file.processedDestContent, true);
+  const sourceContent = serializeForDiff(file.processedSourceContent, true);
   const unifiedDiff = createTwoFilesPatch(
     file.path,
     file.path,
@@ -63,24 +156,40 @@ const formatChangedFile = (file: ChangedFile, config: Config): string => {
     'Destination',
     'Source'
   );
-
   const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
 
-  const skipPaths = getSkipPathsForFile(file.path, config.skipPath);
-  const skipPathInfo =
-    skipPaths.length > 0
-      ? chalk.dim(`SkipPath patterns applied: ${skipPaths.join(', ')}`)
-      : chalk.dim('No skipPath patterns applied');
+  output += `\n${colorizedDiff}\n`;
 
-  const separator = chalk.yellow('━'.repeat(60));
+  const arrayPaths = findArrayPaths(file.rawParsedSource);
+  const hasArrayChanges = arrayPaths.some((path) => {
+    const sourceArray = getValueAtPath(file.rawParsedSource, path);
+    const destinationArray = getValueAtPath(file.rawParsedDest, path);
+    if (!Array.isArray(sourceArray) || !Array.isArray(destinationArray)) return false;
+    return !deepEqual(normalizeForComparison(sourceArray), normalizeForComparison(destinationArray));
+  });
 
-  return `
-${separator}
-${chalk.yellow.bold(`File: ${file.path}`)}
-${skipPathInfo}
+  if (hasArrayChanges) {
+    output += chalk.cyan.bold('\nArray-specific details:\n');
 
-${colorizedDiff}
-`;
+    for (const path of arrayPaths) {
+      const pathString = path.join('.');
+      const sourceArray = getValueAtPath(file.rawParsedSource, path);
+      const destinationArray = getValueAtPath(file.rawParsedDest, path);
+
+      if (!Array.isArray(sourceArray)) continue;
+      if (!Array.isArray(destinationArray)) continue;
+
+      const normalizedSource = normalizeForComparison(sourceArray);
+      const normalizedDestination = normalizeForComparison(destinationArray);
+
+      if (deepEqual(normalizedSource, normalizedDestination)) continue;
+
+      output += chalk.cyan(`\n  ${pathString}:\n`);
+      output += formatArrayDiff(normalizedSource as unknown[], normalizedDestination as unknown[]);
+    }
+  }
+
+  return output;
 };
 
 const formatChangedFiles = (files: ChangedFile[], config: Config): string => {
@@ -98,8 +207,8 @@ const formatChangedFiles = (files: ChangedFile[], config: Config): string => {
 
 const formatSummaryBox = (diffResult: FileDiffResult, pruneEnabled: boolean): string => {
   const width = 60;
-  const topBorder = chalk.cyan(`╭─ Diff Summary ${'─'.repeat(width - 15)}╮`);
-  const bottomBorder = chalk.cyan(`╰${'─'.repeat(width)}╯`);
+  const topBorder = chalk.cyan(`╭─ Diff Summary ${'─'.repeat(width - 14)}╮`);
+  const bottomBorder = chalk.cyan(`╰${'─'.repeat(width + 1)}╯`);
 
   const addedLine = chalk.cyan(
     `│  ${chalk.green('✚ Added:')}     ${diffResult.addedFiles.length.toString().padEnd(width - 15)} │`
