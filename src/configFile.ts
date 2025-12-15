@@ -62,6 +62,13 @@ const regexRuleSchema = z
 
 const stopRuleSchema = z.discriminatedUnion('type', [semverMajorRuleSchema, numericRuleSchema, regexRuleSchema]);
 
+// Array Sort Schema
+const arraySortRuleSchema = z.object({
+  path: z.string().min(1),
+  sortBy: z.string().min(1),
+  order: z.enum(['asc', 'desc']).default('asc')
+});
+
 // ============================================================================
 // Transform Schema (Future Feature - Commented Out)
 // ============================================================================
@@ -95,7 +102,8 @@ const configSchema = z.object({
       indent: z.number().int().min(1).max(10).default(2),
       keySeparator: z.boolean().default(false),
       quoteValues: z.record(z.string(), z.array(z.string())).optional(),
-      keyOrders: z.record(z.string(), z.array(z.string())).optional()
+      keyOrders: z.record(z.string(), z.array(z.string())).optional(),
+      arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
     })
     .optional()
     .default({ indent: 2, keySeparator: false }),
@@ -111,6 +119,7 @@ export type StopRule = z.infer<typeof stopRuleSchema>;
 export type SemverMajorRule = z.infer<typeof semverMajorRuleSchema>;
 export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
+export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
 export type OutputFormat = Config['outputFormat'];
 
 //Parses and validates configuration data

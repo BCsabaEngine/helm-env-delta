@@ -315,4 +315,309 @@ kind: Application`;
       expect(result).toBeTruthy();
     });
   });
+
+  describe('arraySort', () => {
+    it('should sort array items by string field in ascending order', () => {
+      const input = `env:
+  - name: ZEBRA
+    value: z
+  - name: ALPHA
+    value: a
+  - name: BETA
+    value: b`;
+
+      const result = formatYaml(input, 'svc/app/values.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          'svc/**/values.yaml': [{ path: 'env', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      const lines = result.split('\n');
+      const names = lines.filter((l) => l.includes('name:'));
+
+      expect(names[0]).toContain('ALPHA');
+      expect(names[1]).toContain('BETA');
+      expect(names[2]).toContain('ZEBRA');
+    });
+
+    it('should sort array items in descending order', () => {
+      const input = `items:
+  - priority: 1
+  - priority: 3
+  - priority: 2`;
+
+      const result = formatYaml(input, 'config.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'items', sortBy: 'priority', order: 'desc' }]
+        }
+      });
+
+      const lines = result.split('\n');
+      const priorities = lines
+        .filter((l) => l.includes('priority:'))
+        .map((l) => Number.parseInt(l.split(':')[1].trim()));
+
+      expect(priorities).toEqual([3, 2, 1]);
+    });
+
+    it('should place items without sortBy field at the end in original order', () => {
+      const input = `env:
+  - name: CHARLIE
+    value: c
+  - value: missing-name-1
+  - name: ALPHA
+    value: a
+  - value: missing-name-2
+  - name: BRAVO
+    value: b`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'env', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      const lines = result.split('\n').filter((l) => l.includes('value:'));
+
+      expect(lines[0]).toContain('a');
+      expect(lines[1]).toContain('b');
+      expect(lines[2]).toContain('c');
+      expect(lines[3]).toContain('missing-name-1');
+      expect(lines[4]).toContain('missing-name-2');
+    });
+
+    it('should sort strings case-insensitively', () => {
+      const input = `items:
+  - name: zebra
+  - name: ALPHA
+  - name: Beta`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'items', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      const lines = result.split('\n');
+      const names = lines.filter((l) => l.includes('name:')).map((l) => l.split(':')[1].trim());
+
+      expect(names[0]).toBe('ALPHA');
+      expect(names[1]).toBe('Beta');
+      expect(names[2]).toBe('zebra');
+    });
+
+    it('should sort numeric values correctly', () => {
+      const input = `items:
+  - id: 100
+  - id: 20
+  - id: 3`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'items', sortBy: 'id', order: 'asc' }]
+        }
+      });
+
+      const lines = result.split('\n');
+      const ids = lines.filter((l) => l.includes('id:')).map((l) => Number.parseInt(l.split(':')[1].trim()));
+
+      expect(ids).toEqual([3, 20, 100]);
+    });
+
+    it('should sort arrays at nested paths', () => {
+      const input = `microservice:
+  env:
+    - name: ZEBRA
+      value: z
+    - name: ALPHA
+      value: a`;
+
+      const result = formatYaml(input, 'svc/app/values.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          'svc/**/values.yaml': [{ path: 'microservice.env', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      const environmentSection = result.split('env:')[1];
+      const names = environmentSection.split('\n').filter((l) => l.includes('name:'));
+
+      expect(names[0]).toContain('ALPHA');
+      expect(names[1]).toContain('ZEBRA');
+    });
+
+    it('should skip silently when path does not exist', () => {
+      const input = `data:
+  value: 123`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'nonexistent.path', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      expect(result).toContain('data:');
+      expect(result).toContain('value: 123');
+    });
+
+    it('should skip silently when path points to non-array', () => {
+      const input = `config:
+  name: test
+  value: 123`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'config', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      expect(result).toContain('name: test');
+      expect(result).toContain('value: 123');
+    });
+
+    it('should handle empty arrays gracefully', () => {
+      const input = `items: []`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'items', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      expect(result).toBe('items: []\n');
+    });
+
+    it('should apply multiple sorting rules to different arrays', () => {
+      const input = `env:
+  - name: Z
+  - name: A
+cronJobs:
+  - name: job-z
+  - name: job-a`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [
+            { path: 'env', sortBy: 'name', order: 'asc' },
+            { path: 'cronJobs', sortBy: 'name', order: 'asc' }
+          ]
+        }
+      });
+
+      const environmentNames = result
+        .split('env:')[1]
+        .split('cronJobs:')[0]
+        .split('\n')
+        .filter((l) => l.includes('name:'));
+      const cronNames = result
+        .split('cronJobs:')[1]
+        .split('\n')
+        .filter((l) => l.includes('name:'));
+
+      expect(environmentNames[0]).toContain('A');
+      expect(environmentNames[1]).toContain('Z');
+      expect(cronNames[0]).toContain('job-a');
+      expect(cronNames[1]).toContain('job-z');
+    });
+
+    it('should not apply sorting when file pattern does not match', () => {
+      const input = `env:
+  - name: ZEBRA
+  - name: ALPHA`;
+
+      const result = formatYaml(input, 'other/config.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          'svc/**/values.yaml': [{ path: 'env', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      const lines = result.split('\n');
+      const names = lines.filter((l) => l.includes('name:'));
+
+      expect(names[0]).toContain('ZEBRA');
+      expect(names[1]).toContain('ALPHA');
+    });
+
+    it('should handle mixed string and number types by converting to string', () => {
+      const input = `items:
+  - id: zebra
+  - id: 100
+  - id: alpha
+  - id: 20`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'items', sortBy: 'id', order: 'asc' }]
+        }
+      });
+
+      const lines = result.split('\n');
+      const ids = lines.filter((l) => l.includes('id:')).map((l) => l.split(':')[1].trim());
+
+      expect(ids[0]).toBe('20');
+      expect(ids[1]).toBe('100');
+      expect(ids[2]).toBe('alpha');
+      expect(ids[3]).toBe('zebra');
+    });
+
+    it('should work with keyOrders and quoteValues', () => {
+      const input = `metadata:
+  name: test
+kind: Pod
+env:
+  - name: ZEBRA
+    value: true
+  - name: ALPHA
+    value: false`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keyOrders: {
+          '*.yaml': ['kind', 'metadata']
+        },
+        arraySort: {
+          '*.yaml': [{ path: 'env', sortBy: 'name', order: 'asc' }]
+        },
+        quoteValues: {
+          '*.yaml': ['env[*].value']
+        }
+      });
+
+      const topKeys = result.split('\n').filter((l) => l && !l.startsWith(' '));
+      expect(topKeys[0]).toBe('kind: Pod');
+      expect(topKeys[1]).toBe('metadata:');
+
+      const environmentSection = result.split('env:')[1];
+      const names = environmentSection.split('\n').filter((l) => l.includes('name:'));
+      expect(names[0]).toContain('ALPHA');
+      expect(names[1]).toContain('ZEBRA');
+
+      expect(result).toContain('value: "true"');
+      expect(result).toContain('value: "false"');
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { isMatch } from 'picomatch';
 import YAML, { Document, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
 
-import { OutputFormat } from './configFile';
+import { ArraySortRule, OutputFormat } from './configFile';
 
 // ============================================================================
 // Error Handling
@@ -78,6 +78,9 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
 
     // Apply key ordering
     if (outputFormat.keyOrders) applyKeyOrdering(document_, filePath, outputFormat.keyOrders);
+
+    // Apply array sorting
+    if (outputFormat.arraySort) applyArraySorting(document_, filePath, outputFormat.arraySort);
 
     // Apply value quoting
     if (outputFormat.quoteValues) applyValueQuoting(document_, filePath, outputFormat.quoteValues);
@@ -258,6 +261,135 @@ const matchPath = (currentPath: string[], targetPath: string[]): boolean => {
 const quoteScalar = (scalar: Scalar): void => {
   scalar.value = String(scalar.value);
   scalar.type = 'QUOTE_DOUBLE';
+};
+
+// ============================================================================
+// Array Sorting
+// ============================================================================
+
+const applyArraySorting = (
+  document_: Document,
+  filePath: string,
+  arraySortConfig: Record<string, ArraySortRule[]>
+): void => {
+  const sortRules = matchPatternConfig(filePath, arraySortConfig);
+  if (sortRules.length === 0) return;
+
+  const allRules = sortRules.flat();
+
+  for (const rule of allRules) {
+    const pathParts = parseJsonPath(rule.path);
+    if (pathParts.length === 0) continue;
+
+    if (document_.contents) traverseAndSort(document_.contents, [], pathParts, rule.sortBy, rule.order);
+  }
+};
+
+const traverseAndSort = (
+  node: unknown,
+  currentPath: string[],
+  targetPath: string[],
+  sortByField: string,
+  order: 'asc' | 'desc'
+): void => {
+  if (!node || typeof node !== 'object') return;
+
+  // Match target path
+  if (matchPath(currentPath, targetPath)) {
+    if ('items' in node && Array.isArray((node as YAMLSeq).items)) {
+      const seq = node as YAMLSeq;
+      sortYamlSeq(seq, sortByField, order);
+    }
+    return;
+  }
+
+  // Continue traversing maps only
+  if ('items' in node && Array.isArray((node as YAMLMap | YAMLSeq).items)) {
+    const items = (node as YAMLMap | YAMLSeq).items;
+
+    if (items.length > 0 && items[0] && typeof items[0] === 'object' && 'key' in items[0]) {
+      const map = node as YAMLMap;
+
+      for (const item of map.items) {
+        const keyValue =
+          item.key && typeof item.key === 'object' && 'value' in item.key ? String(item.key.value) : undefined;
+
+        if (keyValue && item.value) {
+          const childPath = [...currentPath, keyValue];
+          if (isPotentialMatch(childPath, targetPath))
+            traverseAndSort(item.value, childPath, targetPath, sortByField, order);
+        }
+      }
+    }
+  }
+};
+
+const isPotentialMatch = (currentPath: string[], targetPath: string[]): boolean => {
+  if (currentPath.length > targetPath.length) return false;
+  for (const [index, element] of currentPath.entries()) if (element !== targetPath[index]) return false;
+
+  return true;
+};
+
+const sortYamlSeq = (seq: YAMLSeq, sortByField: string, order: 'asc' | 'desc'): void => {
+  if (!seq.items || seq.items.length === 0) return;
+
+  const itemsWithSortKeys: Array<{ item: unknown; sortKey: string | number | undefined }> = [];
+
+  for (const item of seq.items) {
+    const sortKey = extractSortKey(item, sortByField);
+    itemsWithSortKeys.push({ item, sortKey });
+  }
+
+  const itemsWithKeys = itemsWithSortKeys.filter((entry) => entry.sortKey !== undefined);
+  const itemsWithoutKeys = itemsWithSortKeys.filter((entry) => entry.sortKey === undefined);
+
+  itemsWithKeys.sort((a, b) => compareSortKeys(a.sortKey, b.sortKey, order));
+
+  seq.items = [...itemsWithKeys, ...itemsWithoutKeys].map((entry) => entry.item);
+};
+
+const extractSortKey = (item: unknown, sortByField: string): string | number | undefined => {
+  if (!item || typeof item !== 'object') return undefined;
+  if (!('items' in item) || !Array.isArray((item as YAMLMap).items)) return undefined;
+
+  const map = item as YAMLMap;
+
+  for (const pair of map.items) {
+    const keyValue =
+      pair.key && typeof pair.key === 'object' && 'value' in pair.key ? String(pair.key.value) : undefined;
+
+    if (keyValue === sortByField) {
+      if (pair.value && typeof pair.value === 'object' && 'value' in pair.value) {
+        const scalar = pair.value as Scalar;
+        const value = scalar.value;
+
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number') return value;
+      }
+      return undefined;
+    }
+  }
+
+  return undefined;
+};
+
+const compareSortKeys = (
+  a: string | number | undefined,
+  b: string | number | undefined,
+  order: 'asc' | 'desc'
+): number => {
+  if (a === undefined && b === undefined) return 0;
+  if (a === undefined) return 1;
+  if (b === undefined) return -1;
+
+  let result = 0;
+
+  if (typeof a === 'string' && typeof b === 'string') result = a.toLowerCase().localeCompare(b.toLowerCase());
+  else if (typeof a === 'number' && typeof b === 'number') result = a - b;
+  else result = String(a).toLowerCase().localeCompare(String(b).toLowerCase());
+
+  return order === 'asc' ? result : -result;
 };
 
 // ============================================================================
