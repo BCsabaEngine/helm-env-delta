@@ -1,6 +1,7 @@
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
 import { isConfigLoaderError, loadConfigFile } from './configLoader';
+import { showConsoleDiff } from './consoleDiffReporter';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
@@ -41,10 +42,14 @@ const main = async (): Promise<void> => {
   console.log('\nComputing differences...');
   const diffResult = computeFileDiff(sourceFiles, destinationFiles, config);
 
-  console.log(`  New files: ${diffResult.addedFiles.length}`);
-  console.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
-  console.log(`  Changed files: ${diffResult.changedFiles.length}`);
-  console.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
+  // Show console diff if requested
+  if (options.showDiff) showConsoleDiff(diffResult, config);
+  else {
+    console.log(`  New files: ${diffResult.addedFiles.length}`);
+    console.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
+    console.log(`  Changed files: ${diffResult.changedFiles.length}`);
+    console.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
+  }
 
   // TODO: Apply transformations (config.transforms)
 
@@ -93,7 +98,7 @@ const main = async (): Promise<void> => {
   const formattedFiles = await updateFiles(diffResult, sourceFiles, destinationFiles, config, options.dryRun);
 
   // Generate HTML report if requested
-  if (options.htmlReport) await generateHtmlReport(diffResult, formattedFiles, config, options.dryRun);
+  if (options.showDiffHtml) await generateHtmlReport(diffResult, formattedFiles, config, options.dryRun);
 };
 
 // Execute main function with error handling

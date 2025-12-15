@@ -127,10 +127,22 @@ const applySkipPaths = (data: unknown, skipPaths: string[]): unknown => {
 };
 
 const deepEqual = (a: unknown, b: unknown): boolean => {
-  return JSON.stringify(a) === JSON.stringify(b);
+  const normalizedA = YAML.stringify(a, {
+    indent: 2,
+    lineWidth: 0,
+    sortMapEntries: true
+  });
+
+  const normalizedB = YAML.stringify(b, {
+    indent: 2,
+    lineWidth: 0,
+    sortMapEntries: true
+  });
+
+  return normalizedA === normalizedB;
 };
 
-const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, string[]>): string[] => {
+export const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, string[]>): string[] => {
   if (!skipPath) return [];
 
   const pathsToSkip: string[] = [];
