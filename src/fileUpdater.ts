@@ -261,6 +261,7 @@ const deleteFile = async (
 export const updateFiles = async (
   diffResult: FileDiffResult,
   sourceFiles: FileMap,
+  destinationFiles: FileMap,
   config: Config,
   dryRun: boolean
 ): Promise<string[]> => {
@@ -294,7 +295,7 @@ export const updateFiles = async (
   for (const relativePath of diffResult.unchangedFiles)
     if (isYamlFile(relativePath))
       try {
-        const content = sourceFiles.get(relativePath)!;
+        const content = destinationFiles.get(relativePath)!;
         const formatted = formatYaml(content, relativePath, config.outputFormat);
 
         if (formatted !== content) {

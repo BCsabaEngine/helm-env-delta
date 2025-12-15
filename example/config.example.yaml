@@ -79,7 +79,7 @@ stopRules: # Rules to block running operations, default: none = allow all change
       path: "version" # Block SemVer downgrade of image tag
     - type: "regex"
       path: "version" # Reject any image tag starting with v0.
-      regex: "^0\\."
+      regex: "^1\\."
 
   "svc/**/values.yaml":
     - type: "numeric"

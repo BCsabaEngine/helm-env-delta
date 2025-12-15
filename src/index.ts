@@ -90,7 +90,7 @@ const main = async (): Promise<void> => {
     }
 
   // Update files
-  const formattedFiles = await updateFiles(diffResult, sourceFiles, config, options.dryRun);
+  const formattedFiles = await updateFiles(diffResult, sourceFiles, destinationFiles, config, options.dryRun);
 
   // Generate HTML report if requested
   if (options.htmlReport) await generateHtmlReport(diffResult, formattedFiles, config, options.dryRun);
