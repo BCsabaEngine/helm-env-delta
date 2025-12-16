@@ -49,6 +49,14 @@ hed --config config.yaml              # Short alias
 
 During development: `node bin/index.js --config config.example.yaml`
 
+**CLI Flags:**
+
+- `--config <path>` (required) - Path to YAML configuration file
+- `--dry-run` - Preview changes without writing files
+- `--force` - Override stop rules and proceed with changes
+- `--show-diff` - Display console diff for changed files
+- `--show-diff-html` - Generate and open HTML diff report in browser
+
 **Important:** The `--config` option is required. The CLI will show an error and help output if not provided.
 
 ## Architecture
@@ -58,15 +66,20 @@ During development: `node bin/index.js --config config.example.yaml`
 1. `bin/index.js` - Shebang entry point that requires `dist/index.js`
 2. `src/index.ts` - Main application entry:
    - Displays app header with version from package.json
-   - Parses CLI arguments
-   - Loads and validates YAML config
-   - Orchestrates sync logic (in progress)
+   - Parses CLI arguments using parseCommandLine()
+   - Loads and validates YAML config using loadConfigFile()
+   - Loads source and destination files using loadFiles()
+   - Computes file differences using computeFileDiff()
+   - Validates stop rules using validateStopRules()
+   - Updates files using updateFiles()
+   - Generates HTML report if requested using generateHtmlReport()
+   - Error handling for all custom error types
 
 ### Core Modules
 
 - `src/commandLine.ts` - CLI argument parsing with `commander`
   - Validates required `--config` option
-  - Supports `--dry-run`, `--force`, `--html-report` flags
+  - Supports `--dry-run`, `--force`, `--show-diff`, `--show-diff-html` flags
 
 - `src/configFile.ts` - Config validation with Zod schemas
   - Discriminated union for stop rules (semverMajor, numeric, regex)
@@ -91,6 +104,45 @@ During development: `node bin/index.js --config config.example.yaml`
   - Adds contextual help for common error types
   - Exported as `ZodValidationError` with type guard `isZodValidationError`
 
+- `src/fileDiff.ts` - YAML diff computation and comparison
+  - Detects added, deleted, changed, and unchanged files
+  - Parses YAML files and applies skipPath filters
+  - Normalizes data structures for deep equality comparison
+  - Returns `FileDiffResult` with categorized file changes
+
+- `src/yamlFormatter.ts` - YAML output formatting
+  - Applies custom key ordering (per-file patterns with JSONPath)
+  - Handles value quoting for specific paths
+  - Supports array sorting by field with asc/desc order
+  - Applies keySeparator to add blank lines between top-level keys
+  - Custom `YamlFormatterError` for formatting failures
+
+- `src/stopRulesValidator.ts` - Validation rules enforcement
+  - Validates changed files against configured stop rules
+  - Supports semverMajorUpgrade, semverDowngrade, numeric (min/max), regex patterns
+  - Returns `ValidationResult` with violations list
+  - Custom `StopRulesValidatorError` for validation failures
+
+- `src/fileUpdater.ts` - File writing and synchronization
+  - Writes new files, updates changed files, deletes pruned files
+  - Deep merges YAML content (preserves unfiltered destination values)
+  - Formats unchanged YAML files if output formatting differs
+  - Supports dry-run mode (no actual file operations)
+  - Custom `FileUpdaterError` for file operation failures
+
+- `src/htmlReporter.ts` - HTML diff report generation
+  - Generates visual diff reports using diff2html
+  - Opens report in browser automatically
+  - Includes formatted file changes in report
+
+- `src/consoleDiffReporter.ts` - Console diff output
+  - Displays file diffs in terminal with colors
+  - Shows added/deleted/changed file summaries
+
+- `src/consoleFormatter.ts` - Console output formatting
+  - Colorizes messages (chalk) for different operation types
+  - Formats stop rule violations, progress messages, file operations
+
 ### Configuration Schema
 
 The tool uses a YAML configuration file (see `example/config.example.yaml`) with the following features:
@@ -110,9 +162,10 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 **Validation Rules:**
 
 - `stopRules` - Block operations based on:
-  - `semverMajor` - Prevent major version bumps
+  - `semverMajorUpgrade` - Prevent major version upgrades
+  - `semverDowngrade` - Prevent major version downgrades
   - `numeric` - Validate numeric ranges (min/max)
-  - `regex` - Pattern matching validation
+  - `regex` - Pattern matching validation (blocks if value matches regex)
 
 **Output Formatting:**
 
@@ -120,14 +173,16 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 - `outputFormat.keySeparator` - Add blank line between top-level keys (default: false)
 - `outputFormat.quoteValues` - Quote values for specific keys on right side of `:` (per-file patterns, supports wildcards)
 - `outputFormat.keyOrders` - Custom key ordering for output YAML files (per-file patterns)
+- `outputFormat.arraySort` - Sort arrays by field name with asc/desc order (per-file patterns)
 
 ### Dependencies
 
 - **CLI**: `commander` for argument parsing
-- **YAML Processing**: `yaml` library (currently used for parsing)
+- **YAML Processing**: `yaml` library for parsing and serialization
 - **Validation**: `zod` (v4+) for config schema validation
-- **Templating**: `handlebars` for potential future templating features
 - **Glob**: `picomatch` and `tinyglobby` for file pattern matching
+- **Diffing**: `diff` for file comparison, `diff2html` for HTML report generation
+- **Terminal UI**: `chalk` for colorized console output, `open` for browser launching
 
 ## Code Style and Conventions
 
@@ -146,7 +201,7 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 
 ### TypeScript Configuration
 
-- Target: ES2020, CommonJS modules
+- Target: ES2023, CommonJS modules
 - `rootDir: "./src"` ensures clean output to `dist/`
 - `resolveJsonModule: true` allows importing package.json directly
 - Strict mode enabled with comprehensive safety checks
@@ -180,28 +235,27 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 ### Completed
 
 - CLI argument parsing with required `--config` validation
-- Configuration schema with Zod validation
+- Configuration schema with Zod validation (including arraySort rules)
 - Application header displaying name/version from package.json
 - YAML config file loading and parsing
 - User-friendly error messages for config validation
 - File loader module with glob pattern matching
 - Parallel file reading from source and destination folders
 - Binary file detection and error handling
-
-### In Progress
-
-- Core sync logic (transformation, diffing, writing)
-- Stop rules validation enforcement
-- HTML report generation
+- Core sync logic (diffing, skipPath filtering, deep merge)
+- YAML formatter with key ordering, value quoting, array sorting, keySeparator
+- Stop rules validation (semverMajorUpgrade, semverDowngrade, numeric, regex)
+- File updater with add/update/delete/format operations
+- HTML diff report generation (diff2html)
+- Console diff reporter with colored output
 - Dry-run mode implementation
 - Force mode to skip stop rules
+- Prune logic for removing files not in source
 
 ### TODO
 
-- Unit tests in `test/` directory (particularly for fileLoader.ts)
-- YAML transformation logic
-- File writing to destination
-- Prune logic for removing files not in source
+- Unit tests in `test/` directory (only yamlFormatter.test.ts exists currently)
+- Transforms feature (find/replace transformations for specific paths)
 
 ## Error Handling Pattern
 
@@ -225,10 +279,55 @@ export const isFileLoaderError = (error: unknown): error is FileLoaderError =>
   error instanceof FileLoaderError;
 ```
 
+## YAML Processing Architecture
+
+The tool uses a sophisticated multi-stage pipeline for YAML processing:
+
+### 1. File Loading (`src/fileLoader.ts`)
+
+- Loads raw file contents from source and destination folders
+- Uses glob patterns with `tinyglobby` for file discovery
+- Returns `Map<string, string>` with relative paths as keys
+
+### 2. Diff Computation (`src/fileDiff.ts`)
+
+- Parses YAML files into JavaScript objects
+- Applies `skipPath` filters to remove ignored paths (per-file patterns)
+- Normalizes data structures for comparison (sorts arrays, keys)
+- Uses deep equality to detect actual changes (ignoring formatting)
+- Returns `FileDiffResult` with added/deleted/changed/unchanged files
+
+### 3. Stop Rules Validation (`src/stopRulesValidator.ts`)
+
+- Validates changed files against configured stop rules
+- Extracts values at JSONPath locations from old and new content
+- Checks semver changes, numeric ranges, regex patterns
+- Fails entire operation unless `--force` is used
+
+### 4. File Update (`src/fileUpdater.ts`)
+
+- **Deep merge strategy**: Merges source changes into full destination (preserving skipped paths)
+- For YAML files: `deepMerge(destinationParsed, processedSourceContent)`
+- This ensures skipPath values in destination are preserved
+- Formats output using `yamlFormatter.ts`
+- Writes to destination folder (or dry-run preview)
+
+### 5. YAML Formatting (`src/yamlFormatter.ts`)
+
+- Parses YAML into `yaml` AST (Document, YAMLMap, YAMLSeq, Scalar)
+- Applies transformations to AST:
+  - Key ordering (hierarchical JSONPath-based)
+  - Value quoting (JSONPath with wildcard support)
+  - Array sorting (by field, asc/desc)
+  - keySeparator (blank lines between top-level keys)
+- Serializes back to YAML string with specified indent
+
 ## Notes for Development
 
 - Configuration file supports glob patterns with `tinyglobby` (picomatch-based) syntax
-- JSON path expressions use JSONPath-style syntax (e.g., `$.secrets[*].password`)
-- The `yaml` package is used for parsing; preserves structure but may need custom serialization for formatting control
+- JSON path expressions use JSONPath-style syntax (e.g., `$.secrets[*].password`, `spec.env[*].value`)
+- JSONPath patterns support wildcards (`*`) for array indices
+- The `yaml` package is used for both parsing and AST manipulation
 - File loader returns `Map<string, string>` with relative paths sorted alphabetically
 - All file operations use async/await with parallel processing via `Promise.all`
+- Deep merge preserves destination values for paths not present in source
