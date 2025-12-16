@@ -29,8 +29,8 @@
   },
   "homepage": "https://github.com/BCsabaEngine/helm-env-delta",
   "scripts": {
-    "dev": "tsx src/index.ts -c ./example/config.example.yaml",
-    "dev:watch": "nodemon src/index.ts  -c ./example/config.example.yaml",
+    "dev": "tsx src/index.ts sync -c ./example/config.example.yaml",
+    "dev:init": "tsx src/index.ts init ./example/config.example2.yaml",
     "dev:clear": "rm -rf ./example/prod",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
@@ -63,7 +63,7 @@
     "@types/picomatch": "^4.0.2",
     "@typescript-eslint/eslint-plugin": "^8.50.0",
     "@typescript-eslint/parser": "^8.50.0",
-    "@vitest/coverage-v8": "^4.0.15",
+    "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-simple-import-sort": "^12.1.1",
@@ -73,7 +73,7 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.16"
   },
   "dependencies": {
     "chalk": "^5.6.2",

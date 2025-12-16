@@ -12,7 +12,9 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool for environment-aware YAM
 
 ```bash
 npm run build          # Clean build (tsc --build --clean && tsc --build --force)
-npm run dev            # Run with tsx and example config (tsx src/index.ts -c ./example/config.example.yaml)
+npm run dev            # Run sync with tsx and example config
+npm run dev:init       # Run init command with tsx
+npm run dev:clear      # Clear example/prod directory
 npm run dev:watch      # Watch mode with nodemon
 npm run clean          # Clean TypeScript build artifacts
 ```
@@ -20,9 +22,10 @@ npm run clean          # Clean TypeScript build artifacts
 ### Testing
 
 ```bash
-npm test               # Run all tests once (vitest run)
-npm run test:watch     # Run tests in watch mode
-npm run test:coverage  # Generate coverage report (60% minimum threshold)
+npm test                              # Run all tests once (vitest run)
+npm run test:watch                    # Run tests in watch mode
+npm run test:coverage                 # Generate coverage report (60% minimum threshold)
+npx vitest run test/initCommand.test.ts  # Run a single test file
 ```
 
 Tests should be placed in `test/**/*.test.ts` directory.
@@ -43,13 +46,18 @@ npm run all            # Run fix + build + test
 After building, two bin aliases are available:
 
 ```bash
-helm-env-delta --config config.yaml   # Main CLI command
-hed --config config.yaml              # Short alias
+helm-env-delta sync --config config.yaml   # Main CLI command
+hed sync --config config.yaml              # Short alias
 ```
 
-During development: `node bin/index.js --config config.example.yaml`
+During development: `node bin/index.js sync --config ./example/config.example.yaml`
 
-**CLI Flags:**
+**CLI Commands:**
+
+- `init [path]` - Generate a config.yaml template with all features (default path: ./config.yaml)
+- `sync` - Sync files from source to destination with YAML processing
+
+**Sync Command Flags:**
 
 - `--config <path>` (required) - Path to YAML configuration file
 - `--dry-run` - Preview changes without writing files
@@ -57,7 +65,21 @@ During development: `node bin/index.js --config config.example.yaml`
 - `--show-diff` - Display console diff for changed files
 - `--show-diff-html` - Generate and open HTML diff report in browser
 
-**Important:** The `--config` option is required. The CLI will show an error and help output if not provided.
+**Important:** You must specify either `init` or `sync` command. The `--config` option is required for sync command.
+
+**Examples:**
+
+```bash
+# Generate a new config file
+helm-env-delta init
+helm-env-delta init my-config.yaml
+
+# Sync files
+helm-env-delta sync --config config.yaml
+
+# Dry run with diff
+helm-env-delta sync --config config.yaml --dry-run --show-diff
+```
 
 ## Architecture
 
@@ -67,6 +89,9 @@ During development: `node bin/index.js --config config.example.yaml`
 2. `src/index.ts` - Main application entry:
    - Displays app header with version from package.json
    - Parses CLI arguments using parseCommandLine()
+   - Routes to init command (executeInit) or sync command:
+     - **Init command**: Generates config.yaml template and exits
+     - **Sync command**: Continues with sync workflow
    - Loads and validates YAML config using loadConfigFile()
    - Loads source and destination files using loadFiles()
    - Computes file differences using computeFileDiff()
@@ -78,8 +103,16 @@ During development: `node bin/index.js --config config.example.yaml`
 ### Core Modules
 
 - `src/commandLine.ts` - CLI argument parsing with `commander`
-  - Validates required `--config` option
+  - Supports two subcommands: `init` and `sync` (both required)
+  - Discriminated union types for type-safe command routing
+  - Validates required `--config` option for sync command
   - Supports `--dry-run`, `--force`, `--show-diff`, `--show-diff-html` flags
+
+- `src/initCommand.ts` - Init command for generating config templates
+  - CONFIG_TEMPLATE with full-featured example config
+  - executeInit() function to create config files
+  - InitError custom error class with helpful messages
+  - File exists validation to prevent overwrites
 
 - `src/configFile.ts` - Config validation with Zod schemas
   - Discriminated union for stop rules (semverMajor, numeric, regex)
@@ -234,7 +267,10 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 
 ### Completed
 
-- CLI argument parsing with required `--config` validation
+- CLI subcommand architecture with init and sync commands
+- Init command for generating config.yaml templates
+- CLI argument parsing with required `--config` validation for sync command
+- Discriminated union types for type-safe command routing
 - Configuration schema with Zod validation (including arraySort rules)
 - Application header displaying name/version from package.json
 - YAML config file loading and parsing
@@ -251,10 +287,10 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Dry-run mode implementation
 - Force mode to skip stop rules
 - Prune logic for removing files not in source
+- Comprehensive unit tests (yamlFormatter.test.ts, initCommand.test.ts)
 
 ### TODO
 
-- Unit tests in `test/` directory (only yamlFormatter.test.ts exists currently)
 - Transforms feature (find/replace transformations for specific paths)
 
 ## Error Handling Pattern

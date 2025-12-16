@@ -7,6 +7,7 @@ import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
 import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
+import { executeInit, isInitError } from './initCommand';
 import { validateStopRules } from './stopRulesValidator';
 import { isZodValidationError } from './ZodError';
 
@@ -19,10 +20,17 @@ const main = async (): Promise<void> => {
   console.log(`Now you run ${packageJson.name} v${packageJson.version}...`);
 
   // Parse command-line arguments
-  const options = parseCommandLine();
+  const command = parseCommandLine();
 
+  // Route to init command
+  if (command.command === 'init') {
+    executeInit(command.outputPath);
+    return;
+  }
+
+  // Continue with sync command logic
   // Load and validate config
-  const config = loadConfigFile(options.config);
+  const config = loadConfigFile(command.config);
 
   // Load source + destination files
   console.log('\n' + formatProgressMessage('Loading files...', 'loading'));
@@ -44,7 +52,7 @@ const main = async (): Promise<void> => {
   const diffResult = computeFileDiff(sourceFiles, destinationFiles, config);
 
   // Show console diff if requested
-  if (options.showDiff) showConsoleDiff(diffResult, config);
+  if (command.showDiff) showConsoleDiff(diffResult, config);
   else {
     console.log(`  New files: ${diffResult.addedFiles.length}`);
     console.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
@@ -58,10 +66,10 @@ const main = async (): Promise<void> => {
   const validationResult = validateStopRules(diffResult, config.stopRules);
 
   if (validationResult.violations.length > 0)
-    if (options.force)
+    if (command.force)
       for (const violation of validationResult.violations)
         console.warn('\n' + formatStopRuleViolation(violation, 'force'));
-    else if (options.dryRun)
+    else if (command.dryRun)
       for (const violation of validationResult.violations)
         console.warn('\n' + formatStopRuleViolation(violation, 'warning'));
     else {
@@ -73,10 +81,10 @@ const main = async (): Promise<void> => {
     }
 
   // Update files
-  const formattedFiles = await updateFiles(diffResult, sourceFiles, destinationFiles, config, options.dryRun);
+  const formattedFiles = await updateFiles(diffResult, sourceFiles, destinationFiles, config, command.dryRun);
 
   // Generate HTML report if requested
-  if (options.showDiffHtml) await generateHtmlReport(diffResult, formattedFiles, config, options.dryRun);
+  if (command.showDiffHtml) await generateHtmlReport(diffResult, formattedFiles, config, command.dryRun);
 };
 
 // Execute main function with error handling
@@ -85,7 +93,8 @@ const main = async (): Promise<void> => {
   try {
     await main();
   } catch (error: unknown) {
-    if (isConfigLoaderError(error)) console.error(error.message);
+    if (isInitError(error)) console.error(error.message);
+    else if (isConfigLoaderError(error)) console.error(error.message);
     else if (isZodValidationError(error)) console.error(error.message);
     else if (isFileLoaderError(error)) console.error(error.message);
     else if (isFileDiffError(error)) console.error(error.message);
