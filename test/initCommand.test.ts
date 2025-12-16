@@ -217,7 +217,7 @@ describe('initCommand', () => {
 
   describe('InitError', () => {
     it('should format error messages correctly', () => {
-      const error = new InitError('Test error', 'EEXIST', './test.yaml');
+      const error = new InitError('Test error', { code: 'EEXIST', path: './test.yaml' });
 
       expect(error.message).toContain('Init Command Error: Test error');
       expect(error.message).toContain('Path: ./test.yaml');
@@ -225,46 +225,46 @@ describe('initCommand', () => {
     });
 
     it('should include code explanations for EEXIST', () => {
-      const error = new InitError('Test', 'EEXIST', './test.yaml');
+      const error = new InitError('Test', { code: 'EEXIST', path: './test.yaml' });
 
       expect(error.message).toContain('File already exists');
     });
 
     it('should include code explanations for EACCES', () => {
-      const error = new InitError('Test', 'EACCES', './test.yaml');
+      const error = new InitError('Test', { code: 'EACCES', path: './test.yaml' });
 
       expect(error.message).toContain('Permission denied');
     });
 
     it('should include code explanations for ENOENT', () => {
-      const error = new InitError('Test', 'ENOENT', './test.yaml');
+      const error = new InitError('Test', { code: 'ENOENT', path: './test.yaml' });
 
       expect(error.message).toContain('Directory not found');
     });
 
     it('should include code explanations for EISDIR', () => {
-      const error = new InitError('Test', 'EISDIR', './test.yaml');
+      const error = new InitError('Test', { code: 'EISDIR', path: './test.yaml' });
 
       expect(error.message).toContain('Path is a directory');
     });
 
     it('should include helpful hints', () => {
-      const error = new InitError('Test error', 'EEXIST', './test.yaml');
+      const error = new InitError('Test error', { code: 'EEXIST', path: './test.yaml' });
 
       expect(error.message).toContain('Hint:');
     });
 
     it('should include cause details when provided', () => {
       const cause = new Error('Underlying error');
-      const error = new InitError('Test error', 'EEXIST', './test.yaml', cause);
+      const error = new InitError('Test error', { code: 'EEXIST', path: './test.yaml', cause });
 
       expect(error.message).toContain('Details: Underlying error');
     });
 
     it('should have correct error name', () => {
-      const error = new InitError('Test');
+      const error = new InitError('Test', {});
 
-      expect(error.name).toBe('InitError');
+      expect(error.name).toBe('Init Command Error');
     });
   });
 

@@ -2,45 +2,31 @@ import { isMatch } from 'picomatch';
 
 import { StopRule } from './configFile';
 import { ChangedFile, FileDiffResult } from './fileDiff';
+import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { getValueAtPath, parseJsonPath } from './utils/jsonPath';
 
 // ============================================================================
 // Error Handling
 // ============================================================================
 
-export class StopRulesValidatorError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly violations?: StopRuleViolation[],
-    public override readonly cause?: Error
-  ) {
-    super(StopRulesValidatorError.formatMessage(message, code, violations, cause));
-    this.name = 'StopRulesValidatorError';
+const StopRulesValidatorErrorClass = createErrorClass('Stop Rules Validator Error', {}, (message, options) => {
+  let fullMessage = `Stop Rules Validator Error: ${message}`;
+
+  if (options.code) fullMessage += `\n  Code: ${options.code}`;
+
+  if (options['violations'] && Array.isArray(options['violations']) && options['violations'].length > 0) {
+    fullMessage += `\n  Violations (${options['violations'].length}):`;
+    for (const v of options['violations'] as StopRuleViolation[])
+      fullMessage += `\n    - ${v.file}:${v.path} (${v.rule.type})`;
   }
 
-  private static formatMessage = (
-    message: string,
-    code?: string,
-    violations?: StopRuleViolation[],
-    cause?: Error
-  ): string => {
-    let fullMessage = `Stop Rules Validator Error: ${message}`;
+  if (options.cause) fullMessage += `\n  Cause: ${options.cause.message}`;
 
-    if (code) fullMessage += `\n  Code: ${code}`;
+  return fullMessage;
+});
 
-    if (violations && violations.length > 0) {
-      fullMessage += `\n  Violations (${violations.length}):`;
-      for (const v of violations) fullMessage += `\n    - ${v.file}:${v.path} (${v.rule.type})`;
-    }
-
-    if (cause) fullMessage += `\n  Cause: ${cause.message}`;
-
-    return fullMessage;
-  };
-}
-
-export const isStopRulesValidatorError = (error: unknown): error is StopRulesValidatorError =>
-  error instanceof StopRulesValidatorError;
+export class StopRulesValidatorError extends StopRulesValidatorErrorClass {}
+export const isStopRulesValidatorError = createErrorTypeGuard(StopRulesValidatorError);
 
 // ============================================================================
 // Types
@@ -281,31 +267,6 @@ const validateRegex = (
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const parseJsonPath = (path: string): string[] => {
-  return path
-    .replaceAll(/\[(\*|\d+)]/g, '.$1')
-    .split('.')
-    .filter((part: string) => part.length > 0);
-};
-
-const getValueAtPath = (data: unknown, pathParts: string[]): unknown => {
-  let current = data;
-
-  for (const part of pathParts) {
-    if (!current || typeof current !== 'object') return undefined;
-
-    if (Array.isArray(current)) {
-      if (part === '*') return undefined;
-
-      const index = Number.parseInt(part, 10);
-      if (Number.isNaN(index)) return undefined;
-      current = current[index];
-    } else current = (current as Record<string, unknown>)[part];
-  }
-
-  return current;
-};
 
 const parseMajorVersion = (version: string): number | undefined => {
   const cleaned = version.startsWith('v') ? version.slice(1) : version;

@@ -2,6 +2,8 @@ import { existsSync, writeFileSync } from 'node:fs';
 
 import chalk from 'chalk';
 
+import { createErrorClass, createErrorTypeGuard, ErrorOptions } from './utils/errors';
+
 // ============================================================================
 // Config Template
 // ============================================================================
@@ -124,43 +126,20 @@ stopRules:
 // Error Handling
 // ============================================================================
 
-export class InitError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly path?: string,
-    public override readonly cause?: Error
-  ) {
-    super(InitError.formatMessage(message, code, path, cause));
-    this.name = 'InitError';
+const InitErrorClass = createErrorClass('Init Command Error', {
+  EEXIST: 'File already exists',
+  ENOENT: 'Directory not found',
+  EACCES: 'Permission denied',
+  EISDIR: 'Path is a directory, not a file'
+});
+
+export class InitError extends InitErrorClass {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super(message, options);
+    this.message += '\n  Hint: Choose a different path or remove the existing file';
   }
-
-  private static formatMessage = (message: string, code?: string, path?: string, cause?: Error): string => {
-    let fullMessage = `Init Command Error: ${message}`;
-
-    if (path) fullMessage += `\n  Path: ${path}`;
-
-    if (code) {
-      const codeExplanations: Record<string, string> = {
-        EEXIST: 'File already exists',
-        ENOENT: 'Directory not found',
-        EACCES: 'Permission denied',
-        EISDIR: 'Path is a directory, not a file'
-      };
-
-      const explanation = codeExplanations[code] || `System error (${code})`;
-      fullMessage += `\n  Reason: ${explanation}`;
-    }
-
-    if (cause) fullMessage += `\n  Details: ${cause.message}`;
-
-    fullMessage += `\n  Hint: Choose a different path or remove the existing file`;
-
-    return fullMessage;
-  };
 }
-
-export const isInitError = (error: unknown): error is InitError => error instanceof InitError;
+export const isInitError = createErrorTypeGuard(InitError);
 
 // ============================================================================
 // Template Generation
@@ -174,7 +153,7 @@ export const generateConfigTemplate = (): string => CONFIG_TEMPLATE;
 
 export const executeInit = (outputPath: string): void => {
   // Check if file already exists
-  if (existsSync(outputPath)) throw new InitError('Config file already exists', 'EEXIST', outputPath);
+  if (existsSync(outputPath)) throw new InitError('Config file already exists', { code: 'EEXIST', path: outputPath });
 
   // Generate template
   const template = generateConfigTemplate();
@@ -185,9 +164,9 @@ export const executeInit = (outputPath: string): void => {
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error) {
       const nodeError = error as NodeJS.ErrnoException;
-      throw new InitError('Failed to write config file', nodeError.code, outputPath, nodeError);
+      throw new InitError('Failed to write config file', { code: nodeError.code, path: outputPath, cause: nodeError });
     }
-    throw new InitError('Failed to write config file', undefined, outputPath, error as Error);
+    throw new InitError('Failed to write config file', { path: outputPath, cause: error as Error });
   }
 
   // Success message

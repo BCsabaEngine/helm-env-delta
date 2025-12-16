@@ -7,6 +7,8 @@ import { Config } from './configFile';
 import { colorizeFileOperation, formatProgressMessage } from './consoleFormatter';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { FileMap } from './fileLoader';
+import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { isYamlFile } from './utils/fileType';
 import { formatYaml } from './yamlFormatter';
 
 // Types
@@ -17,44 +19,18 @@ export interface FileUpdateError {
 }
 
 // Error Handling
-export class FileUpdaterError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly path?: string,
-    public override readonly cause?: Error
-  ) {
-    super(FileUpdaterError.formatMessage(message, code, path, cause));
-    this.name = 'FileUpdaterError';
-  }
+const FileUpdaterErrorClass = createErrorClass('File Updater Error', {
+  WRITE_FAILED: 'File write operation failed',
+  DELETE_FAILED: 'File deletion failed',
+  MKDIR_FAILED: 'Directory creation failed',
+  YAML_PARSE_ERROR: 'YAML file could not be parsed',
+  YAML_MERGE_ERROR: 'YAML merge operation failed',
+  YAML_SERIALIZE_ERROR: 'YAML serialization failed',
+  UPDATE_FAILED: 'Failed to update one or more files'
+});
 
-  private static formatMessage = (message: string, code?: string, path?: string, cause?: Error): string => {
-    let fullMessage = `File Updater Error: ${message}`;
-
-    if (path) fullMessage += `\n  Path: ${path}`;
-
-    if (code) {
-      const codeExplanations: Record<string, string> = {
-        WRITE_FAILED: 'File write operation failed',
-        DELETE_FAILED: 'File deletion failed',
-        MKDIR_FAILED: 'Directory creation failed',
-        YAML_PARSE_ERROR: 'YAML file could not be parsed',
-        YAML_MERGE_ERROR: 'YAML merge operation failed',
-        YAML_SERIALIZE_ERROR: 'YAML serialization failed',
-        UPDATE_FAILED: 'Failed to update one or more files'
-      };
-
-      const explanation = codeExplanations[code] || `Error (${code})`;
-      fullMessage += `\n  Reason: ${explanation}`;
-    }
-
-    if (cause) fullMessage += `\n  Details: ${cause.message}`;
-
-    return fullMessage;
-  };
-}
-
-export const isFileUpdaterError = (error: unknown): error is FileUpdaterError => error instanceof FileUpdaterError;
+export class FileUpdaterError extends FileUpdaterErrorClass {}
+export const isFileUpdaterError = createErrorTypeGuard(FileUpdaterError);
 
 // Helper Functions
 const validateDestinationDirectory = async (destinationPath: string): Promise<string> => {
@@ -64,21 +40,23 @@ const validateDestinationDirectory = async (destinationPath: string): Promise<st
     const stats = await stat(absolutePath);
 
     if (!stats.isDirectory())
-      throw new FileUpdaterError('Destination path is not a directory', 'INVALID_DESTINATION', absolutePath);
+      throw new FileUpdaterError('Destination path is not a directory', {
+        code: 'INVALID_DESTINATION',
+        path: absolutePath
+      });
 
     return absolutePath;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-      throw new FileUpdaterError('Destination directory does not exist', 'ENOENT', absolutePath);
+      throw new FileUpdaterError('Destination directory does not exist', { code: 'ENOENT', path: absolutePath });
 
     if (error instanceof FileUpdaterError) throw error;
 
-    throw new FileUpdaterError(
-      'Failed to validate destination directory',
-      (error as NodeJS.ErrnoException).code,
-      absolutePath,
-      error as Error
-    );
+    throw new FileUpdaterError('Failed to validate destination directory', {
+      code: (error as NodeJS.ErrnoException).code,
+      path: absolutePath,
+      cause: error as Error
+    });
   }
 };
 
@@ -88,12 +66,12 @@ const ensureParentDirectory = async (filePath: string): Promise<void> => {
   try {
     await mkdir(directory, { recursive: true });
   } catch (error) {
-    throw new FileUpdaterError('Failed to create parent directory', 'MKDIR_FAILED', directory, error as Error);
+    throw new FileUpdaterError('Failed to create parent directory', {
+      code: 'MKDIR_FAILED',
+      path: directory,
+      cause: error as Error
+    });
   }
-};
-
-const isYamlFile = (filePath: string): boolean => {
-  return /\.ya?ml$/i.test(filePath);
 };
 
 const deepMerge = (target: unknown, source: unknown): unknown => {
@@ -127,12 +105,11 @@ const mergeYamlContent = (destinationContent: string, processedSourceContent: un
   try {
     destinationParsed = YAML.parse(destinationContent);
   } catch (error) {
-    throw new FileUpdaterError(
-      'Failed to parse destination YAML for merge',
-      'YAML_PARSE_ERROR',
-      filePath,
-      error instanceof Error ? error : undefined
-    );
+    throw new FileUpdaterError('Failed to parse destination YAML for merge', {
+      code: 'YAML_PARSE_ERROR',
+      path: filePath,
+      cause: error instanceof Error ? error : undefined
+    });
   }
 
   // 2. Deep merge source changes into destination
@@ -140,12 +117,11 @@ const mergeYamlContent = (destinationContent: string, processedSourceContent: un
   try {
     merged = deepMerge(destinationParsed, processedSourceContent);
   } catch (error) {
-    throw new FileUpdaterError(
-      'Failed to merge YAML content',
-      'YAML_MERGE_ERROR',
-      filePath,
-      error instanceof Error ? error : undefined
-    );
+    throw new FileUpdaterError('Failed to merge YAML content', {
+      code: 'YAML_MERGE_ERROR',
+      path: filePath,
+      cause: error instanceof Error ? error : undefined
+    });
   }
 
   // 3. Serialize back to YAML
@@ -154,12 +130,11 @@ const mergeYamlContent = (destinationContent: string, processedSourceContent: un
     // Current: Using YAML.stringify() with default options
     return YAML.stringify(merged);
   } catch (error) {
-    throw new FileUpdaterError(
-      'Failed to serialize merged YAML',
-      'YAML_SERIALIZE_ERROR',
-      filePath,
-      error instanceof Error ? error : undefined
-    );
+    throw new FileUpdaterError('Failed to serialize merged YAML', {
+      code: 'YAML_SERIALIZE_ERROR',
+      path: filePath,
+      cause: error instanceof Error ? error : undefined
+    });
   }
 };
 
@@ -185,12 +160,11 @@ const addFile = async (
     await writeFile(absolutePath, contentToWrite, 'utf8');
     console.log(colorizeFileOperation('add', relativePath, false));
   } catch (error) {
-    throw new FileUpdaterError(
-      'Failed to add file',
-      (error as NodeJS.ErrnoException).code,
-      absolutePath,
-      error as Error
-    );
+    throw new FileUpdaterError('Failed to add file', {
+      code: (error as NodeJS.ErrnoException).code,
+      path: absolutePath,
+      cause: error as Error
+    });
   }
 };
 
@@ -218,12 +192,11 @@ const updateFile = async (
     await writeFile(absolutePath, contentToWrite, 'utf8');
     console.log(colorizeFileOperation('update', changedFile.path, false));
   } catch (error) {
-    throw new FileUpdaterError(
-      'Failed to update file',
-      (error as NodeJS.ErrnoException).code,
-      absolutePath,
-      error as Error
-    );
+    throw new FileUpdaterError('Failed to update file', {
+      code: (error as NodeJS.ErrnoException).code,
+      path: absolutePath,
+      cause: error as Error
+    });
   }
 };
 
@@ -249,12 +222,11 @@ const deleteFile = async (
       return;
     }
 
-    throw new FileUpdaterError(
-      'Failed to delete file',
-      (error as NodeJS.ErrnoException).code,
-      absolutePath,
-      error as Error
-    );
+    throw new FileUpdaterError('Failed to delete file', {
+      code: (error as NodeJS.ErrnoException).code,
+      path: absolutePath,
+      cause: error as Error
+    });
   }
 };
 
@@ -344,7 +316,7 @@ export const updateFiles = async (
     for (const { operation, path: errorPath, error } of errors)
       console.error(`  [${operation}] ${errorPath}: ${error.message}`);
 
-    throw new FileUpdaterError(`Failed to update ${errors.length} file(s)`, 'UPDATE_FAILED');
+    throw new FileUpdaterError(`Failed to update ${errors.length} file(s)`, { code: 'UPDATE_FAILED' });
   }
 
   return formattedFiles;

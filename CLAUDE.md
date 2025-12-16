@@ -167,14 +167,21 @@ helm-env-delta sync --config config.yaml --dry-run --show-diff
   - Generates visual diff reports using diff2html
   - Opens report in browser automatically
   - Includes formatted file changes in report
+  - Uses shared utilities: `isYamlFile`, `generateUnifiedDiff`, `deepEqual`, `serializeForDiff`
 
 - `src/consoleDiffReporter.ts` - Console diff output
   - Displays file diffs in terminal with colors
   - Shows added/deleted/changed file summaries
+  - Uses shared utilities: `isYamlFile`, `generateUnifiedDiff`, `deepEqual`, `serializeForDiff`
 
 - `src/consoleFormatter.ts` - Console output formatting
   - Colorizes messages (chalk) for different operation types
   - Formats stop rule violations, progress messages, file operations
+
+- `src/arrayDiffer.ts` - Array diffing utilities
+  - `diffArrays(source, dest)` - Compares arrays and returns removed/added/unchanged items
+  - `hasArrays(obj)` - Recursively checks if object contains arrays
+  - `findArrayPaths(obj)` - Finds all JSON paths containing arrays
 
 ### Configuration Schema
 
@@ -293,26 +300,65 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 
 - Transforms feature (find/replace transformations for specific paths)
 
+## Utility Modules (`src/utils/`)
+
+Shared utilities are centralized in `src/utils/` with barrel exports via `src/utils/index.ts`:
+
+- **`errors.ts`** - Error factory pattern for consistent error handling
+  - `createErrorClass(name, codeExplanations, customFormatter?)` - Creates custom error classes
+  - `createErrorTypeGuard(ErrorClass)` - Generates type guard functions
+  - All modules use this factory for consistency
+
+- **`fileType.ts`** - File type detection utilities
+  - `isYamlFile(filePath)` - Detects YAML files with regex `/\.ya?ml$/i`
+
+- **`diffGenerator.ts`** - Unified diff generation
+  - `generateUnifiedDiff(filePath, destinationContent, sourceContent)` - Creates unified diffs using `diff` library
+
+- **`serialization.ts`** - YAML serialization and normalization
+  - `serializeForDiff(content, sortKeys)` - Consistent YAML serialization for diffing
+  - `normalizeForComparison(value)` - Recursively normalizes values (sorts arrays/keys)
+
+- **`deepEqual.ts`** - Structural deep equality comparison
+  - `deepEqual(a, b)` - Fast structural comparison (normalizes then compares)
+
+- **`jsonPath.ts`** - JSON path utilities
+  - `parseJsonPath(path)` - Converts JSON path strings to array of parts
+  - `getValueAtPath(obj, path)` - Navigates objects using parsed paths
+  - Supports wildcards (`*`) and numeric array indices
+
 ## Error Handling Pattern
 
-All modules follow a consistent error handling pattern:
+All modules follow a consistent error handling pattern using the factory in `src/utils/errors.ts`:
 
-1. **Custom Error Classes** - Each module has its own error class (e.g., `ConfigLoaderError`, `FileLoaderError`, `ZodValidationError`)
-2. **Static formatMessage method** - Provides user-friendly error messages with context
-3. **Type Guards** - Export `isXxxError()` functions for error type checking
-4. **Error Codes** - Include NodeJS.ErrnoException codes (ENOENT, EACCES, etc.) for file operations
+1. **Custom Error Classes** - Each module creates its own error class via `createErrorClass()`
+2. **Consistent Formatting** - Factory provides user-friendly error messages with context (path, code, cause)
+3. **Type Guards** - Each error exports an `isXxxError()` type guard via `createErrorTypeGuard()`
+4. **Error Codes** - Support for NodeJS.ErrnoException codes (ENOENT, EACCES, etc.) and custom codes
 
-Example from `src/fileLoader.ts`:
+Example pattern:
 
 ```typescript
-export class FileLoaderError extends Error {
-  constructor(message: string, code?: string, path?: string, cause?: Error) {
-    super(FileLoaderError.formatMessage(message, code, path, cause));
+import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+
+const FileLoaderErrorClass = createErrorClass('File Loader Error', {
+  ENOENT: 'File not found',
+  EACCES: 'Permission denied'
+});
+
+export class FileLoaderError extends FileLoaderErrorClass {}
+export const isFileLoaderError = createErrorTypeGuard(FileLoaderError);
+```
+
+To add a hint to error messages, override the constructor:
+
+```typescript
+export class InitError extends InitErrorClass {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super(message, options);
+    this.message += '\n  Hint: Choose a different path or remove the existing file';
   }
-  private static formatMessage = (...) => { /* friendly formatting */ };
 }
-export const isFileLoaderError = (error: unknown): error is FileLoaderError =>
-  error instanceof FileLoaderError;
 ```
 
 ## YAML Processing Architecture
@@ -367,3 +413,5 @@ The tool uses a sophisticated multi-stage pipeline for YAML processing:
 - File loader returns `Map<string, string>` with relative paths sorted alphabetically
 - All file operations use async/await with parallel processing via `Promise.all`
 - Deep merge preserves destination values for paths not present in source
+- Shared utilities in `src/utils/` provide file type detection, diff generation, serialization, and comparison functions
+- Use barrel exports from `src/utils/index.ts` for cleaner imports

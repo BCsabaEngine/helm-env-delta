@@ -1,24 +1,18 @@
 import chalk from 'chalk';
-import { createTwoFilesPatch } from 'diff';
 import YAML from 'yaml';
 
 import { diffArrays, findArrayPaths, hasArrays } from './arrayDiffer';
 import { Config } from './configFile';
-import { ChangedFile, deepEqual, FileDiffResult, getSkipPathsForFile, normalizeForComparison } from './fileDiff';
+import { ChangedFile, FileDiffResult, getSkipPathsForFile } from './fileDiff';
+import { deepEqual } from './utils/deepEqual';
+import { generateUnifiedDiff } from './utils/diffGenerator';
+import { isYamlFile } from './utils/fileType';
+import { getValueAtPath } from './utils/jsonPath';
+import { normalizeForComparison, serializeForDiff } from './utils/serialization';
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const serializeForDiff = (content: unknown, isYaml: boolean): string => {
-  if (!isYaml) return String(content);
-
-  return YAML.stringify(content, {
-    indent: 2,
-    lineWidth: 0,
-    sortMapEntries: true
-  });
-};
 
 const colorizeUnifiedDiff = (diff: string): string => {
   return diff
@@ -48,15 +42,6 @@ const formatDeletedFiles = (files: string[]): string => {
   const fileList = files.map((file) => chalk.red(`  - ${file}`)).join('\n');
 
   return `${header}\n${fileList}\n`;
-};
-
-const getValueAtPath = (object: unknown, path: string[]): unknown => {
-  let current = object;
-  for (const key of path) {
-    if (typeof current !== 'object' || current === null) return undefined;
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
 };
 
 const formatArrayDiff = (sourceArray: unknown[], destinationArray: unknown[]): string => {
@@ -90,7 +75,7 @@ const formatArrayDiff = (sourceArray: unknown[], destinationArray: unknown[]): s
 };
 
 const formatChangedFile = (file: ChangedFile, config: Config): string => {
-  const isYaml = /\.ya?ml$/i.test(file.path);
+  const isYaml = isYamlFile(file.path);
   const separator = chalk.yellow('━'.repeat(60));
   const skipPaths = getSkipPathsForFile(file.path, config.skipPath);
   const skipPathInfo =
@@ -101,14 +86,7 @@ const formatChangedFile = (file: ChangedFile, config: Config): string => {
   if (!isYaml) {
     const destinationContent = String(file.processedDestContent);
     const sourceContent = String(file.processedSourceContent);
-    const unifiedDiff = createTwoFilesPatch(
-      file.path,
-      file.path,
-      destinationContent,
-      sourceContent,
-      'Destination',
-      'Source'
-    );
+    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
     const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
 
     return `
@@ -125,14 +103,7 @@ ${colorizedDiff}
   if (!hasArraysInFile) {
     const destinationContent = serializeForDiff(file.processedDestContent, true);
     const sourceContent = serializeForDiff(file.processedSourceContent, true);
-    const unifiedDiff = createTwoFilesPatch(
-      file.path,
-      file.path,
-      destinationContent,
-      sourceContent,
-      'Destination',
-      'Source'
-    );
+    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
     const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
 
     return `
@@ -148,14 +119,7 @@ ${colorizedDiff}
 
   const destinationContent = serializeForDiff(file.processedDestContent, true);
   const sourceContent = serializeForDiff(file.processedSourceContent, true);
-  const unifiedDiff = createTwoFilesPatch(
-    file.path,
-    file.path,
-    destinationContent,
-    sourceContent,
-    'Destination',
-    'Source'
-  );
+  const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
   const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
 
   output += `\n${colorizedDiff}\n`;

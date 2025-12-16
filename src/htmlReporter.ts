@@ -3,13 +3,18 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { createTwoFilesPatch } from 'diff';
 import { html as diff2html } from 'diff2html';
 import YAML from 'yaml';
 
 import { diffArrays, findArrayPaths, hasArrays } from './arrayDiffer';
 import { Config } from './configFile';
-import { ChangedFile, deepEqual, FileDiffResult, normalizeForComparison } from './fileDiff';
+import { ChangedFile, FileDiffResult } from './fileDiff';
+import { deepEqual } from './utils/deepEqual';
+import { generateUnifiedDiff } from './utils/diffGenerator';
+import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { isYamlFile } from './utils/fileType';
+import { getValueAtPath } from './utils/jsonPath';
+import { normalizeForComparison, serializeForDiff } from './utils/serialization';
 
 // Types
 export interface ReportMetadata {
@@ -20,41 +25,15 @@ export interface ReportMetadata {
 }
 
 // Error Handling
-export class HtmlReporterError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly path?: string,
-    public override readonly cause?: Error
-  ) {
-    super(HtmlReporterError.formatMessage(message, code, path, cause));
-    this.name = 'HtmlReporterError';
-  }
+const HtmlReporterErrorClass = createErrorClass('HTML Reporter Error', {
+  WRITE_FAILED: 'Failed to write HTML report file',
+  BROWSER_OPEN_FAILED: 'Failed to open report in browser',
+  DIFF_GENERATION_FAILED: 'Failed to generate diff content',
+  INVALID_OUTPUT_PATH: 'Invalid output path for HTML report'
+});
 
-  private static formatMessage = (message: string, code?: string, path?: string, cause?: Error): string => {
-    let fullMessage = `HTML Reporter Error: ${message}`;
-
-    if (path) fullMessage += `\n  Path: ${path}`;
-
-    if (code) {
-      const codeExplanations: Record<string, string> = {
-        WRITE_FAILED: 'Failed to write HTML report file',
-        BROWSER_OPEN_FAILED: 'Failed to open report in browser',
-        DIFF_GENERATION_FAILED: 'Failed to generate diff content',
-        INVALID_OUTPUT_PATH: 'Invalid output path for HTML report'
-      };
-
-      const explanation = codeExplanations[code] || `Error (${code})`;
-      fullMessage += `\n  Reason: ${explanation}`;
-    }
-
-    if (cause) fullMessage += `\n  Details: ${cause.message}`;
-
-    return fullMessage;
-  };
-}
-
-export const isHtmlReporterError = (error: unknown): error is HtmlReporterError => error instanceof HtmlReporterError;
+export class HtmlReporterError extends HtmlReporterErrorClass {}
+export const isHtmlReporterError = createErrorTypeGuard(HtmlReporterError);
 
 // Helper Functions
 const generateTemporaryFilePath = (): string => {
@@ -62,37 +41,6 @@ const generateTemporaryFilePath = (): string => {
   const timestamp = new Date().toISOString().replaceAll(/[.:]/g, '-');
   const filename = `helm-env-delta-${timestamp}-${randomName}.html`;
   return path.join(tmpdir(), filename);
-};
-
-const serializeForDiff = (content: unknown, isYaml: boolean): string => {
-  if (!isYaml) return String(content);
-
-  // Serialize YAML objects consistently for diffing
-  return YAML.stringify(content, {
-    indent: 2,
-    lineWidth: 0,
-    sortMapEntries: true
-  });
-};
-
-const generateUnifiedDiff = (filePath: string, destinationContent: string, sourceContent: string): string => {
-  return createTwoFilesPatch(
-    filePath, // filename
-    filePath, // filename
-    destinationContent,
-    sourceContent,
-    'Destination', // old header
-    'Source' // new header
-  );
-};
-
-const getValueAtPath = (object: unknown, path: string[]): unknown => {
-  let current = object;
-  for (const key of path) {
-    if (typeof current !== 'object' || current === null) return undefined;
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
 };
 
 const escapeHtml = (text: string): string => {
@@ -138,7 +86,7 @@ const generateArrayDiffHtml = (sourceArray: unknown[], destinationArray: unknown
 };
 
 const generateChangedFileSection = (file: ChangedFile): string => {
-  const isYaml = /\.ya?ml$/i.test(file.path);
+  const isYaml = isYamlFile(file.path);
 
   if (!isYaml) {
     const destinationContent = serializeForDiff(file.processedDestContent, false);
@@ -617,7 +565,11 @@ const writeHtmlFile = async (htmlContent: string, outputPath: string): Promise<v
     // Write HTML file
     await writeFile(outputPath, htmlContent, 'utf8');
   } catch (error) {
-    throw new HtmlReporterError('Failed to write HTML report file', 'WRITE_FAILED', outputPath, error as Error);
+    throw new HtmlReporterError('Failed to write HTML report file', {
+      code: 'WRITE_FAILED',
+      path: outputPath,
+      cause: error as Error
+    });
   }
 };
 
@@ -628,7 +580,11 @@ const openInBrowser = async (filePath: string): Promise<void> => {
     const absolutePath = path.resolve(filePath);
     await open(absolutePath);
   } catch (error) {
-    throw new HtmlReporterError('Failed to open report in browser', 'BROWSER_OPEN_FAILED', filePath, error as Error);
+    throw new HtmlReporterError('Failed to open report in browser', {
+      code: 'BROWSER_OPEN_FAILED',
+      path: filePath,
+      cause: error as Error
+    });
   }
 };
 

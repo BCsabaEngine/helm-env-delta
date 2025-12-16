@@ -2,58 +2,26 @@ import { isMatch } from 'picomatch';
 import YAML, { Document, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
 
 import { ArraySortRule, OutputFormat } from './configFile';
+import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { parseJsonPath } from './utils/jsonPath';
 
 // ============================================================================
 // Error Handling
 // ============================================================================
 
-export class YamlFormatterError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly path?: string,
-    public override readonly cause?: Error
-  ) {
-    super(YamlFormatterError.formatMessage(message, code, path, cause));
-    this.name = 'YamlFormatterError';
-  }
+const YamlFormatterErrorClass = createErrorClass('YAML Formatter Error', {
+  YAML_PARSE_ERROR: 'YAML file could not be parsed',
+  YAML_FORMAT_ERROR: 'Failed to apply formatting',
+  INVALID_JSON_PATH: 'Invalid JSON path pattern',
+  PATTERN_MATCH_ERROR: 'File pattern matching failed'
+});
 
-  private static formatMessage = (message: string, code?: string, path?: string, cause?: Error): string => {
-    let fullMessage = `YAML Formatter Error: ${message}`;
-
-    if (path) fullMessage += `\n  Path: ${path}`;
-
-    if (code) {
-      const codeExplanations: Record<string, string> = {
-        YAML_PARSE_ERROR: 'YAML file could not be parsed',
-        YAML_FORMAT_ERROR: 'Failed to apply formatting',
-        INVALID_JSON_PATH: 'Invalid JSON path pattern',
-        PATTERN_MATCH_ERROR: 'File pattern matching failed'
-      };
-
-      const explanation = codeExplanations[code] || `Error (${code})`;
-      fullMessage += `\n  Reason: ${explanation}`;
-    }
-
-    if (cause) fullMessage += `\n  Details: ${cause.message}`;
-
-    return fullMessage;
-  };
-}
-
-export const isYamlFormatterError = (error: unknown): error is YamlFormatterError =>
-  error instanceof YamlFormatterError;
+export class YamlFormatterError extends YamlFormatterErrorClass {}
+export const isYamlFormatterError = createErrorTypeGuard(YamlFormatterError);
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const parseJsonPath = (path: string): string[] => {
-  return path
-    .replaceAll(/\[(\*|\d+)]/g, '.$1')
-    .split('.')
-    .filter((part: string) => part.length > 0);
-};
 
 const matchPatternConfig = <T>(filePath: string, patternConfig?: Record<string, T>): T[] => {
   if (!patternConfig) return [];
@@ -94,12 +62,11 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
 
     return result;
   } catch (error) {
-    throw new YamlFormatterError(
-      'Failed to format YAML',
-      'YAML_FORMAT_ERROR',
-      filePath,
-      error instanceof Error ? error : undefined
-    );
+    throw new YamlFormatterError('Failed to format YAML', {
+      code: 'YAML_FORMAT_ERROR',
+      path: filePath,
+      cause: error instanceof Error ? error : undefined
+    });
   }
 };
 

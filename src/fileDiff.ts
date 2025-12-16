@@ -3,6 +3,11 @@ import YAML from 'yaml';
 
 import { Config } from './configFile';
 import { FileMap } from './fileLoader';
+import { deepEqual } from './utils/deepEqual';
+import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { isYamlFile } from './utils/fileType';
+import { parseJsonPath } from './utils/jsonPath';
+import { normalizeForComparison } from './utils/serialization';
 
 // Types
 export interface FileDiffResult {
@@ -20,41 +25,19 @@ export interface ChangedFile {
   processedDestContent: unknown;
   rawParsedSource: unknown;
   rawParsedDest: unknown;
+  normalizedSource?: unknown;
+  normalizedDest?: unknown;
+  parsedSource?: unknown;
+  parsedDest?: unknown;
 }
 
 // Error Handling
-export class FileDiffError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly path?: string,
-    public override readonly cause?: Error
-  ) {
-    super(FileDiffError.formatMessage(message, code, path, cause));
-    this.name = 'FileDiffError';
-  }
+const FileDiffErrorClass = createErrorClass('File Diff Error', {
+  YAML_PARSE_ERROR: 'YAML file could not be parsed'
+});
 
-  private static formatMessage = (message: string, code?: string, path?: string, cause?: Error): string => {
-    let fullMessage = `File Diff Error: ${message}`;
-
-    if (path) fullMessage += `\n  Path: ${path}`;
-
-    if (code) {
-      const codeExplanations: Record<string, string> = {
-        YAML_PARSE_ERROR: 'YAML file could not be parsed'
-      };
-
-      const explanation = codeExplanations[code] || `Error (${code})`;
-      fullMessage += `\n  Reason: ${explanation}`;
-    }
-
-    if (cause) fullMessage += `\n  Details: ${cause.message}`;
-
-    return fullMessage;
-  };
-}
-
-export const isFileDiffError = (error: unknown): error is FileDiffError => error instanceof FileDiffError;
+export class FileDiffError extends FileDiffErrorClass {}
+export const isFileDiffError = createErrorTypeGuard(FileDiffError);
 
 // Helper Functions
 const detectAddedFiles = (sourceFiles: FileMap, destinationFiles: FileMap): string[] => {
@@ -71,13 +54,6 @@ const detectDeletedFiles = (sourceFiles: FileMap, destinationFiles: FileMap): st
   for (const path of destinationFiles.keys()) if (!sourceFiles.has(path)) deletedFiles.push(path);
 
   return deletedFiles;
-};
-
-const parseJsonPath = (path: string): string[] => {
-  return path
-    .replaceAll(/\[(\*|\d+)]/g, '.$1')
-    .split('.')
-    .filter((part: string) => part.length > 0);
 };
 
 const deleteJsonPathRecursive = (object: unknown, parts: string[], index: number): void => {
@@ -128,51 +104,6 @@ const applySkipPaths = (data: unknown, skipPaths: string[]): unknown => {
   return cloned;
 };
 
-export const normalizeForComparison = (value: unknown): unknown => {
-  if (value === null || value === undefined) return value;
-
-  const valueType = typeof value;
-  if (valueType === 'string' || valueType === 'number' || valueType === 'boolean') return value;
-
-  if (Array.isArray(value)) {
-    const normalized = value.map((item) => normalizeForComparison(item));
-
-    return normalized.toSorted((a, b) => {
-      const stringA = YAML.stringify(a, { sortMapEntries: true });
-      const stringB = YAML.stringify(b, { sortMapEntries: true });
-      return stringA.localeCompare(stringB);
-    });
-  }
-
-  if (typeof value === 'object') {
-    const normalized: Record<string, unknown> = {};
-    for (const [key, value_] of Object.entries(value)) normalized[key] = normalizeForComparison(value_);
-
-    return normalized;
-  }
-
-  return value;
-};
-
-export const deepEqual = (a: unknown, b: unknown): boolean => {
-  const normalizedA = normalizeForComparison(a);
-  const normalizedB = normalizeForComparison(b);
-
-  const stringA = YAML.stringify(normalizedA, {
-    indent: 2,
-    lineWidth: 0,
-    sortMapEntries: true
-  });
-
-  const stringB = YAML.stringify(normalizedB, {
-    indent: 2,
-    lineWidth: 0,
-    sortMapEntries: true
-  });
-
-  return stringA === stringB;
-};
-
 export const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, string[]>): string[] => {
   if (!skipPath) return [];
 
@@ -195,23 +126,21 @@ const processYamlFile = (
   try {
     sourceParsed = YAML.parse(sourceContent);
   } catch (error) {
-    throw new FileDiffError(
-      'Failed to parse source YAML file',
-      'YAML_PARSE_ERROR',
-      filePath,
-      error instanceof Error ? error : undefined
-    );
+    throw new FileDiffError('Failed to parse source YAML file', {
+      code: 'YAML_PARSE_ERROR',
+      path: filePath,
+      cause: error instanceof Error ? error : undefined
+    });
   }
 
   try {
     destinationParsed = YAML.parse(destinationContent);
   } catch (error) {
-    throw new FileDiffError(
-      'Failed to parse destination YAML file',
-      'YAML_PARSE_ERROR',
-      filePath,
-      error instanceof Error ? error : undefined
-    );
+    throw new FileDiffError('Failed to parse destination YAML file', {
+      code: 'YAML_PARSE_ERROR',
+      path: filePath,
+      cause: error instanceof Error ? error : undefined
+    });
   }
 
   const pathsToSkip = getSkipPathsForFile(filePath, skipPath);
@@ -235,7 +164,11 @@ const processYamlFile = (
     processedSourceContent: normalizedSource,
     processedDestContent: normalizedDestination,
     rawParsedSource: sourceFiltered,
-    rawParsedDest: destinationFiltered
+    rawParsedDest: destinationFiltered,
+    normalizedSource,
+    normalizedDest: normalizedDestination,
+    parsedSource: sourceParsed,
+    parsedDest: destinationParsed
   };
 };
 
@@ -252,7 +185,7 @@ const processChangedFiles = (
 
     const destinationContent = destinationFiles.get(path)!;
 
-    const isYaml = /\.ya?ml$/i.test(path);
+    const isYaml = isYamlFile(path);
 
     if (isYaml) {
       const changed = processYamlFile(path, sourceContent, destinationContent, skipPath);
