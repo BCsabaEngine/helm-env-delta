@@ -1,651 +1,142 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool for environment-aware YAML delta and sync for GitOps workflows. It processes Helm values files and other YAML configurations, allowing controlled synchronization between environments (e.g., UAT → Production) while respecting environment-specific differences and validation rules.
 
 ## Development Commands
 
-### Building and Development
-
 ```bash
-npm run build          # Clean build (tsc --build --clean && tsc --build --force)
-npm run dev            # Run with tsx and example config
-npm run dev:clear      # Clear example/prod directory
-npm run dev:watch      # Watch mode with nodemon
-npm run clean          # Clean TypeScript build artifacts
+# Building
+npm run build         # Clean build
+npm run dev           # Run with tsx and example config
+npm run clean         # Clean build artifacts
+
+# Testing (60% minimum coverage enforced)
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
+
+# Code Quality
+npm run fix           # Format + lint + format
+npm run all           # Fix + build + test
+
+# Running CLI
+helm-env-delta --config config.yaml [--dry-run] [--force] [--diff] [--diff-html] [--diff-json]
+hed --config config.yaml  # Short alias
 ```
-
-### Testing
-
-```bash
-npm test                                  # Run all tests once (vitest run)
-npm run test:watch                        # Run tests in watch mode
-npm run test:coverage                     # Generate coverage report (60% minimum threshold)
-npx vitest run test/commandLine.test.ts   # Run a single test file
-```
-
-**Test Coverage:** The project currently maintains 60%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
-
-Tests should be placed in `test/**/*.test.ts` directory. Utility tests are in `test/utils/*.test.ts`.
-
-### Code Quality
-
-```bash
-npm run format:check   # Check formatting with Prettier
-npm run format:fix     # Auto-fix formatting issues
-npm run lint:check     # Run ESLint checks
-npm run lint:fix       # Auto-fix linting issues
-npm run fix            # Run format + lint + format in sequence
-npm run all            # Run fix + build + test
-```
-
-### Running the CLI
-
-After building, two bin aliases are available:
-
-```bash
-helm-env-delta --config config.yaml   # Main CLI command
-hed --config config.yaml              # Short alias
-```
-
-During development: `node bin/index.js --config ./example/config.example.yaml`
 
 **CLI Flags:**
 
-- `--config <path>` or `-c <path>` (required) - Path to YAML configuration file
-- `--dry-run` - Preview changes without writing files
-- `--force` - Override stop rules and proceed with changes
-- `--diff` - Display console diff for changed files
-- `--diff-html` - Generate and open HTML diff report in browser
-- `--diff-json` - Output diff as JSON to stdout (can be piped to jq or saved to file)
-
-**Examples:**
-
-```bash
-# Sync files
-helm-env-delta --config config.yaml
-
-# Dry run with console diff
-helm-env-delta --config config.yaml --dry-run --diff
-
-# Generate HTML diff report
-helm-env-delta --config config.yaml --diff-html
-
-# Output JSON diff to stdout
-helm-env-delta --config config.yaml --diff-json
-
-# Use multiple diff formats together
-helm-env-delta --config config.yaml --diff --diff-json
-helm-env-delta --config config.yaml --diff --diff-html --diff-json
-
-# Pipe JSON output to jq
-helm-env-delta --config config.yaml --diff-json | jq '.summary'
-helm-env-delta --config config.yaml --diff-json | jq '.files.changed[0].changes'
-```
+- `--config <path>` (required) - YAML config file path
+- `--dry-run` - Preview without writing
+- `--force` - Override stop rules
+- `--diff` - Console diff output
+- `--diff-html` - HTML diff report (opens in browser)
+- `--diff-json` - JSON diff to stdout (pipe to jq)
 
 ## Architecture
 
-### Entry Point Flow
-
-1. `bin/index.js` - Shebang entry point that requires `dist/index.js`
-2. `src/index.ts` - Main application entry:
-   - Displays app header with version from package.json
-   - Parses CLI arguments using parseCommandLine()
-   - Loads and validates YAML config using loadConfigFile()
-   - Loads source and destination files using loadFiles()
-   - Computes file differences using computeFileDiff()
-   - Validates stop rules using validateStopRules()
-   - Updates files using updateFiles()
-   - Generates HTML report if requested using generateHtmlReport()
-   - Generates JSON report if requested using generateJsonReport()
-   - Error handling for all custom error types
-
-### Core Modules
-
-- `src/commandLine.ts` - CLI argument parsing with `commander`
-  - Validates required `--config` option
-  - Supports `--dry-run`, `--force`, `--diff`, `--diff-html`, `--diff-json` flags
-  - Returns SyncCommand type with parsed options
-
-- `src/configFile.ts` - Config validation with Zod schemas
-  - Discriminated union for stop rules (semverMajor, numeric, regex)
-  - User-friendly error messages via `ConfigValidationError`
-  - Type-safe config with full TypeScript inference
-  - BaseConfig schema (partial, allows extends) and FinalConfig schema (requires source/dest)
-  - parseBaseConfig() for base files, parseFinalConfig() for final validation
-
-- `src/configMerger.ts` - Config inheritance and merging
-  - resolveConfigWithExtends() - Recursively loads and merges config chains
-  - mergeConfigs() - Deep merges two configs with specific merge rules
-  - Circular dependency detection and depth limit enforcement (max 5 levels)
-  - Custom `ConfigMergerError` with detailed error messages
-
-- `src/configLoader.ts` - Config file loading and parsing
-  - Loads YAML config file and resolves extends chain
-  - Uses configMerger to handle inheritance
-  - Validates merged config using parseFinalConfig from configFile.ts
-  - Returns fully merged and validated FinalConfig
-
-- `src/fileLoader.ts` - File loading with glob pattern matching
-  - Uses `tinyglobby` for fast file discovery
-  - Loads files in parallel for performance
-  - Returns `Map<string, string>` with sorted relative paths as keys
-  - Binary file detection (throws error on null bytes)
-  - Custom `FileLoaderError` with detailed error messages
-
-- `src/ZodError.ts` - Custom error formatting for Zod validation failures
-  - Formats validation errors into readable messages
-  - Adds contextual help for common error types
-  - Exported as `ZodValidationError` with type guard `isZodValidationError`
-
-- `src/fileDiff.ts` - YAML diff computation and comparison
-  - Detects added, deleted, changed, and unchanged files
-  - Parses YAML files and applies transforms, then skipPath filters
-  - Normalizes data structures for deep equality comparison
-  - Returns `FileDiffResult` with categorized file changes
-  - Pipeline: YAML.parse() → Apply Transforms → Apply skipPath → Normalize → Deep Equal
-
-- `src/yamlFormatter.ts` - YAML output formatting
-  - Applies custom key ordering (per-file patterns with JSONPath)
-  - Handles value quoting for specific paths
-  - Supports array sorting by field with asc/desc order
-  - Applies keySeparator to add blank lines between top-level keys
-  - Custom `YamlFormatterError` for formatting failures
-
-- `src/stopRulesValidator.ts` - Validation rules enforcement
-  - Validates changed files against configured stop rules
-  - Supports semverMajorUpgrade, semverDowngrade, numeric (min/max), regex patterns
-  - Returns `ValidationResult` with violations list
-  - Custom `StopRulesValidatorError` for validation failures
-
-- `src/fileUpdater.ts` - File writing and synchronization
-  - Writes new files, updates changed files, deletes pruned files
-  - Deep merges YAML content (preserves unfiltered destination values)
-  - Formats unchanged YAML files if output formatting differs
-  - Supports dry-run mode (no actual file operations)
-  - Custom `FileUpdaterError` for file operation failures
-
-- `src/htmlReporter.ts` - HTML diff report generation
-  - Generates visual diff reports using diff2html
-  - Opens report in browser automatically
-  - Includes formatted file changes in report
-  - Uses shared utilities: `isYamlFile`, `generateUnifiedDiff`, `deepEqual`, `serializeForDiff`
-
-- `src/consoleDiffReporter.ts` - Console diff output
-  - Displays file diffs in terminal with colors
-  - Shows added/deleted/changed file summaries
-  - Uses shared utilities: `isYamlFile`, `generateUnifiedDiff`, `deepEqual`, `serializeForDiff`
-
-- `src/jsonReporter.ts` - JSON diff report generation
-  - Outputs structured JSON diff report to stdout
-  - Includes metadata (timestamp, source, destination, dryRun, version)
-  - Provides summary counts and detailed file changes
-  - Detects field-level changes with JSONPath
-  - Includes stop rule violations
-  - Uses shared utilities: `generateUnifiedDiff`, `deepEqual`
-
-- `src/consoleFormatter.ts` - Console output formatting
-  - Colorizes messages (chalk) for different operation types
-  - Formats stop rule violations, progress messages, file operations
-
-- `src/arrayDiffer.ts` - Array diffing utilities
-  - `diffArrays(source, dest)` - Compares arrays and returns removed/added/unchanged items
-  - `hasArrays(obj)` - Recursively checks if object contains arrays
-  - `findArrayPaths(obj)` - Finds all JSON paths containing arrays
-
-### Configuration Schema
-
-The tool uses a YAML configuration file (see `example/config.example.yaml`) with the following features:
-
-**Core Settings:**
-
-- `source` / `destination` - Source and destination folder paths (mandatory)
-- `include` - Glob patterns for files to process (defaults to `['**/*']` - all files)
-- `exclude` - Glob patterns for files to exclude from processing (defaults to `[]`)
-- `prune` - Remove files in destination not present in source (default: false)
-
-**Config Inheritance:**
-
-- `extends` - Path to base config file to inherit from (optional, relative to current config)
-  - Single parent inheritance (no multiple extends)
-  - Base configs can be partial (source/dest not required)
-  - Child config overrides base config
-  - Arrays (include, exclude) are concatenated
-  - Per-file rules (skipPath, transforms, stopRules) are merged (child adds/overrides parent)
-  - Maximum 5 levels of nesting
-  - Circular dependencies are detected and rejected
-  - Validation runs after merge completion
-
-Example:
-
-```yaml
-# base.yaml (partial config)
-prune: true
-include: ['apps/*', 'svc/*']
-skipPath:
-  'apps/*.yaml':
-    - 'spec.secrets'
-outputFormat:
-  indent: 2
-  keySeparator: true
-
-# prod.yaml (full config)
-extends: "./base.yaml"
-source: ./uat
-destination: ./prod
-include: ['config/*']  # Final: ['apps/*', 'svc/*', 'config/*']
-skipPath:
-  'apps/*.yaml':       # Adds to base rule
-    - 'metadata.annotations'
-  'svc/*.yaml':        # New pattern
-    - 'spec.env[*].value'
-```
-
-**Processing Control:**
-
-- `skipPath` - JSON/YAML paths to skip during processing (per-file patterns)
-- `transforms` - Regex find/replace transformations on ALL string values in matched files (per-file patterns)
-
-**Validation Rules:**
-
-- `stopRules` - Block operations based on:
-  - `semverMajorUpgrade` - Prevent major version upgrades
-  - `semverDowngrade` - Prevent major version downgrades
-  - `numeric` - Validate numeric ranges (min/max)
-  - `regex` - Pattern matching validation (blocks if value matches regex)
-
-**Output Formatting:**
-
-- `outputFormat.indent` - YAML indentation (default: 2)
-- `outputFormat.keySeparator` - Add blank line between top-level keys (default: false)
-- `outputFormat.quoteValues` - Quote values for specific keys on right side of `:` (per-file patterns, supports wildcards)
-- `outputFormat.keyOrders` - Custom key ordering for output YAML files (per-file patterns)
-- `outputFormat.arraySort` - Sort arrays by field name with asc/desc order (per-file patterns)
-
-**Transforms Configuration:**
-
-```yaml
-transforms:
-  'svc/**/values.yaml': # File pattern (like skipPath, stopRules)
-    - find: "uat-db\\.(.+)\\.internal" # Regex with capture groups
-      replace: 'prod-db.$1.internal' # $1 for captured value
-    - find: 'uat-redis'
-      replace: 'prod-redis'
-
-  'apps/*.yaml':
-    - find: "-uat\\b" # Suffix replacement
-      replace: '-prod'
-```
-
-- Applies to ALL string values in matched files (not JSONPath-specific)
-- Only replaces values, never keys
-- Sequential rule application (order matters)
-- Supports regex capture groups ($1, $2, etc.)
-- Uses file glob patterns for matching (same as skipPath, stopRules)
-
-### JSON Diff Output Format
-
-When using `--diff-json`, the tool outputs a structured JSON report to stdout with the following schema:
-
-```json
-{
-  "metadata": {
-    "timestamp": "2025-12-18T10:30:00.000Z",
-    "source": "./example/uat",
-    "destination": "./example/prod",
-    "dryRun": true,
-    "version": "0.0.1"
-  },
-  "summary": {
-    "added": 2,
-    "deleted": 1,
-    "changed": 3,
-    "formatted": 5,
-    "unchanged": 15
-  },
-  "files": {
-    "added": ["prod/new-service.yaml"],
-    "deleted": ["prod/old-service.yaml"],
-    "changed": [
-      {
-        "path": "prod/app-values.yaml",
-        "diff": "unified diff string...",
-        "changes": [
-          {
-            "path": "$.image.tag",
-            "oldValue": "v1.2.3",
-            "updatedValue": "v1.3.0"
-          }
-        ]
-      }
-    ],
-    "formatted": ["prod/config.yaml"],
-    "unchanged": ["prod/service.yaml"]
-  },
-  "stopRuleViolations": [
-    {
-      "file": "prod/app-values.yaml",
-      "rule": {
-        "type": "semverMajorUpgrade",
-        "path": "image.tag"
-      },
-      "path": "image.tag",
-      "oldValue": "v1.2.3",
-      "updatedValue": "v2.0.0",
-      "message": "Major version upgrade detected: v1.2.3 → v2.0.0"
-    }
-  ]
-}
-```
-
-**Key Features:**
-
-- **Metadata**: Includes timestamp, source/destination paths, dry-run status, and tool version
-- **Summary**: Provides counts for all file categories (added, deleted, changed, formatted, unchanged)
-- **File Changes**: Detailed change information including unified diffs and field-level changes
-- **Field-level Detection**: Identifies individual field changes with JSONPath notation (e.g., `$.image.tag`)
-- **Stop Rule Violations**: Lists all validation failures with context
-- **Piping Support**: Output can be piped to `jq` or saved to a file
-
-**Usage Examples:**
-
-```bash
-# Output JSON and pipe to jq
-helm-env-delta sync --config config.yaml --diff-json | jq '.summary'
-
-# Save JSON to file
-helm-env-delta sync --config config.yaml --diff-json > report.json
-
-# Extract specific changes
-helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].changes'
-```
-
-### Dependencies
-
-- **CLI**: `commander` for argument parsing
-- **YAML Processing**: `yaml` library for parsing and serialization
-- **Validation**: `zod` (v4+) for config schema validation
-- **Glob**: `picomatch` and `tinyglobby` for file pattern matching
-- **Diffing**: `diff` for file comparison, `diff2html` for HTML report generation
-- **Terminal UI**: `chalk` for colorized console output, `open` for browser launching
-
-## Code Style and Conventions
-
-### Function Style
-
-- **Use const arrow functions** for all function declarations
-- Pattern: `const functionName = (params): ReturnType => { ... };`
-- This applies to exported functions, class methods, and local functions
-- Static methods in classes should also use arrow function syntax: `private static methodName = (...): Type => { ... };`
-
-### Comment Style
-
-- Comments must be shorter than the code they belong to
-- Do not use detailed examples in comments
-- Use just block separators (e.g., `// ============================================================================`)
-
-### TypeScript Configuration
-
-- Target: ES2023, CommonJS modules
-- `rootDir: "./src"` ensures clean output to `dist/`
-- `resolveJsonModule: true` allows importing package.json directly
-- Strict mode enabled with comprehensive safety checks
-- No unused locals/parameters allowed
-
-### ESLint Rules
-
-- Uses `@typescript-eslint` recommended rules
-- `eslint-plugin-unicorn` for additional conventions (some disabled: filename-case, no-process-exit, switch-case-braces, no-array-reduce, prefer-global-this, no-nested-ternary)
-  - **Important:** `unicorn/no-null` is enabled - use `undefined` instead of `null` in tests and code
-  - `unicorn/no-useless-undefined` - avoid passing explicit `undefined` when it's the default
-  - `unicorn/prevent-abbreviations` - use descriptive variable names (error1/error2, not e1/e2)
-  - `unicorn/consistent-function-scoping` - move reusable functions to outer scope
-- `simple-import-sort` for automatic import ordering
-- Multi-line curly braces style: `curly: ['error', 'multi']`
-- No debugger or alert statements
-
-### Prettier Formatting
-
-- Single quotes
-- No trailing commas
-- 2 spaces indentation (no tabs)
-- 120 character line width
-
-## CI/CD
-
-GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main branches:
-
-- Tests on Node.js 22.x and 24.x
-- Format check → Lint check → Build → Test
-- Requires `npm ci` for reproducible builds
-
-## Implementation Status
-
-### Completed
-
-- CLI argument parsing with required `--config` validation
-- Configuration schema with Zod validation (including arraySort rules)
-- Application header displaying name/version from package.json
-- YAML config file loading and parsing
-- User-friendly error messages for config validation
-- File loader module with glob pattern matching
-- Parallel file reading from source and destination folders
-- Binary file detection and error handling
-- Core sync logic (diffing, skipPath filtering, deep merge)
-- YAML formatter with key ordering, value quoting, array sorting, keySeparator
-- Stop rules validation (semverMajorUpgrade, semverDowngrade, numeric, regex)
-- File updater with add/update/delete/format operations
-- HTML diff report generation (diff2html)
-- Console diff reporter with colored output
-- Dry-run mode implementation
-- Force mode to skip stop rules
-- Prune logic for removing files not in source
-- JSON diff report generation with field-level change detection
-- Transforms feature (regex find/replace on YAML values)
-- Comprehensive unit tests (16 test files, 60%+ coverage):
-  - test/consoleFormatter.test.ts (40 tests)
-  - test/utils/jsonPath.test.ts (37 tests)
-  - test/arrayDiffer.test.ts (36 tests)
-  - test/utils/deepEqual.test.ts (35 tests)
-  - test/yamlFormatter.test.ts (32 tests)
-  - test/utils/serialization.test.ts (32 tests)
-  - test/utils/transformer.test.ts (31 tests)
-  - test/configLoader.test.ts (31 tests)
-  - test/utils/errors.test.ts (25 tests)
-  - test/commandLine.test.ts (20 tests)
-  - test/fileDiff.test.ts (19 tests)
-  - test/jsonReporter.test.ts (17 tests)
-  - test/stopRulesValidator.test.ts (16 tests)
-  - test/utils/diffGenerator.test.ts (14 tests)
-  - test/utils/fileType.test.ts (12 tests)
-  - test/fileUpdater.test.ts (7 tests)
-
-### TODO
-
-- Additional test coverage for fileLoader.ts, htmlReporter.ts, consoleDiffReporter.ts
-
-## Utility Modules (`src/utils/`)
-
-Shared utilities are centralized in `src/utils/` with barrel exports via `src/utils/index.ts`:
-
-- **`errors.ts`** - Error factory pattern for consistent error handling
-  - `createErrorClass(name, codeExplanations, customFormatter?)` - Creates custom error classes
-  - `createErrorTypeGuard(ErrorClass)` - Generates type guard functions
-  - All modules use this factory for consistency
-
-- **`fileType.ts`** - File type detection utilities
-  - `isYamlFile(filePath)` - Detects YAML files with regex `/\.ya?ml$/i`
-
-- **`diffGenerator.ts`** - Unified diff generation
-  - `generateUnifiedDiff(filePath, destinationContent, sourceContent)` - Creates unified diffs using `diff` library
-
-- **`serialization.ts`** - YAML serialization and normalization
-  - `serializeForDiff(content, sortKeys)` - Consistent YAML serialization for diffing
-  - `normalizeForComparison(value)` - Recursively normalizes values (sorts arrays/keys)
-
-- **`deepEqual.ts`** - Structural deep equality comparison
-  - `deepEqual(a, b)` - Fast structural comparison (normalizes then compares)
-
-- **`jsonPath.ts`** - JSON path utilities
-  - `parseJsonPath(path)` - Converts JSON path strings to array of parts
-  - `getValueAtPath(obj, path)` - Navigates objects using parsed paths
-  - Supports wildcards (`*`) and numeric array indices
-
-- **`transformer.ts`** - Regex transformation utilities
-  - `applyTransforms(data, filePath, transforms)` - Applies regex find/replace to all string values
-  - `getTransformsForFile(filePath, transforms)` - Returns matching transform rules for a file
-  - Recursive value transformation (preserves keys, only transforms string values)
-  - Sequential rule application with global regex flag
-
-## Error Handling Pattern
-
-All modules follow a consistent error handling pattern using the factory in `src/utils/errors.ts`:
-
-1. **Custom Error Classes** - Each module creates its own error class via `createErrorClass()`
-2. **Consistent Formatting** - Factory provides user-friendly error messages with context (path, code, cause)
-3. **Type Guards** - Each error exports an `isXxxError()` type guard via `createErrorTypeGuard()`
-4. **Error Codes** - Support for NodeJS.ErrnoException codes (ENOENT, EACCES, etc.) and custom codes
-
-Example pattern:
-
-```typescript
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
-
-const FileLoaderErrorClass = createErrorClass('File Loader Error', {
-  ENOENT: 'File not found',
-  EACCES: 'Permission denied'
-});
-
-export class FileLoaderError extends FileLoaderErrorClass {}
-export const isFileLoaderError = createErrorTypeGuard(FileLoaderError);
-```
-
-To add a hint to error messages, override the constructor:
-
-```typescript
-export class InitError extends InitErrorClass {
-  constructor(message: string, options: ErrorOptions = {}) {
-    super(message, options);
-    this.message += '\n  Hint: Choose a different path or remove the existing file';
-  }
-}
-```
-
-## YAML Processing Architecture
-
-The tool uses a sophisticated multi-stage pipeline for YAML processing:
-
-### 1. File Loading (`src/fileLoader.ts`)
-
-- Loads raw file contents from source and destination folders
-- Uses glob patterns with `tinyglobby` for file discovery
-- Returns `Map<string, string>` with relative paths as keys
-
-### 2. Diff Computation (`src/fileDiff.ts`)
-
-- Parses YAML files into JavaScript objects
-- **Applies `transforms`** - Regex find/replace on all string values in matched files
-- Applies `skipPath` filters to remove ignored paths (per-file patterns)
-- Normalizes data structures for comparison (sorts arrays, keys)
-- Uses deep equality to detect actual changes (ignoring formatting)
-- Returns `FileDiffResult` with added/deleted/changed/unchanged files
-- **Pipeline order**: YAML.parse() → Apply Transforms → Apply skipPath → Normalize → Deep Equal
-
-### 3. Stop Rules Validation (`src/stopRulesValidator.ts`)
-
-- Validates changed files against configured stop rules
-- Extracts values at JSONPath locations from old and new content
-- Checks semver changes, numeric ranges, regex patterns
-- Fails entire operation unless `--force` is used
-
-### 4. File Update (`src/fileUpdater.ts`)
-
-- **Deep merge strategy**: Merges source changes into full destination (preserving skipped paths)
-- For YAML files: `deepMerge(destinationParsed, processedSourceContent)`
-- This ensures skipPath values in destination are preserved
-- Formats output using `yamlFormatter.ts`
-- Writes to destination folder (or dry-run preview)
-
-### 5. YAML Formatting (`src/yamlFormatter.ts`)
-
-- Parses YAML into `yaml` AST (Document, YAMLMap, YAMLSeq, Scalar)
-- Applies transformations to AST:
-  - Key ordering (hierarchical JSONPath-based)
-  - Value quoting (JSONPath with wildcard support)
-  - Array sorting (by field, asc/desc)
-  - keySeparator (blank lines between top-level keys)
-- Serializes back to YAML string with specified indent
-
-## Testing Patterns
-
-### Test Structure
-
-All tests follow this pattern:
-
-```typescript
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-
-describe('moduleName', () => {
-  describe('functionName', () => {
-    it('should [expected behavior] when [condition]', () => {
-      // Arrange
-      const input = '...';
-
-      // Act
-      const result = functionName(input);
-
-      // Assert
-      expect(result).toBe(expected);
-    });
-  });
-});
-```
-
-### Mocking Pattern
-
-```typescript
-// Mock at top of file
-vi.mock('node:fs', () => ({
-  readFileSync: vi.fn()
-}));
-
-// Import mocked functions
-import { readFileSync } from 'node:fs';
-
-// Setup/teardown
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-// Usage in tests
-vi.mocked(readFileSync).mockReturnValue('content');
-```
-
-### Important Test Guidelines
-
-- Use `undefined` instead of `null` (enforced by unicorn/no-null)
-- Avoid explicit `undefined` parameters when it's the default (unicorn/no-useless-undefined)
-- Use descriptive variable names: `error1`, `error2` not `e1`, `e2` (unicorn/prevent-abbreviations)
-- Move reusable helper functions to outer scope (unicorn/consistent-function-scoping)
-- Test both happy paths and error cases
-- Use type guards for error testing: `if (isCustomError(error)) expect(error.code).toBe('EXPECTED')`
-
-## Notes for Development
-
-- Configuration file supports glob patterns with `tinyglobby` (picomatch-based) syntax
-- JSON path expressions use JSONPath-style syntax (e.g., `$.secrets[*].password`, `spec.env[*].value`)
-  - **Important:** When using paths in stop rules, omit the `$.` prefix (use `'version'` not `'$.version'`)
-- JSONPath patterns support wildcards (`*`) for array indices
-- The `yaml` package is used for both parsing and AST manipulation
-- File loader returns `Map<string, string>` with relative paths sorted alphabetically
-- All file operations use async/await with parallel processing via `Promise.all`
-- Deep merge preserves destination values for paths not present in source
-- Shared utilities in `src/utils/` provide file type detection, diff generation, serialization, and comparison functions
-- Use barrel exports from `src/utils/index.ts` for cleaner imports
+**Entry Flow:** `bin/index.js` → `src/index.ts` (parseCommandLine → loadConfigFile → loadFiles → computeFileDiff → validateStopRules → updateFiles → generate reports)
+
+**Core Modules:**
+
+- `commandLine.ts` - CLI parsing (commander)
+- `configFile.ts` - Zod validation (BaseConfig/FinalConfig schemas)
+- `configMerger.ts` - Config inheritance (max 5 levels, circular detection)
+- `configLoader.ts` - YAML loading with extends chain resolution
+- `fileLoader.ts` - Glob-based file loading (tinyglobby, parallel, returns Map)
+- `fileDiff.ts` - YAML diff (Pipeline: parse → transforms → skipPath → normalize → deep equal)
+- `yamlFormatter.ts` - YAML AST formatting (key ordering, quoting, array sort, keySeparator)
+- `stopRulesValidator.ts` - Validation (semver, numeric, regex)
+- `fileUpdater.ts` - File sync (deep merge preserves skipped paths, dry-run support)
+- `htmlReporter.ts` / `consoleDiffReporter.ts` / `jsonReporter.ts` - Diff output
+- `consoleFormatter.ts` - Colorized terminal output
+- `arrayDiffer.ts` - Array comparison utilities
+
+**Configuration Schema:**
+
+Core: `source`, `destination` (required), `include` (default: `['**/*']`), `exclude` (default: `[]`), `prune` (default: false)
+
+Config Inheritance (`extends`):
+
+- Single parent, max 5 levels, circular detection
+- Base configs can be partial, child overrides parent
+- Arrays concatenated, per-file rules merged
+
+Processing:
+
+- `skipPath` - JSONPath patterns to skip (per-file glob patterns)
+- `transforms` - Regex find/replace on ALL string values (supports capture groups, sequential, per-file patterns)
+
+Stop Rules: `semverMajorUpgrade`, `semverDowngrade`, `numeric` (min/max), `regex`
+
+Output Format: `indent` (2), `keySeparator` (false), `quoteValues` (wildcards), `keyOrders`, `arraySort` (field + asc/desc)
+
+**JSON Diff Output (`--diff-json`):**
+
+Structure: `metadata` (timestamp, paths, dryRun, version), `summary` (counts), `files` (added/deleted/changed/formatted/unchanged), `stopRuleViolations`
+
+Field-level detection with JSONPath (e.g., `$.image.tag`). Pipe to jq or save to file.
+
+**Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk, open
+
+## Code Style
+
+**Functions:** Const arrow functions only: `const fn = (params): Type => { ... };`
+
+**Comments:** Shorter than code, no detailed examples, block separators only
+
+**TypeScript:** ES2023, CommonJS, strict mode, rootDir: "./src"
+
+**ESLint:**
+
+- `unicorn/no-null` - use `undefined` not `null`
+- `unicorn/no-useless-undefined` - avoid explicit undefined when default
+- `unicorn/prevent-abbreviations` - descriptive names (error1, not e1)
+- `unicorn/consistent-function-scoping` - move reusable functions to outer scope
+- `simple-import-sort`, `curly: multi`
+
+**Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
+
+**CI/CD:** Node 22.x/24.x, format → lint → build → test
+
+**Status:** Core features complete (CLI, config loading/merging/validation, file sync, transforms, stop rules, diff reports, dry-run, force, prune). 16 test files, 60%+ coverage. TODO: coverage for fileLoader, htmlReporter, consoleDiffReporter.
+
+## Utilities (`src/utils/`)
+
+Barrel exports via `index.ts`:
+
+- `errors.ts` - Error factory (createErrorClass, createErrorTypeGuard)
+- `fileType.ts` - isYamlFile()
+- `diffGenerator.ts` - generateUnifiedDiff()
+- `serialization.ts` - serializeForDiff(), normalizeForComparison()
+- `deepEqual.ts` - deepEqual() (normalize then compare)
+- `jsonPath.ts` - parseJsonPath(), getValueAtPath() (wildcards, array indices)
+- `transformer.ts` - applyTransforms() (regex on values only, preserves keys, sequential)
+
+**Error Pattern:** All modules use factory from `errors.ts` (createErrorClass + createErrorTypeGuard). Custom error classes with type guards, consistent formatting, error codes (ENOENT, EACCES, etc.). Override constructor for hints.
+
+## YAML Processing Pipeline
+
+1. **File Loading** - tinyglobby + parallel load → Map<string, string>
+2. **Diff Computation** - YAML.parse → transforms → skipPath → normalize → deep equal
+3. **Stop Rules** - Validate JSONPath values (semver, numeric, regex), fails unless --force
+4. **File Update** - Deep merge (preserves skipped paths) → yamlFormatter → write/dry-run
+5. **YAML Formatting** - Parse to AST → apply (key ordering, quoting, array sort, keySeparator) → serialize
+
+## Testing
+
+**Structure:** Vitest, describe/it pattern, Arrange-Act-Assert
+
+**Mocking:** vi.mock at top, vi.clearAllMocks in beforeEach, vi.restoreAllMocks in afterEach
+
+**Guidelines:** Use undefined not null, descriptive names (error1 not e1), test happy + error paths, use type guards for error testing
+
+## Key Notes
+
+- Glob patterns: tinyglobby (picomatch-based)
+- JSONPath: `$.path[*].field` syntax, **omit `$.` prefix in stop rules** (use `'version'` not `'$.version'`)
+- File operations: async/await with Promise.all for parallel processing
+- Deep merge: preserves destination values for paths not in source
+- Utilities: barrel exports from `src/utils/index.ts`
