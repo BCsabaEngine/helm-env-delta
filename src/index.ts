@@ -8,6 +8,7 @@ import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
 import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
 import { executeInit, isInitError } from './initCommand';
+import { generateJsonReport, isJsonReporterError } from './jsonReporter';
 import { validateStopRules } from './stopRulesValidator';
 import { isZodValidationError } from './ZodError';
 
@@ -52,7 +53,7 @@ const main = async (): Promise<void> => {
   const diffResult = computeFileDiff(sourceFiles, destinationFiles, config);
 
   // Show console diff if requested
-  if (command.showDiff) showConsoleDiff(diffResult, config);
+  if (command.diff) showConsoleDiff(diffResult, config);
   else {
     console.log(`  New files: ${diffResult.addedFiles.length}`);
     console.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
@@ -84,7 +85,11 @@ const main = async (): Promise<void> => {
   const formattedFiles = await updateFiles(diffResult, sourceFiles, destinationFiles, config, command.dryRun);
 
   // Generate HTML report if requested
-  if (command.showDiffHtml) await generateHtmlReport(diffResult, formattedFiles, config, command.dryRun);
+  if (command.diffHtml) await generateHtmlReport(diffResult, formattedFiles, config, command.dryRun);
+
+  // Generate JSON report if requested
+  if (command.diffJson)
+    generateJsonReport(diffResult, formattedFiles, validationResult, config, command.dryRun, packageJson.version);
 };
 
 // Execute main function with error handling
@@ -100,6 +105,7 @@ const main = async (): Promise<void> => {
     else if (isFileDiffError(error)) console.error(error.message);
     else if (isFileUpdaterError(error)) console.error(error.message);
     else if (isHtmlReporterError(error)) console.error(error.message);
+    else if (isJsonReporterError(error)) console.error(error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
   }

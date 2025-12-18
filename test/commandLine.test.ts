@@ -24,8 +24,9 @@ describe('commandLine', () => {
         config: 'test.yaml',
         dryRun: false,
         force: false,
-        showDiff: false,
-        showDiffHtml: false
+        diff: false,
+        diffHtml: false,
+        diffJson: false
       });
     });
 
@@ -54,16 +55,22 @@ describe('commandLine', () => {
       }
     });
 
-    it('should parse sync command with --show-diff', () => {
-      const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml', '--show-diff']);
+    it('should parse sync command with --diff', () => {
+      const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml', '--diff']);
 
-      if (result.command === 'sync') expect(result.showDiff).toBe(true);
+      if (result.command === 'sync') expect(result.diff).toBe(true);
     });
 
-    it('should parse sync command with --show-diff-html', () => {
-      const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml', '--show-diff-html']);
+    it('should parse sync command with --diff-html', () => {
+      const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml', '--diff-html']);
 
-      if (result.command === 'sync') expect(result.showDiffHtml).toBe(true);
+      if (result.command === 'sync') expect(result.diffHtml).toBe(true);
+    });
+
+    it('should parse sync command with --diff-json', () => {
+      const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml', '--diff-json']);
+
+      if (result.command === 'sync') expect(result.diffJson).toBe(true);
     });
 
     it('should parse sync command with all flags combined', () => {
@@ -75,8 +82,9 @@ describe('commandLine', () => {
         'test.yaml',
         '--dry-run',
         '--force',
-        '--show-diff',
-        '--show-diff-html'
+        '--diff',
+        '--diff-html',
+        '--diff-json'
       ]);
 
       expect(result).toEqual({
@@ -84,8 +92,9 @@ describe('commandLine', () => {
         config: 'test.yaml',
         dryRun: true,
         force: true,
-        showDiff: true,
-        showDiffHtml: true
+        diff: true,
+        diffHtml: true,
+        diffJson: true
       });
     });
 
@@ -101,8 +110,9 @@ describe('commandLine', () => {
       if (result.command === 'sync') {
         expect(result.dryRun).toBe(false);
         expect(result.force).toBe(false);
-        expect(result.showDiff).toBe(false);
-        expect(result.showDiffHtml).toBe(false);
+        expect(result.diff).toBe(false);
+        expect(result.diffHtml).toBe(false);
+        expect(result.diffJson).toBe(false);
       }
     });
 
@@ -132,8 +142,9 @@ describe('commandLine', () => {
         config: 'test.yaml',
         dryRun: true,
         force: true,
-        showDiff: false,
-        showDiffHtml: false
+        diff: false,
+        diffHtml: false,
+        diffJson: false
       });
     });
 
@@ -141,6 +152,45 @@ describe('commandLine', () => {
       const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml']);
 
       expect(result.command).toBe('sync');
+    });
+
+    it('should parse sync command with --diff and --diff-json together', () => {
+      const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml', '--diff', '--diff-json']);
+
+      if (result.command === 'sync') {
+        expect(result.diff).toBe(true);
+        expect(result.diffJson).toBe(true);
+        expect(result.diffHtml).toBe(false);
+      }
+    });
+
+    it('should parse sync command with --diff-html and --diff-json together', () => {
+      const result = parseCommandLine(['node', 'cli', 'sync', '--config', 'test.yaml', '--diff-html', '--diff-json']);
+
+      if (result.command === 'sync') {
+        expect(result.diffHtml).toBe(true);
+        expect(result.diffJson).toBe(true);
+        expect(result.diff).toBe(false);
+      }
+    });
+
+    it('should parse sync command with all three diff flags together', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        'sync',
+        '--config',
+        'test.yaml',
+        '--diff',
+        '--diff-html',
+        '--diff-json'
+      ]);
+
+      if (result.command === 'sync') {
+        expect(result.diff).toBe(true);
+        expect(result.diffHtml).toBe(true);
+        expect(result.diffJson).toBe(true);
+      }
     });
   });
 

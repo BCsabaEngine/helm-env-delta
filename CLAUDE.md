@@ -28,7 +28,7 @@ npm run test:coverage                    # Generate coverage report (60% minimum
 npx vitest run test/initCommand.test.ts  # Run a single test file
 ```
 
-**Test Coverage:** The project currently maintains 377 tests across 15 test files with 62%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
+**Test Coverage:** The project currently maintains 405+ tests across 16 test files with 60%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
 
 Tests should be placed in `test/**/*.test.ts` directory. Utility tests are in `test/utils/*.test.ts`.
 
@@ -64,8 +64,9 @@ During development: `node bin/index.js sync --config ./example/config.example.ya
 - `--config <path>` (required) - Path to YAML configuration file
 - `--dry-run` - Preview changes without writing files
 - `--force` - Override stop rules and proceed with changes
-- `--show-diff` - Display console diff for changed files
-- `--show-diff-html` - Generate and open HTML diff report in browser
+- `--diff` - Display console diff for changed files
+- `--diff-html` - Generate and open HTML diff report in browser
+- `--diff-json` - Output diff as JSON to stdout (can be piped to jq or saved to file)
 
 **Important:** You must specify either `init` or `sync` command. The `--config` option is required for sync command.
 
@@ -79,8 +80,22 @@ helm-env-delta init my-config.yaml
 # Sync files
 helm-env-delta sync --config config.yaml
 
-# Dry run with diff
-helm-env-delta sync --config config.yaml --dry-run --show-diff
+# Dry run with console diff
+helm-env-delta sync --config config.yaml --dry-run --diff
+
+# Generate HTML diff report
+helm-env-delta sync --config config.yaml --diff-html
+
+# Output JSON diff to stdout
+helm-env-delta sync --config config.yaml --diff-json
+
+# Use multiple diff formats together
+helm-env-delta sync --config config.yaml --diff --diff-json
+helm-env-delta sync --config config.yaml --diff --diff-html --diff-json
+
+# Pipe JSON output to jq
+helm-env-delta sync --config config.yaml --diff-json | jq '.summary'
+helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].changes'
 ```
 
 ## Architecture
@@ -100,6 +115,7 @@ helm-env-delta sync --config config.yaml --dry-run --show-diff
    - Validates stop rules using validateStopRules()
    - Updates files using updateFiles()
    - Generates HTML report if requested using generateHtmlReport()
+   - Generates JSON report if requested using generateJsonReport()
    - Error handling for all custom error types
 
 ### Core Modules
@@ -108,7 +124,7 @@ helm-env-delta sync --config config.yaml --dry-run --show-diff
   - Supports two subcommands: `init` and `sync` (both required)
   - Discriminated union types for type-safe command routing
   - Validates required `--config` option for sync command
-  - Supports `--dry-run`, `--force`, `--show-diff`, `--show-diff-html` flags
+  - Supports `--dry-run`, `--force`, `--diff`, `--diff-html`, `--diff-json` flags
 
 - `src/initCommand.ts` - Init command for generating config templates
   - CONFIG_TEMPLATE with full-featured example config
@@ -176,6 +192,14 @@ helm-env-delta sync --config config.yaml --dry-run --show-diff
   - Shows added/deleted/changed file summaries
   - Uses shared utilities: `isYamlFile`, `generateUnifiedDiff`, `deepEqual`, `serializeForDiff`
 
+- `src/jsonReporter.ts` - JSON diff report generation
+  - Outputs structured JSON diff report to stdout
+  - Includes metadata (timestamp, source, destination, dryRun, version)
+  - Provides summary counts and detailed file changes
+  - Detects field-level changes with JSONPath
+  - Includes stop rule violations
+  - Uses shared utilities: `generateUnifiedDiff`, `deepEqual`
+
 - `src/consoleFormatter.ts` - Console output formatting
   - Colorizes messages (chalk) for different operation types
   - Formats stop rule violations, progress messages, file operations
@@ -216,6 +240,83 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 - `outputFormat.quoteValues` - Quote values for specific keys on right side of `:` (per-file patterns, supports wildcards)
 - `outputFormat.keyOrders` - Custom key ordering for output YAML files (per-file patterns)
 - `outputFormat.arraySort` - Sort arrays by field name with asc/desc order (per-file patterns)
+
+### JSON Diff Output Format
+
+When using `--diff-json`, the tool outputs a structured JSON report to stdout with the following schema:
+
+```json
+{
+  "metadata": {
+    "timestamp": "2025-12-18T10:30:00.000Z",
+    "source": "./example/uat",
+    "destination": "./example/prod",
+    "dryRun": true,
+    "version": "0.0.1"
+  },
+  "summary": {
+    "added": 2,
+    "deleted": 1,
+    "changed": 3,
+    "formatted": 5,
+    "unchanged": 15
+  },
+  "files": {
+    "added": ["prod/new-service.yaml"],
+    "deleted": ["prod/old-service.yaml"],
+    "changed": [
+      {
+        "path": "prod/app-values.yaml",
+        "diff": "unified diff string...",
+        "changes": [
+          {
+            "path": "$.image.tag",
+            "oldValue": "v1.2.3",
+            "updatedValue": "v1.3.0"
+          }
+        ]
+      }
+    ],
+    "formatted": ["prod/config.yaml"],
+    "unchanged": ["prod/service.yaml"]
+  },
+  "stopRuleViolations": [
+    {
+      "file": "prod/app-values.yaml",
+      "rule": {
+        "type": "semverMajorUpgrade",
+        "path": "image.tag"
+      },
+      "path": "image.tag",
+      "oldValue": "v1.2.3",
+      "updatedValue": "v2.0.0",
+      "message": "Major version upgrade detected: v1.2.3 → v2.0.0"
+    }
+  ]
+}
+```
+
+**Key Features:**
+
+- **Metadata**: Includes timestamp, source/destination paths, dry-run status, and tool version
+- **Summary**: Provides counts for all file categories (added, deleted, changed, formatted, unchanged)
+- **File Changes**: Detailed change information including unified diffs and field-level changes
+- **Field-level Detection**: Identifies individual field changes with JSONPath notation (e.g., `$.image.tag`)
+- **Stop Rule Violations**: Lists all validation failures with context
+- **Piping Support**: Output can be piped to `jq` or saved to a file
+
+**Usage Examples:**
+
+```bash
+# Output JSON and pipe to jq
+helm-env-delta sync --config config.yaml --diff-json | jq '.summary'
+
+# Save JSON to file
+helm-env-delta sync --config config.yaml --diff-json > report.json
+
+# Extract specific changes
+helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].changes'
+```
 
 ### Dependencies
 
@@ -300,10 +401,12 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Dry-run mode implementation
 - Force mode to skip stop rules
 - Prune logic for removing files not in source
-- Comprehensive unit tests (15 test files, 377 tests, 62%+ coverage):
+- JSON diff report generation with field-level change detection
+- Comprehensive unit tests (16 test files, 405+ tests, 60%+ coverage):
   - test/yamlFormatter.test.ts (32 tests)
   - test/initCommand.test.ts (27 tests)
-  - test/commandLine.test.ts (27 tests)
+  - test/commandLine.test.ts (30 tests)
+  - test/jsonReporter.test.ts (25 tests)
   - test/consoleFormatter.test.ts (40 tests)
   - test/arrayDiffer.test.ts (36 tests)
   - test/configLoader.test.ts (24 tests)

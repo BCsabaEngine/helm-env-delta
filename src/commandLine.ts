@@ -9,8 +9,9 @@ export type SyncCommand = {
   config: string;
   dryRun: boolean;
   force: boolean;
-  showDiff: boolean;
-  showDiffHtml: boolean;
+  diff: boolean;
+  diffHtml: boolean;
+  diffJson: boolean;
 };
 
 export type InitCommand = {
@@ -36,8 +37,9 @@ export const parseCommandLine = (argv?: string[]): CliCommand => {
     .description('Sync files from source to destination with YAML processing')
     .option('-c, --config <file>', 'Path to config YAML (required)')
     .option('--dry-run', 'Preview changes only', false)
-    .option('--show-diff', 'Show diff output in console', false)
-    .option('--show-diff-html', 'Generate HTML diff report in temp folder and open it', false)
+    .option('--diff', 'Show diff output in console', false)
+    .option('--diff-html', 'Generate HTML diff report in temp folder and open it', false)
+    .option('--diff-json', 'Output diff as JSON to stdout', false)
     .option('--force', 'Skip stop rules', false)
     .action((options) => {
       // Validate required --config option
@@ -51,8 +53,9 @@ export const parseCommandLine = (argv?: string[]): CliCommand => {
         config: options.config,
         dryRun: options.dryRun || false,
         force: options.force || false,
-        showDiff: options.showDiff || false,
-        showDiffHtml: options.showDiffHtml || false
+        diff: options.diff || false,
+        diffHtml: options.diffHtml || false,
+        diffJson: options.diffJson || false
       };
     });
 
