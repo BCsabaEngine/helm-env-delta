@@ -55,8 +55,7 @@ jobs:
 
   package:
     name: Publish NPM package
-    needs: [check, tag]
-    if: needs.tag.outputs.status == 'true'
+    needs: [check]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
