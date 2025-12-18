@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import YAML from 'yaml';
+import * as YAML from 'yaml';
 
-import { ConfigLoaderError, isConfigLoaderError, loadConfigFile } from '../src/configLoader';
+import { loadConfigFile } from '../src/configLoader';
+import { ConfigMergerError, isConfigMergerError } from '../src/configMerger';
 
 vi.mock('node:fs', () => ({
   readFileSync: vi.fn()
@@ -33,7 +34,7 @@ describe('configLoader', () => {
 
       const result = loadConfigFile('config.yaml');
 
-      expect(readFileSync).toHaveBeenCalledWith('config.yaml', 'utf8');
+      expect(readFileSync).toHaveBeenCalledWith(expect.stringContaining('config.yaml'), 'utf8');
       expect(result.source).toBe('./path/to/source');
       expect(result.destination).toBe('./path/to/destination');
     });
@@ -103,98 +104,64 @@ describe('configLoader', () => {
   });
 
   describe('file loading errors', () => {
-    it('should throw ConfigLoaderError when file not found (ENOENT)', () => {
+    it('should throw ConfigMergerError when file not found (ENOENT)', () => {
       const error: NodeJS.ErrnoException = new Error('File not found');
       error.code = 'ENOENT';
       vi.mocked(readFileSync).mockImplementation(() => {
         throw error;
       });
 
-      expect(() => loadConfigFile('missing.yaml')).toThrow(ConfigLoaderError);
+      expect(() => loadConfigFile('missing.yaml')).toThrow(ConfigMergerError);
       try {
         loadConfigFile('missing.yaml');
       } catch (error_) {
-        expect(isConfigLoaderError(error_)).toBe(true);
-        if (isConfigLoaderError(error_)) {
-          expect(error_.code).toBe('ENOENT');
-          expect(error_.path).toBe('missing.yaml');
-        }
+        expect(isConfigMergerError(error_)).toBe(true);
+        if (isConfigMergerError(error_)) expect(error_.code).toBe('ENOENT');
       }
     });
 
-    it('should throw ConfigLoaderError when permission denied (EACCES)', () => {
+    it('should throw ConfigMergerError when permission denied (EACCES)', () => {
       const error: NodeJS.ErrnoException = new Error('Permission denied');
       error.code = 'EACCES';
       vi.mocked(readFileSync).mockImplementation(() => {
         throw error;
       });
 
-      expect(() => loadConfigFile('forbidden.yaml')).toThrow(ConfigLoaderError);
+      expect(() => loadConfigFile('forbidden.yaml')).toThrow(ConfigMergerError);
       try {
         loadConfigFile('forbidden.yaml');
       } catch (error_) {
-        if (isConfigLoaderError(error_)) {
+        if (isConfigMergerError(error_)) {
           expect(error_.code).toBe('EACCES');
           expect(error_.message).toContain('Permission denied');
         }
       }
     });
 
-    it('should throw ConfigLoaderError when path is directory (EISDIR)', () => {
+    it('should throw ConfigMergerError when path is directory (EISDIR)', () => {
       const error: NodeJS.ErrnoException = new Error('Is a directory');
       error.code = 'EISDIR';
       vi.mocked(readFileSync).mockImplementation(() => {
         throw error;
       });
 
-      expect(() => loadConfigFile('./directory/')).toThrow(ConfigLoaderError);
+      expect(() => loadConfigFile('./directory/')).toThrow(ConfigMergerError);
       try {
         loadConfigFile('./directory/');
       } catch (error_) {
-        if (isConfigLoaderError(error_)) {
-          expect(error_.code).toBe('EISDIR');
-          expect(error_.message).toContain('Path is a directory');
-        }
-      }
-    });
-
-    it('should include path in error object', () => {
-      const error: NodeJS.ErrnoException = new Error('File not found');
-      error.code = 'ENOENT';
-      vi.mocked(readFileSync).mockImplementation(() => {
-        throw error;
-      });
-
-      try {
-        loadConfigFile('/path/to/config.yaml');
-      } catch (error_) {
-        if (isConfigLoaderError(error_)) expect(error_.path).toBe('/path/to/config.yaml');
-      }
-    });
-
-    it('should include cause in error object', () => {
-      const cause = new Error('Original error');
-      (cause as NodeJS.ErrnoException).code = 'ENOENT';
-      vi.mocked(readFileSync).mockImplementation(() => {
-        throw cause;
-      });
-
-      try {
-        loadConfigFile('config.yaml');
-      } catch (error_) {
-        if (isConfigLoaderError(error_)) expect(error_.cause).toBe(cause);
+        if (isConfigMergerError(error_)) expect(error_.code).toBe('EISDIR');
       }
     });
   });
 
   describe('YAML parsing errors', () => {
-    it('should throw ConfigLoaderError for invalid YAML syntax', () => {
+    it('should throw ConfigMergerError for invalid YAML syntax', () => {
       vi.mocked(readFileSync).mockReturnValue('invalid: yaml: syntax:');
 
       expect(() => loadConfigFile('bad.yaml')).toThrow();
     });
 
-    it('should throw ConfigLoaderError for malformed YAML', () => {
+    it('should throw ConfigMergerError for malformed YAML', () => {
       vi.mocked(readFileSync).mockReturnValue('   \t\n  :  :\n');
 
       expect(() => loadConfigFile('malformed.yaml')).toThrow();
@@ -206,27 +173,7 @@ describe('configLoader', () => {
       try {
         loadConfigFile('config.yaml');
       } catch (error_) {
-        if (isConfigLoaderError(error_)) expect(error_.message).toContain('Failed to parse YAML');
-      }
-    });
-
-    it('should include path in YAML parse error', () => {
-      vi.mocked(readFileSync).mockReturnValue('bad yaml {{');
-
-      try {
-        loadConfigFile('/path/bad.yaml');
-      } catch (error_) {
-        if (isConfigLoaderError(error_)) expect(error_.path).toBe('/path/bad.yaml');
-      }
-    });
-
-    it('should include cause from YAML parser', () => {
-      vi.mocked(readFileSync).mockReturnValue('bad yaml {{');
-
-      try {
-        loadConfigFile('config.yaml');
-      } catch (error_) {
-        if (isConfigLoaderError(error_)) expect(error_.cause).toBeDefined();
+        if (isConfigMergerError(error_)) expect(error_.message).toContain('Failed to parse YAML');
       }
     });
   });
@@ -358,25 +305,74 @@ describe('configLoader', () => {
     });
   });
 
-  describe('isConfigLoaderError type guard', () => {
-    it('should return true for ConfigLoaderError instances', () => {
-      const error = new ConfigLoaderError('Test error');
-      expect(isConfigLoaderError(error)).toBe(true);
+  describe('config inheritance with extends', () => {
+    it('should load config with extends from base file', () => {
+      const baseConfig = {
+        prune: true,
+        include: ['apps/*']
+      };
+      const childConfig = {
+        extends: './base.yaml',
+        source: './source',
+        destination: './dest'
+      };
+
+      vi.mocked(readFileSync)
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(baseConfig));
+
+      const result = loadConfigFile('/path/to/config.yaml');
+
+      expect(result.source).toBe('./source');
+      expect(result.destination).toBe('./dest');
+      expect(result.prune).toBe(true);
+      expect(result.include).toEqual(['apps/*']);
     });
 
-    it('should return false for other error types', () => {
-      const error = new Error('Regular error');
-      expect(isConfigLoaderError(error)).toBe(false);
+    it('should merge include arrays from base and child', () => {
+      const baseConfig = {
+        include: ['apps/*', 'svc/*']
+      };
+      const childConfig = {
+        extends: './base.yaml',
+        source: './source',
+        destination: './dest',
+        include: ['config/*']
+      };
+
+      vi.mocked(readFileSync)
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(baseConfig));
+
+      const result = loadConfigFile('/path/to/config.yaml');
+
+      expect(result.include).toEqual(['apps/*', 'svc/*', 'config/*']);
     });
 
-    it('should return false for undefined', () => {
-      expect(isConfigLoaderError()).toBe(false);
-    });
+    it('should override base config values with child values', () => {
+      const baseConfig = {
+        prune: false,
+        outputFormat: { indent: 2 }
+      };
+      const childConfig = {
+        extends: './base.yaml',
+        source: './source',
+        destination: './dest',
+        prune: true,
+        outputFormat: { indent: 4 }
+      };
 
-    it('should return false for non-error values', () => {
-      expect(isConfigLoaderError('string')).toBe(false);
-      expect(isConfigLoaderError(123)).toBe(false);
-      expect(isConfigLoaderError({})).toBe(false);
+      vi.mocked(readFileSync)
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(baseConfig));
+
+      const result = loadConfigFile('/path/to/config.yaml');
+
+      expect(result.prune).toBe(true);
+      expect(result.outputFormat?.indent).toBe(4);
     });
   });
 });

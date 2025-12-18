@@ -1,6 +1,7 @@
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
-import { isConfigLoaderError, loadConfigFile } from './configLoader';
+import { loadConfigFile } from './configLoader';
+import { isConfigMergerError } from './configMerger';
 import { showConsoleDiff } from './consoleDiffReporter';
 import { formatProgressMessage, formatStopRuleViolation } from './consoleFormatter';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
@@ -99,13 +100,14 @@ const main = async (): Promise<void> => {
     await main();
   } catch (error: unknown) {
     if (isInitError(error)) console.error(error.message);
-    else if (isConfigLoaderError(error)) console.error(error.message);
+    else if (isConfigMergerError(error)) console.error(error.message);
     else if (isZodValidationError(error)) console.error(error.message);
     else if (isFileLoaderError(error)) console.error(error.message);
     else if (isFileDiffError(error)) console.error(error.message);
     else if (isFileUpdaterError(error)) console.error(error.message);
     else if (isHtmlReporterError(error)) console.error(error.message);
     else if (isJsonReporterError(error)) console.error(error.message);
+    else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
   }

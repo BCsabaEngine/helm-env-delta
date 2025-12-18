@@ -11,6 +11,17 @@ import { createErrorClass, createErrorTypeGuard, ErrorOptions } from './utils/er
 const CONFIG_TEMPLATE = String.raw`# HelmEnvDelta Configuration
 # Environment-aware YAML delta and sync for GitOps workflows
 
+# Config Inheritance (optional)
+# Inherit settings from a base config file. Enables sharing common configuration across
+# multiple environment transitions (dev→uat, uat→prod).
+# - Single parent inheritance (chain up to 5 levels)
+# - Base configs can be partial (source/dest not required)
+# - Child config overrides parent settings
+# - Arrays (include, exclude) are concatenated
+# - Per-file rules (skipPath, transforms, stopRules) are merged
+# - Relative paths resolved from config file directory
+# extends: "./base.yaml"
+
 # Source and destination folders (required)
 source: "./path/to/source"          # Replace with your source environment folder (e.g., "./uat")
 destination: "./path/to/destination" # Replace with your destination environment folder (e.g., "./prod")

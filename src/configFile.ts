@@ -111,38 +111,61 @@ const transformRuleSchema = z
     }
   );
 
-// Main Configuration Schema
-const configSchema = z.object({
-  source: z.string().min(1),
+// Base Configuration Schema (allows partial configs for inheritance, no defaults)
+const baseConfigSchema = z.object({
+  extends: z.string().min(1).optional(),
 
-  destination: z.string().min(1),
+  source: z.string().min(1).optional(),
 
-  include: z.array(z.string().min(1)).default(['**/*']),
+  destination: z.string().min(1).optional(),
 
-  exclude: z.array(z.string().min(1)).default([]),
+  include: z.array(z.string().min(1)).optional(),
 
-  prune: z.boolean().default(false),
+  exclude: z.array(z.string().min(1)).optional(),
+
+  prune: z.boolean().optional(),
 
   skipPath: z.record(z.string(), z.array(z.string())).optional(),
 
   outputFormat: z
     .object({
-      indent: z.number().int().min(1).max(10).default(2),
-      keySeparator: z.boolean().default(false),
+      indent: z.number().int().min(1).max(10).optional(),
+      keySeparator: z.boolean().optional(),
       quoteValues: z.record(z.string(), z.array(z.string())).optional(),
       keyOrders: z.record(z.string(), z.array(z.string())).optional(),
       arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
     })
-    .optional()
-    .default({ indent: 2, keySeparator: false }),
+    .optional(),
 
   transforms: z.record(z.string(), z.array(transformRuleSchema)).optional(),
 
   stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional()
 });
 
+// Final Configuration Schema (requires source and destination, applies defaults)
+const finalConfigSchema = baseConfigSchema
+  .omit({ extends: true })
+  .required({ source: true, destination: true })
+  .extend({
+    include: z.array(z.string().min(1)).default(['**/*']),
+    exclude: z.array(z.string().min(1)).default([]),
+    prune: z.boolean().default(false),
+    outputFormat: z
+      .object({
+        indent: z.number().int().min(1).max(10).default(2),
+        keySeparator: z.boolean().default(false),
+        quoteValues: z.record(z.string(), z.array(z.string())).optional(),
+        keyOrders: z.record(z.string(), z.array(z.string())).optional(),
+        arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
+      })
+      .optional()
+      .default({ indent: 2, keySeparator: false })
+  });
+
 //Types
-export type Config = z.infer<typeof configSchema>;
+export type BaseConfig = z.infer<typeof baseConfigSchema>;
+export type FinalConfig = z.infer<typeof finalConfigSchema>;
+export type Config = FinalConfig;
 export type StopRule = z.infer<typeof stopRuleSchema>;
 export type SemverMajorUpgradeRule = z.infer<typeof semverMajorUpgradeRuleSchema>;
 export type SemverDowngradeRule = z.infer<typeof semverDowngradeRuleSchema>;
@@ -150,16 +173,38 @@ export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
 export type TransformRule = z.infer<typeof transformRuleSchema>;
-export type OutputFormat = Config['outputFormat'];
+export type OutputFormat = BaseConfig['outputFormat'];
 
-//Parses and validates configuration data
-export const parseConfig = (data: unknown, configPath?: string): Config => {
-  const result = configSchema.safeParse(data);
+//Parses and validates base configuration (allows partial configs)
+export const parseBaseConfig = (data: unknown, configPath?: string): BaseConfig => {
+  const result = baseConfigSchema.safeParse(data);
 
   if (!result.success) throw new ZodValidationError(result.error, configPath);
 
   return result.data;
 };
+
+//Parses and validates final configuration (requires source and destination)
+export const parseFinalConfig = (data: unknown, configPath?: string): FinalConfig => {
+  const result = finalConfigSchema.safeParse(data);
+
+  if (!result.success) {
+    const error = new ZodValidationError(result.error, configPath);
+    const sourceOrDestinationMissing = result.error.issues.some(
+      (issue) => (issue.path[0] === 'source' || issue.path[0] === 'destination') && issue.code === 'invalid_type'
+    );
+
+    if (sourceOrDestinationMissing)
+      error.message += '\n\n  Hint: Base configs can omit source/dest, but final config must specify them.';
+
+    throw error;
+  }
+
+  return result.data;
+};
+
+//Parses and validates configuration data (alias for parseFinalConfig)
+export const parseConfig = parseFinalConfig;
 
 export {
   ZodValidationError as ConfigValidationError,

@@ -1,65 +1,7 @@
+extends: "./config.example.base.yaml"
+
 source: "./example/uat" # Source folder, mandatory
 destination: "./example/prod" # Destination folder, mandatory
-
-include: # Files to process, if not set, all YAML files are processed, other files are copied as-is, default: all files
-  - "**/*.yaml"
-  - "**/README.md"
-exclude: # Files to exclude from processing, default: none
-  - "**/skip*.yaml"
-prune: true # Remove files in dest that are not in source, default: false
-
-skipPath: # JSON paths to skip during processing for specific files, default: none = process all paths
-  "apps/*.yaml":
-    - "apiVersion"
-    - "spec.destination.namespace"
-    - "spec.ignoreDifferences[*].kind" # JSONPath-style for nested values
-    - "spec.ignoreDifferences[*].jsonPointers" # JSONPath-style for nested values
-
-  "svc/**/Chart.yaml":
-    - "annotations.createdAt"
-    - "annotations.lastModified"
-
-  "svc/**/values.yaml":
-    - "annotations.createdAt"
-    - "annotations.lastModified"
-
-outputFormat: # Output formatting options
-  indent: 2 # YAML indent size, default: 2
-  keySeparator: true # Add new line between different top-level keys, default: false
-  quoteValues:
-    "svc/**/values.yaml":
-      - "microservice.env[*].value"
-  keyOrders: # Key orders for specific result yaml files, default: none = alphabetical order
-    "apps/*.yaml":
-      - "apiVersion"
-      - "kind"
-      - "metaadata.namespace"
-      - "metaadata.name"
-      - "spec.project"
-      - "spec.source"
-      - "spec.destination"
-
-    "svc/**/Chart.yaml":
-      - "apiVersion"
-      - "name"
-      - "description"
-      - "version"
-      - "dependencies"
-
-    "svc/**/values.yaml":
-      - "microservice.nameOverride"
-      - "microservice.image"
-      - "microservice.replicaCount"
-      - "microservice.env"
-      - "microservice.env.[*].name"
-      - "microservice.service"
-      - "microservice.serviceAccount"
-      - "microservice.resources"
-  arraySort:
-    "svc/**/values.yaml":
-      - path: "microservice.env"
-        sortBy: "name"
-        order: "asc" # or "desc"
 
 transforms: # Find/replace transformations - applies to ALL string values in matched files
   "svc/**/values.yaml":
@@ -73,21 +15,3 @@ transforms: # Find/replace transformations - applies to ALL string values in mat
       replace: "-prod"
     - find: "\\buat/" # Prefix with slash
       replace: "prod/"
-
-stopRules: # Rules to block running operations, default: none = allow all changes
-  "apps/*.yaml":
-    - type: "semverMajorUpgrade"
-      path: "version" # Block major SemVer bumps in chart.yaml
-
-  "svc/**/Chart.yaml":
-    - type: "semverDowngrade"
-      path: "version" # Block SemVer downgrade of image tag
-    - type: "regex"
-      path: "version" # Reject any image tag starting with v0.
-      regex: "^1\\."
-
-  "svc/**/values.yaml":
-    - type: "numeric"
-      path: "replicaCount"
-      min: 2 # Reject scaling to <2 replicas
-      max: 10 # Reject scaling above 10

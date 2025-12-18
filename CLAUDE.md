@@ -136,12 +136,20 @@ helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].cha
   - Discriminated union for stop rules (semverMajor, numeric, regex)
   - User-friendly error messages via `ConfigValidationError`
   - Type-safe config with full TypeScript inference
+  - BaseConfig schema (partial, allows extends) and FinalConfig schema (requires source/dest)
+  - parseBaseConfig() for base files, parseFinalConfig() for final validation
+
+- `src/configMerger.ts` - Config inheritance and merging
+  - resolveConfigWithExtends() - Recursively loads and merges config chains
+  - mergeConfigs() - Deep merges two configs with specific merge rules
+  - Circular dependency detection and depth limit enforcement (max 5 levels)
+  - Custom `ConfigMergerError` with detailed error messages
 
 - `src/configLoader.ts` - Config file loading and parsing
-  - Reads YAML config file from disk
-  - Parses YAML content
-  - Validates config using parseConfig from configFile.ts
-  - Custom `ConfigLoaderError` with detailed error messages
+  - Loads YAML config file and resolves extends chain
+  - Uses configMerger to handle inheritance
+  - Validates merged config using parseFinalConfig from configFile.ts
+  - Returns fully merged and validated FinalConfig
 
 - `src/fileLoader.ts` - File loading with glob pattern matching
   - Uses `tinyglobby` for fast file discovery
@@ -220,6 +228,43 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 - `include` - Glob patterns for files to process (defaults to `['**/*']` - all files)
 - `exclude` - Glob patterns for files to exclude from processing (defaults to `[]`)
 - `prune` - Remove files in destination not present in source (default: false)
+
+**Config Inheritance:**
+
+- `extends` - Path to base config file to inherit from (optional, relative to current config)
+  - Single parent inheritance (no multiple extends)
+  - Base configs can be partial (source/dest not required)
+  - Child config overrides base config
+  - Arrays (include, exclude) are concatenated
+  - Per-file rules (skipPath, transforms, stopRules) are merged (child adds/overrides parent)
+  - Maximum 5 levels of nesting
+  - Circular dependencies are detected and rejected
+  - Validation runs after merge completion
+
+Example:
+
+```yaml
+# base.yaml (partial config)
+prune: true
+include: ['apps/*', 'svc/*']
+skipPath:
+  'apps/*.yaml':
+    - 'spec.secrets'
+outputFormat:
+  indent: 2
+  keySeparator: true
+
+# prod.yaml (full config)
+extends: "./base.yaml"
+source: ./uat
+destination: ./prod
+include: ['config/*']  # Final: ['apps/*', 'svc/*', 'config/*']
+skipPath:
+  'apps/*.yaml':       # Adds to base rule
+    - 'metadata.annotations'
+  'svc/*.yaml':        # New pattern
+    - 'spec.env[*].value'
+```
 
 **Processing Control:**
 
