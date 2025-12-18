@@ -112,14 +112,22 @@ stopRules:
       path: "image.tag"
       regex: "^v0\\."  # Block v0.x tags in production
 
-# Future feature: Find/replace transformations (not yet implemented)
+# Find/replace transformations - applies to ALL string values in matched files
+# Pattern: File glob (like skipPath, stopRules), NOT JSONPath
 # transforms:
-#   "database.url":
-#     - find: "uat-db\\.(.*)"
-#       replace: "prod-db.$1"
-#   "$.secrets[*].password":
-#     - find: "uat-redis"
+#   "svc/**/values.yaml":
+#     - find: "uat-db\\\\.(.+)\\\\.internal"  # Regex with escaped dots
+#       replace: "prod-db.$1.internal"        # Capture group $1
+#     - find: "uat-redis"                     # Simple string replacement
 #       replace: "prod-redis"
+#
+#   "apps/*.yaml":
+#     - find: "^uat-"                         # Prefix replacement
+#       replace: "prod-"
+#
+#   "config/*.yaml":
+#     - find: "debug"                         # Replace debug with info
+#       replace: "info"
 `;
 
 // ============================================================================

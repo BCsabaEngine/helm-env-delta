@@ -28,7 +28,7 @@ npm run test:coverage                    # Generate coverage report (60% minimum
 npx vitest run test/initCommand.test.ts  # Run a single test file
 ```
 
-**Test Coverage:** The project currently maintains 405+ tests across 16 test files with 60%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
+**Test Coverage:** The project currently maintains 442 tests across 17 test files with 60%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
 
 Tests should be placed in `test/**/*.test.ts` directory. Utility tests are in `test/utils/*.test.ts`.
 
@@ -157,9 +157,10 @@ helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].cha
 
 - `src/fileDiff.ts` - YAML diff computation and comparison
   - Detects added, deleted, changed, and unchanged files
-  - Parses YAML files and applies skipPath filters
+  - Parses YAML files and applies transforms, then skipPath filters
   - Normalizes data structures for deep equality comparison
   - Returns `FileDiffResult` with categorized file changes
+  - Pipeline: YAML.parse() → Apply Transforms → Apply skipPath → Normalize → Deep Equal
 
 - `src/yamlFormatter.ts` - YAML output formatting
   - Applies custom key ordering (per-file patterns with JSONPath)
@@ -223,7 +224,7 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 **Processing Control:**
 
 - `skipPath` - JSON/YAML paths to skip during processing (per-file patterns)
-- `transforms` - Find/replace transformations for specific paths (future feature)
+- `transforms` - Regex find/replace transformations on ALL string values in matched files (per-file patterns)
 
 **Validation Rules:**
 
@@ -240,6 +241,27 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 - `outputFormat.quoteValues` - Quote values for specific keys on right side of `:` (per-file patterns, supports wildcards)
 - `outputFormat.keyOrders` - Custom key ordering for output YAML files (per-file patterns)
 - `outputFormat.arraySort` - Sort arrays by field name with asc/desc order (per-file patterns)
+
+**Transforms Configuration:**
+
+```yaml
+transforms:
+  'svc/**/values.yaml': # File pattern (like skipPath, stopRules)
+    - find: "uat-db\\.(.+)\\.internal" # Regex with capture groups
+      replace: 'prod-db.$1.internal' # $1 for captured value
+    - find: 'uat-redis'
+      replace: 'prod-redis'
+
+  'apps/*.yaml':
+    - find: "-uat\\b" # Suffix replacement
+      replace: '-prod'
+```
+
+- Applies to ALL string values in matched files (not JSONPath-specific)
+- Only replaces values, never keys
+- Sequential rule application (order matters)
+- Supports regex capture groups ($1, $2, etc.)
+- Uses file glob patterns for matching (same as skipPath, stopRules)
 
 ### JSON Diff Output Format
 
@@ -402,27 +424,28 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Force mode to skip stop rules
 - Prune logic for removing files not in source
 - JSON diff report generation with field-level change detection
-- Comprehensive unit tests (16 test files, 405+ tests, 60%+ coverage):
+- Transforms feature (regex find/replace on YAML values)
+- Comprehensive unit tests (17 test files, 442 tests, 64%+ coverage):
   - test/yamlFormatter.test.ts (32 tests)
+  - test/utils/transformer.test.ts (31 tests)
+  - test/commandLine.test.ts (31 tests)
+  - test/configLoader.test.ts (31 tests)
   - test/initCommand.test.ts (27 tests)
-  - test/commandLine.test.ts (30 tests)
-  - test/jsonReporter.test.ts (25 tests)
+  - test/jsonReporter.test.ts (17 tests)
   - test/consoleFormatter.test.ts (40 tests)
   - test/arrayDiffer.test.ts (36 tests)
-  - test/configLoader.test.ts (24 tests)
-  - test/stopRulesValidator.test.ts (16 tests)
-  - test/fileDiff.test.ts (13 tests)
-  - test/fileUpdater.test.ts (7 tests)
-  - test/utils/errors.test.ts (25 tests)
-  - test/utils/deepEqual.test.ts (35 tests)
   - test/utils/jsonPath.test.ts (37 tests)
+  - test/utils/deepEqual.test.ts (35 tests)
   - test/utils/serialization.test.ts (32 tests)
+  - test/utils/errors.test.ts (25 tests)
+  - test/fileDiff.test.ts (19 tests)
+  - test/stopRulesValidator.test.ts (16 tests)
   - test/utils/diffGenerator.test.ts (14 tests)
   - test/utils/fileType.test.ts (12 tests)
+  - test/fileUpdater.test.ts (7 tests)
 
 ### TODO
 
-- Transforms feature (find/replace transformations for specific paths)
 - Additional test coverage for fileLoader.ts, htmlReporter.ts, consoleDiffReporter.ts
 
 ## Utility Modules (`src/utils/`)
@@ -451,6 +474,12 @@ Shared utilities are centralized in `src/utils/` with barrel exports via `src/ut
   - `parseJsonPath(path)` - Converts JSON path strings to array of parts
   - `getValueAtPath(obj, path)` - Navigates objects using parsed paths
   - Supports wildcards (`*`) and numeric array indices
+
+- **`transformer.ts`** - Regex transformation utilities
+  - `applyTransforms(data, filePath, transforms)` - Applies regex find/replace to all string values
+  - `getTransformsForFile(filePath, transforms)` - Returns matching transform rules for a file
+  - Recursive value transformation (preserves keys, only transforms string values)
+  - Sequential rule application with global regex flag
 
 ## Error Handling Pattern
 
@@ -499,10 +528,12 @@ The tool uses a sophisticated multi-stage pipeline for YAML processing:
 ### 2. Diff Computation (`src/fileDiff.ts`)
 
 - Parses YAML files into JavaScript objects
+- **Applies `transforms`** - Regex find/replace on all string values in matched files
 - Applies `skipPath` filters to remove ignored paths (per-file patterns)
 - Normalizes data structures for comparison (sorts arrays, keys)
 - Uses deep equality to detect actual changes (ignoring formatting)
 - Returns `FileDiffResult` with added/deleted/changed/unchanged files
+- **Pipeline order**: YAML.parse() → Apply Transforms → Apply skipPath → Normalize → Deep Equal
 
 ### 3. Stop Rules Validation (`src/stopRulesValidator.ts`)
 

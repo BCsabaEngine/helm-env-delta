@@ -1,13 +1,14 @@
 import { isMatch } from 'picomatch';
 import YAML from 'yaml';
 
-import { Config } from './configFile';
+import { Config, TransformRule } from './configFile';
 import { FileMap } from './fileLoader';
 import { deepEqual } from './utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
 import { parseJsonPath } from './utils/jsonPath';
 import { normalizeForComparison } from './utils/serialization';
+import { applyTransforms } from './utils/transformer';
 
 // Types
 export interface FileDiffResult {
@@ -118,7 +119,8 @@ const processYamlFile = (
   filePath: string,
   sourceContent: string,
   destinationContent: string,
-  skipPath?: Record<string, string[]>
+  skipPath?: Record<string, string[]>,
+  transforms?: Record<string, TransformRule[]>
 ): ChangedFile | undefined => {
   let sourceParsed: unknown;
   let destinationParsed: unknown;
@@ -143,9 +145,11 @@ const processYamlFile = (
     });
   }
 
+  const sourceTransformed = applyTransforms(sourceParsed, filePath, transforms);
+
   const pathsToSkip = getSkipPathsForFile(filePath, skipPath);
 
-  const sourceFiltered = pathsToSkip.length > 0 ? applySkipPaths(sourceParsed, pathsToSkip) : sourceParsed;
+  const sourceFiltered = pathsToSkip.length > 0 ? applySkipPaths(sourceTransformed, pathsToSkip) : sourceTransformed;
 
   const destinationFiltered =
     pathsToSkip.length > 0 ? applySkipPaths(destinationParsed, pathsToSkip) : destinationParsed;
@@ -175,7 +179,8 @@ const processYamlFile = (
 const processChangedFiles = (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
-  skipPath?: Record<string, string[]>
+  skipPath?: Record<string, string[]>,
+  transforms?: Record<string, TransformRule[]>
 ): { changedFiles: ChangedFile[]; unchangedFiles: string[] } => {
   const changedFiles: ChangedFile[] = [];
   const unchangedFiles: string[] = [];
@@ -188,7 +193,7 @@ const processChangedFiles = (
     const isYaml = isYamlFile(path);
 
     if (isYaml) {
-      const changed = processYamlFile(path, sourceContent, destinationContent, skipPath);
+      const changed = processYamlFile(path, sourceContent, destinationContent, skipPath, transforms);
 
       if (changed) changedFiles.push(changed);
       else unchangedFiles.push(path);
@@ -214,7 +219,12 @@ export const computeFileDiff = (sourceFiles: FileMap, destinationFiles: FileMap,
 
   const deletedFiles = config.prune ? detectDeletedFiles(sourceFiles, destinationFiles) : [];
 
-  const { changedFiles, unchangedFiles } = processChangedFiles(sourceFiles, destinationFiles, config.skipPath);
+  const { changedFiles, unchangedFiles } = processChangedFiles(
+    sourceFiles,
+    destinationFiles,
+    config.skipPath,
+    config.transforms
+  );
 
   return { addedFiles, deletedFiles, changedFiles, unchangedFiles };
 };

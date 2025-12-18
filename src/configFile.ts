@@ -84,18 +84,32 @@ const arraySortRuleSchema = z.object({
 });
 
 // ============================================================================
-// Transform Schema (Future Feature - Commented Out)
+// Transform Schema
 // ============================================================================
 
 /**
- * FUTURE FEATURE: Transform rules for find/replace operations.
- * Currently not implemented - schema prepared for future use.
- *
- * const transformRuleSchema = z.object({
- *   find: z.string().describe('Regex pattern to find'),
- *   replace: z.string().describe('Replacement string (supports capture groups)')
- * });
+ * Transform rules for regex find/replace operations on YAML values.
+ * Applies to ALL string values in matched files (not JSONPath-specific).
  */
+const transformRuleSchema = z
+  .object({
+    find: z.string().min(1).describe('Regex pattern to find'),
+    replace: z.string().describe('Replacement string (supports $1, $2... capture groups)')
+  })
+  .refine(
+    (data) => {
+      try {
+        new RegExp(data.find);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: 'Invalid regular expression pattern',
+      path: ['find']
+    }
+  );
 
 // Main Configuration Schema
 const configSchema = z.object({
@@ -122,7 +136,7 @@ const configSchema = z.object({
     .optional()
     .default({ indent: 2, keySeparator: false }),
 
-  // transforms: z.record(z.string(), z.array(transformRuleSchema)).optional(),
+  transforms: z.record(z.string(), z.array(transformRuleSchema)).optional(),
 
   stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional()
 });
@@ -135,6 +149,7 @@ export type SemverDowngradeRule = z.infer<typeof semverDowngradeRuleSchema>;
 export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
+export type TransformRule = z.infer<typeof transformRuleSchema>;
 export type OutputFormat = Config['outputFormat'];
 
 //Parses and validates configuration data

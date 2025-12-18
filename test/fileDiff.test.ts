@@ -146,4 +146,109 @@ describe('fileDiff', () => {
       expect(result).toEqual(['secrets']);
     });
   });
+
+  describe('transforms integration', () => {
+    it('should apply transforms before skipPath filtering', () => {
+      const source = new Map([['file.yaml', 'url: uat-db.internal\nversion: 1.0.0']]);
+      const destination = new Map([['file.yaml', 'url: prod-db.internal\nversion: 1.0.0']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        transforms: {
+          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        },
+        skipPath: { '*.yaml': ['version'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should detect changes from transformed values', () => {
+      const source = new Map([['file.yaml', 'url: uat-db.internal']]);
+      const destination = new Map([['file.yaml', 'url: old-db.internal']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        transforms: {
+          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.changedFiles).toHaveLength(1);
+      expect(result.changedFiles[0]?.path).toBe('file.yaml');
+    });
+
+    it('should not detect changes when transform matches destination', () => {
+      const source = new Map([['file.yaml', 'url: uat-db.internal']]);
+      const destination = new Map([['file.yaml', 'url: prod-db.internal']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        transforms: {
+          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should handle files with both transforms and skipPath', () => {
+      const source = new Map([['file.yaml', 'url: uat-db.internal\nversion: 2.0.0']]);
+      const destination = new Map([['file.yaml', 'url: prod-db.internal\nversion: 1.0.0']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        transforms: {
+          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        },
+        skipPath: { '*.yaml': ['version'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should work without transforms configured', () => {
+      const source = new Map([['file.yaml', 'url: uat-db.internal']]);
+      const destination = new Map([['file.yaml', 'url: uat-db.internal']]);
+      const config = {
+        source: './src',
+        destination: './dest'
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should only transform matching file patterns', () => {
+      const source = new Map([
+        ['svc/values.yaml', 'url: uat-db.internal'],
+        ['apps/config.yaml', 'url: uat-db.internal']
+      ]);
+      const destination = new Map([
+        ['svc/values.yaml', 'url: prod-db.internal'],
+        ['apps/config.yaml', 'url: uat-db.internal']
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        transforms: {
+          'svc/*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('svc/values.yaml');
+      expect(result.unchangedFiles).toContain('apps/config.yaml');
+    });
+  });
 });
