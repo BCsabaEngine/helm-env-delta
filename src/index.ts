@@ -8,7 +8,6 @@ import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
 import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
-import { executeInit, isInitError } from './initCommand';
 import { generateJsonReport, isJsonReporterError } from './jsonReporter';
 import { validateStopRules } from './stopRulesValidator';
 import { isZodValidationError } from './ZodError';
@@ -24,13 +23,6 @@ const main = async (): Promise<void> => {
   // Parse command-line arguments
   const command = parseCommandLine();
 
-  // Route to init command
-  if (command.command === 'init') {
-    executeInit(command.outputPath);
-    return;
-  }
-
-  // Continue with sync command logic
   // Load and validate config
   const config = loadConfigFile(command.config);
 
@@ -99,8 +91,7 @@ const main = async (): Promise<void> => {
   try {
     await main();
   } catch (error: unknown) {
-    if (isInitError(error)) console.error(error.message);
-    else if (isConfigMergerError(error)) console.error(error.message);
+    if (isConfigMergerError(error)) console.error(error.message);
     else if (isZodValidationError(error)) console.error(error.message);
     else if (isFileLoaderError(error)) console.error(error.message);
     else if (isFileDiffError(error)) console.error(error.message);

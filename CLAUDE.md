@@ -12,8 +12,7 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool for environment-aware YAM
 
 ```bash
 npm run build          # Clean build (tsc --build --clean && tsc --build --force)
-npm run dev            # Run sync with tsx and example config
-npm run dev:init       # Run init command with tsx
+npm run dev            # Run with tsx and example config
 npm run dev:clear      # Clear example/prod directory
 npm run dev:watch      # Watch mode with nodemon
 npm run clean          # Clean TypeScript build artifacts
@@ -22,13 +21,13 @@ npm run clean          # Clean TypeScript build artifacts
 ### Testing
 
 ```bash
-npm test                                 # Run all tests once (vitest run)
-npm run test:watch                       # Run tests in watch mode
-npm run test:coverage                    # Generate coverage report (60% minimum threshold)
-npx vitest run test/initCommand.test.ts  # Run a single test file
+npm test                                  # Run all tests once (vitest run)
+npm run test:watch                        # Run tests in watch mode
+npm run test:coverage                     # Generate coverage report (60% minimum threshold)
+npx vitest run test/commandLine.test.ts   # Run a single test file
 ```
 
-**Test Coverage:** The project currently maintains 442 tests across 17 test files with 60%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
+**Test Coverage:** The project currently maintains 60%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
 
 Tests should be placed in `test/**/*.test.ts` directory. Utility tests are in `test/utils/*.test.ts`.
 
@@ -48,54 +47,43 @@ npm run all            # Run fix + build + test
 After building, two bin aliases are available:
 
 ```bash
-helm-env-delta sync --config config.yaml   # Main CLI command
-hed sync --config config.yaml              # Short alias
+helm-env-delta --config config.yaml   # Main CLI command
+hed --config config.yaml              # Short alias
 ```
 
-During development: `node bin/index.js sync --config ./example/config.example.yaml`
+During development: `node bin/index.js --config ./example/config.example.yaml`
 
-**CLI Commands:**
+**CLI Flags:**
 
-- `init [path]` - Generate a config.yaml template with all features (default path: ./config.yaml)
-- `sync` - Sync files from source to destination with YAML processing
-
-**Sync Command Flags:**
-
-- `--config <path>` (required) - Path to YAML configuration file
+- `--config <path>` or `-c <path>` (required) - Path to YAML configuration file
 - `--dry-run` - Preview changes without writing files
 - `--force` - Override stop rules and proceed with changes
 - `--diff` - Display console diff for changed files
 - `--diff-html` - Generate and open HTML diff report in browser
 - `--diff-json` - Output diff as JSON to stdout (can be piped to jq or saved to file)
 
-**Important:** You must specify either `init` or `sync` command. The `--config` option is required for sync command.
-
 **Examples:**
 
 ```bash
-# Generate a new config file
-helm-env-delta init
-helm-env-delta init my-config.yaml
-
 # Sync files
-helm-env-delta sync --config config.yaml
+helm-env-delta --config config.yaml
 
 # Dry run with console diff
-helm-env-delta sync --config config.yaml --dry-run --diff
+helm-env-delta --config config.yaml --dry-run --diff
 
 # Generate HTML diff report
-helm-env-delta sync --config config.yaml --diff-html
+helm-env-delta --config config.yaml --diff-html
 
 # Output JSON diff to stdout
-helm-env-delta sync --config config.yaml --diff-json
+helm-env-delta --config config.yaml --diff-json
 
 # Use multiple diff formats together
-helm-env-delta sync --config config.yaml --diff --diff-json
-helm-env-delta sync --config config.yaml --diff --diff-html --diff-json
+helm-env-delta --config config.yaml --diff --diff-json
+helm-env-delta --config config.yaml --diff --diff-html --diff-json
 
 # Pipe JSON output to jq
-helm-env-delta sync --config config.yaml --diff-json | jq '.summary'
-helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].changes'
+helm-env-delta --config config.yaml --diff-json | jq '.summary'
+helm-env-delta --config config.yaml --diff-json | jq '.files.changed[0].changes'
 ```
 
 ## Architecture
@@ -106,9 +94,6 @@ helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].cha
 2. `src/index.ts` - Main application entry:
    - Displays app header with version from package.json
    - Parses CLI arguments using parseCommandLine()
-   - Routes to init command (executeInit) or sync command:
-     - **Init command**: Generates config.yaml template and exits
-     - **Sync command**: Continues with sync workflow
    - Loads and validates YAML config using loadConfigFile()
    - Loads source and destination files using loadFiles()
    - Computes file differences using computeFileDiff()
@@ -121,16 +106,9 @@ helm-env-delta sync --config config.yaml --diff-json | jq '.files.changed[0].cha
 ### Core Modules
 
 - `src/commandLine.ts` - CLI argument parsing with `commander`
-  - Supports two subcommands: `init` and `sync` (both required)
-  - Discriminated union types for type-safe command routing
-  - Validates required `--config` option for sync command
+  - Validates required `--config` option
   - Supports `--dry-run`, `--force`, `--diff`, `--diff-html`, `--diff-json` flags
-
-- `src/initCommand.ts` - Init command for generating config templates
-  - CONFIG_TEMPLATE with full-featured example config
-  - executeInit() function to create config files
-  - InitError custom error class with helpful messages
-  - File exists validation to prevent overwrites
+  - Returns SyncCommand type with parsed options
 
 - `src/configFile.ts` - Config validation with Zod schemas
   - Discriminated union for stop rules (semverMajor, numeric, regex)
@@ -448,10 +426,7 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 
 ### Completed
 
-- CLI subcommand architecture with init and sync commands
-- Init command for generating config.yaml templates
-- CLI argument parsing with required `--config` validation for sync command
-- Discriminated union types for type-safe command routing
+- CLI argument parsing with required `--config` validation
 - Configuration schema with Zod validation (including arraySort rules)
 - Application header displaying name/version from package.json
 - YAML config file loading and parsing
@@ -470,20 +445,19 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Prune logic for removing files not in source
 - JSON diff report generation with field-level change detection
 - Transforms feature (regex find/replace on YAML values)
-- Comprehensive unit tests (17 test files, 442 tests, 64%+ coverage):
-  - test/yamlFormatter.test.ts (32 tests)
-  - test/utils/transformer.test.ts (31 tests)
-  - test/commandLine.test.ts (31 tests)
-  - test/configLoader.test.ts (31 tests)
-  - test/initCommand.test.ts (27 tests)
-  - test/jsonReporter.test.ts (17 tests)
+- Comprehensive unit tests (16 test files, 60%+ coverage):
   - test/consoleFormatter.test.ts (40 tests)
-  - test/arrayDiffer.test.ts (36 tests)
   - test/utils/jsonPath.test.ts (37 tests)
+  - test/arrayDiffer.test.ts (36 tests)
   - test/utils/deepEqual.test.ts (35 tests)
+  - test/yamlFormatter.test.ts (32 tests)
   - test/utils/serialization.test.ts (32 tests)
+  - test/utils/transformer.test.ts (31 tests)
+  - test/configLoader.test.ts (31 tests)
   - test/utils/errors.test.ts (25 tests)
+  - test/commandLine.test.ts (20 tests)
   - test/fileDiff.test.ts (19 tests)
+  - test/jsonReporter.test.ts (17 tests)
   - test/stopRulesValidator.test.ts (16 tests)
   - test/utils/diffGenerator.test.ts (14 tests)
   - test/utils/fileType.test.ts (12 tests)
