@@ -9,6 +9,7 @@ import { ChangedFile, FileDiffResult } from './fileDiff';
 import { FileMap } from './fileLoader';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
+import { applyTransforms } from './utils/transformer';
 import { formatYaml } from './yamlFormatter';
 
 // Types
@@ -153,7 +154,28 @@ const addFile = async (
   }
 
   let contentToWrite = content;
-  if (isYamlFile(relativePath)) contentToWrite = formatYaml(content, relativePath, config.outputFormat);
+
+  // Apply transforms and formatting for YAML files
+  if (isYamlFile(relativePath))
+    try {
+      // Parse YAML
+      const parsed = YAML.parse(content);
+
+      // Apply transforms
+      const transformed = applyTransforms(parsed, relativePath, config.transforms);
+
+      // Serialize back to YAML
+      contentToWrite = YAML.stringify(transformed);
+
+      // Apply formatting
+      contentToWrite = formatYaml(contentToWrite, relativePath, config.outputFormat);
+    } catch (error) {
+      throw new FileUpdaterError('Failed to process YAML file for adding', {
+        code: 'YAML_PARSE_ERROR',
+        path: relativePath,
+        cause: error instanceof Error ? error : undefined
+      });
+    }
 
   try {
     await ensureParentDirectory(absolutePath);
