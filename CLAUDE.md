@@ -22,13 +22,15 @@ npm run clean          # Clean TypeScript build artifacts
 ### Testing
 
 ```bash
-npm test                              # Run all tests once (vitest run)
-npm run test:watch                    # Run tests in watch mode
-npm run test:coverage                 # Generate coverage report (60% minimum threshold)
+npm test                                 # Run all tests once (vitest run)
+npm run test:watch                       # Run tests in watch mode
+npm run test:coverage                    # Generate coverage report (60% minimum threshold)
 npx vitest run test/initCommand.test.ts  # Run a single test file
 ```
 
-Tests should be placed in `test/**/*.test.ts` directory.
+**Test Coverage:** The project currently maintains 377 tests across 15 test files with 62%+ coverage across all metrics (statements, branches, functions, lines). Coverage thresholds are enforced at 60% minimum for all metrics.
+
+Tests should be placed in `test/**/*.test.ts` directory. Utility tests are in `test/utils/*.test.ts`.
 
 ### Code Quality
 
@@ -251,6 +253,10 @@ The tool uses a YAML configuration file (see `example/config.example.yaml`) with
 
 - Uses `@typescript-eslint` recommended rules
 - `eslint-plugin-unicorn` for additional conventions (some disabled: filename-case, no-process-exit, switch-case-braces, no-array-reduce, prefer-global-this, no-nested-ternary)
+  - **Important:** `unicorn/no-null` is enabled - use `undefined` instead of `null` in tests and code
+  - `unicorn/no-useless-undefined` - avoid passing explicit `undefined` when it's the default
+  - `unicorn/prevent-abbreviations` - use descriptive variable names (error1/error2, not e1/e2)
+  - `unicorn/consistent-function-scoping` - move reusable functions to outer scope
 - `simple-import-sort` for automatic import ordering
 - Multi-line curly braces style: `curly: ['error', 'multi']`
 - No debugger or alert statements
@@ -294,11 +300,27 @@ GitHub Actions workflow (`.github/workflows/ci-dev.yaml`) runs on all non-main b
 - Dry-run mode implementation
 - Force mode to skip stop rules
 - Prune logic for removing files not in source
-- Comprehensive unit tests (yamlFormatter.test.ts, initCommand.test.ts)
+- Comprehensive unit tests (15 test files, 377 tests, 62%+ coverage):
+  - test/yamlFormatter.test.ts (32 tests)
+  - test/initCommand.test.ts (27 tests)
+  - test/commandLine.test.ts (27 tests)
+  - test/consoleFormatter.test.ts (40 tests)
+  - test/arrayDiffer.test.ts (36 tests)
+  - test/configLoader.test.ts (24 tests)
+  - test/stopRulesValidator.test.ts (16 tests)
+  - test/fileDiff.test.ts (13 tests)
+  - test/fileUpdater.test.ts (7 tests)
+  - test/utils/errors.test.ts (25 tests)
+  - test/utils/deepEqual.test.ts (35 tests)
+  - test/utils/jsonPath.test.ts (37 tests)
+  - test/utils/serialization.test.ts (32 tests)
+  - test/utils/diffGenerator.test.ts (14 tests)
+  - test/utils/fileType.test.ts (12 tests)
 
 ### TODO
 
 - Transforms feature (find/replace transformations for specific paths)
+- Additional test coverage for fileLoader.ts, htmlReporter.ts, consoleDiffReporter.ts
 
 ## Utility Modules (`src/utils/`)
 
@@ -404,10 +426,69 @@ The tool uses a sophisticated multi-stage pipeline for YAML processing:
   - keySeparator (blank lines between top-level keys)
 - Serializes back to YAML string with specified indent
 
+## Testing Patterns
+
+### Test Structure
+
+All tests follow this pattern:
+
+```typescript
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+
+describe('moduleName', () => {
+  describe('functionName', () => {
+    it('should [expected behavior] when [condition]', () => {
+      // Arrange
+      const input = '...';
+
+      // Act
+      const result = functionName(input);
+
+      // Assert
+      expect(result).toBe(expected);
+    });
+  });
+});
+```
+
+### Mocking Pattern
+
+```typescript
+// Mock at top of file
+vi.mock('node:fs', () => ({
+  readFileSync: vi.fn()
+}));
+
+// Import mocked functions
+import { readFileSync } from 'node:fs';
+
+// Setup/teardown
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+// Usage in tests
+vi.mocked(readFileSync).mockReturnValue('content');
+```
+
+### Important Test Guidelines
+
+- Use `undefined` instead of `null` (enforced by unicorn/no-null)
+- Avoid explicit `undefined` parameters when it's the default (unicorn/no-useless-undefined)
+- Use descriptive variable names: `error1`, `error2` not `e1`, `e2` (unicorn/prevent-abbreviations)
+- Move reusable helper functions to outer scope (unicorn/consistent-function-scoping)
+- Test both happy paths and error cases
+- Use type guards for error testing: `if (isCustomError(error)) expect(error.code).toBe('EXPECTED')`
+
 ## Notes for Development
 
 - Configuration file supports glob patterns with `tinyglobby` (picomatch-based) syntax
 - JSON path expressions use JSONPath-style syntax (e.g., `$.secrets[*].password`, `spec.env[*].value`)
+  - **Important:** When using paths in stop rules, omit the `$.` prefix (use `'version'` not `'$.version'`)
 - JSONPath patterns support wildcards (`*`) for array indices
 - The `yaml` package is used for both parsing and AST manipulation
 - File loader returns `Map<string, string>` with relative paths sorted alphabetically
