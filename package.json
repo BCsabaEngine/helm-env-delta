@@ -56,6 +56,9 @@
     "sync",
     "automation"
   ],
+  "overrides": {
+    "mkdirp": "3.0.1"
+  },
   "devDependencies": {
     "@types/hogan.js": "^3.0.5",
     "@types/node": "^25.0.2",
