@@ -1,0 +1,89 @@
+{
+  "name": "helm-env-delta",
+  "version": "1.0.0",
+  "description": "HelmEnvDelta – environment-aware YAML delta and sync for GitOps",
+  "author": "BCsabaEngine",
+  "license": "ISC",
+  "exports": "./dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22",
+    "npm": ">=9"
+  },
+  "files": [
+    "bin/*.js",
+    "dist/**/*.js",
+    "dist/**/*.d.ts"
+  ],
+  "bin": {
+    "helm-env-delta": "bin/index.js",
+    "hed": "bin/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BCsabaEngine/helm-env-delta.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BCsabaEngine/helm-env-delta/issues"
+  },
+  "homepage": "https://github.com/BCsabaEngine/helm-env-delta",
+  "scripts": {
+    "dev": "tsx src/index.ts -c ./example/config.example.yaml",
+    "dev:clear": "rm -rf ./example/prod",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "clean": "tsc --build --clean",
+    "build": "tsc --build --clean && tsc --build --force",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write . | grep -v 'unchanged' | sed G",
+    "lint:check": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "fix": "node --run format:fix && node --run lint:fix && node --run format:fix",
+    "all": "node --run fix && node --run build && node --run test",
+    "npm:reinstall": "rm -rf ./node_modules && rm -f ./package-lock.json && npm i && npm i"
+  },
+  "keywords": [
+    "helm",
+    "env",
+    "delta",
+    "yaml",
+    "gitops",
+    "kubernetes",
+    "devops",
+    "configuration",
+    "sync",
+    "automation"
+  ],
+  "devDependencies": {
+    "@types/hogan.js": "^3.0.5",
+    "@types/node": "^25.0.2",
+    "@types/picomatch": "^4.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "@vitest/coverage-v8": "^4.0.16",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-unicorn": "^62.0.0",
+    "nodemon": "^3.1.11",
+    "prettier": "^3.7.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "diff": "^8.0.2",
+    "diff2html": "^3.4.52",
+    "handlebars": "^4.7.8",
+    "open": "^11.0.0",
+    "picomatch": "^4.0.3",
+    "tinyglobby": "^0.2.15",
+    "yaml": "^2.8.2",
+    "zod": "^4.2.1"
+  }
+}

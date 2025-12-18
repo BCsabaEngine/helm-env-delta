@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ms-service-a-uat
+  namespace: argoapps
+  labels:
+    application: ms-service-a
+spec:
+  project: hed-uat
+  source:
+    path: uat/accounting/hed/svc/ms-service-a
+    repoURL: git@github.com:helm-env-delta/example-apps.git
+    helm:
+      releaseName: ms-service-a
+  destination:
+    namespace: hed
+    name: accounting-uat
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: ReplicaSet
+      jsonPointers:
+        - /spec/replicas

@@ -1,0 +1,79 @@
+microservice:
+  image:
+    repository: ghcr.io/helm-env-data/ms-service-a
+    tag: v1.2.3
+
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+
+  serviceAccount:
+    create: false
+    override: true
+    name: hed-default
+    annotations: {}
+
+  nameOverride: ms-service-a
+
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 500m
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+      port: 3000
+    initialDelaySeconds: 30
+    timeoutSeconds: 1
+
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: 3000
+    initialDelaySeconds: 120
+    failureThreshold: 5
+    timeoutSeconds: 11
+
+  replicaCount: 8
+
+  env:
+    - name: LOG_LEVEL
+      value: info
+    - name: LOG_TARGET
+      value: console
+    - name: TRACE
+      value: 'false'
+    - name: DATABASE_USERNAME
+      valueFrom:
+        secretKeyRef:
+          key: username
+          name: database-credentials
+    - name: DATABASE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: password
+          name: database-credentials
+    - name: FF_SUPPLIERS_ENABLED
+      value: 'false'
+    - name: FF_DATABASE_READONLY
+      value: 'false'
+    - name: FF_CUSTOMERS_ENABLED
+      value: 'true'
+
+  cronJobs:
+    - name: job-service-a-clear
+      image:
+        repository: node
+        tag: 24-alpine
+      schedule: 0 0 * * *
+      command:
+        - /bin/sh
+        - -c
+      args:
+        - 'sleep 1 && \
+          wget http://ms-service-a:3000/clear && \
+          wget http://ms-service-a:3000/drop-old'
