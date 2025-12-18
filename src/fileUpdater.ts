@@ -127,8 +127,6 @@ const mergeYamlContent = (destinationContent: string, processedSourceContent: un
 
   // 3. Serialize back to YAML
   try {
-    // TODO: Apply config.outputFormat (indent, quoteValues) when implemented
-    // Current: Using YAML.stringify() with default options
     return YAML.stringify(merged);
   } catch (error) {
     throw new FileUpdaterError('Failed to serialize merged YAML', {

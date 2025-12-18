@@ -54,8 +54,6 @@ const main = async (): Promise<void> => {
     console.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
   }
 
-  // TODO: Apply transformations (config.transforms)
-
   // Validate stop rules
   const validationResult = validateStopRules(diffResult, config.stopRules);
 
