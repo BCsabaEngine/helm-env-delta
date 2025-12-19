@@ -264,5 +264,45 @@ describe('fileUpdater', () => {
 
       expect(writeFile).toHaveBeenCalled();
     });
+
+    it('should skip formatting when skipFormat is true', async () => {
+      const diffResult = {
+        addedFiles: ['new.yaml'],
+        deletedFiles: [],
+        changedFiles: [],
+        unchangedFiles: []
+      };
+      const source = new Map([['new.yaml', 'key: value']]);
+      const destination = new Map();
+      const config = {
+        source: './src',
+        destination: './dest',
+        outputFormat: { indent: 4, keySeparator: true }
+      };
+
+      await updateFiles(diffResult, source, destination, config, false, true);
+
+      expect(writeFile).toHaveBeenCalled();
+    });
+
+    it('should apply formatting when skipFormat is false', async () => {
+      const diffResult = {
+        addedFiles: ['new.yaml'],
+        deletedFiles: [],
+        changedFiles: [],
+        unchangedFiles: []
+      };
+      const source = new Map([['new.yaml', 'key: value']]);
+      const destination = new Map();
+      const config = {
+        source: './src',
+        destination: './dest',
+        outputFormat: { indent: 4, keySeparator: true }
+      };
+
+      await updateFiles(diffResult, source, destination, config, false, false);
+
+      expect(writeFile).toHaveBeenCalled();
+    });
   });
 });

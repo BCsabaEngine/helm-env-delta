@@ -23,7 +23,8 @@ describe('commandLine', () => {
         force: false,
         diff: false,
         diffHtml: false,
-        diffJson: false
+        diffJson: false,
+        skipFormat: false
       });
     });
 
@@ -84,7 +85,8 @@ describe('commandLine', () => {
         force: true,
         diff: true,
         diffHtml: true,
-        diffJson: true
+        diffJson: true,
+        skipFormat: false
       });
     });
 
@@ -102,6 +104,7 @@ describe('commandLine', () => {
       expect(result.diff).toBe(false);
       expect(result.diffHtml).toBe(false);
       expect(result.diffJson).toBe(false);
+      expect(result.skipFormat).toBe(false);
     });
 
     it('should parse config path with spaces', () => {
@@ -131,7 +134,8 @@ describe('commandLine', () => {
         force: true,
         diff: false,
         diffHtml: false,
-        diffJson: false
+        diffJson: false,
+        skipFormat: false
       });
     });
 
@@ -174,6 +178,32 @@ describe('commandLine', () => {
       const result = parseCommandLine(['node', 'cli', '-c', 'cfg.yaml']);
 
       expect(result.config).toBe('cfg.yaml');
+    });
+
+    it('should parse command with --skip-format', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--skip-format']);
+
+      expect(result.skipFormat).toBe(true);
+    });
+
+    it('should default skipFormat to false when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.skipFormat).toBe(false);
+    });
+
+    it('should parse command with --skip-format and other flags', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--dry-run', '--skip-format', '--diff']);
+
+      expect(result).toEqual({
+        config: 'test.yaml',
+        dryRun: true,
+        force: false,
+        diff: true,
+        diffHtml: false,
+        diffJson: false,
+        skipFormat: true
+      });
     });
   });
 });

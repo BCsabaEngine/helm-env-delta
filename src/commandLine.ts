@@ -13,6 +13,7 @@ export type SyncCommand = {
   diff: boolean;
   diffHtml: boolean;
   diffJson: boolean;
+  skipFormat: boolean;
 };
 
 // ============================================================================
@@ -31,7 +32,8 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--force', 'Override stop rules and proceed with changes', false)
     .option('--diff', 'Display console diff for changed files', false)
     .option('--diff-html', 'Generate and open HTML diff report in browser', false)
-    .option('--diff-json', 'Output diff as JSON to stdout', false);
+    .option('--diff-json', 'Output diff as JSON to stdout', false)
+    .option('--skip-format', 'Skip YAML formatting (outputFormat section)', false);
 
   program.parse(argv || process.argv);
   const options = program.opts();
@@ -42,6 +44,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     force: options['force'],
     diff: options['diff'],
     diffHtml: options['diffHtml'],
-    diffJson: options['diffJson']
+    diffJson: options['diffJson'],
+    skipFormat: options['skipFormat']
   };
 };

@@ -22,7 +22,7 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # Running CLI
-helm-env-delta --config config.yaml [--dry-run] [--force] [--diff] [--diff-html] [--diff-json]
+helm-env-delta --config config.yaml [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format]
 hed --config config.yaml  # Short alias
 ```
 
@@ -34,6 +34,7 @@ hed --config config.yaml  # Short alias
 - `--diff` - Console diff output
 - `--diff-html` - HTML diff report (opens in browser)
 - `--diff-json` - JSON diff to stdout (pipe to jq)
+- `--skip-format` - Skip YAML formatting (outputFormat section)
 
 ## Architecture
 

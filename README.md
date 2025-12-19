@@ -476,16 +476,17 @@ hed --config <file> [options]
 
 ### Options
 
-| Option            | Short | Description                              | Default      |
-| ----------------- | ----- | ---------------------------------------- | ------------ |
-| `--config <path>` | `-c`  | Path to YAML configuration file          | **required** |
-| `--dry-run`       |       | Preview changes without writing files    | `false`      |
-| `--force`         |       | Override stop rules and proceed          | `false`      |
-| `--diff`          |       | Display console diff for changed files   | `false`      |
-| `--diff-html`     |       | Generate HTML report and open in browser | `false`      |
-| `--diff-json`     |       | Output diff as JSON to stdout            | `false`      |
-| `--version`       | `-V`  | Show version number                      |              |
-| `--help`          | `-h`  | Display help                             |              |
+| Option            | Short | Description                                 | Default      |
+| ----------------- | ----- | ------------------------------------------- | ------------ |
+| `--config <path>` | `-c`  | Path to YAML configuration file             | **required** |
+| `--dry-run`       |       | Preview changes without writing files       | `false`      |
+| `--force`         |       | Override stop rules and proceed             | `false`      |
+| `--diff`          |       | Display console diff for changed files      | `false`      |
+| `--diff-html`     |       | Generate HTML report and open in browser    | `false`      |
+| `--diff-json`     |       | Output diff as JSON to stdout               | `false`      |
+| `--skip-format`   |       | Skip YAML formatting (outputFormat section) | `false`      |
+| `--version`       | `-V`  | Show version number                         |              |
+| `--help`          | `-h`  | Display help                                |              |
 
 ### Examples
 
