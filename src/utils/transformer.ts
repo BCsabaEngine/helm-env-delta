@@ -1,6 +1,6 @@
 import { isMatch } from 'picomatch';
 
-import type { TransformRule } from '../configFile';
+import type { TransformConfig, TransformRule } from '../configFile';
 import { createErrorClass, createErrorTypeGuard } from './errors';
 
 // ============================================================================
@@ -19,15 +19,13 @@ export const isTransformerError = createErrorTypeGuard(TransformerError);
 // File Pattern Matching
 // ============================================================================
 
-export const getTransformsForFile = (
-  filePath: string,
-  transforms?: Record<string, TransformRule[]>
-): TransformRule[] => {
+export const getTransformsForFile = (filePath: string, transforms?: TransformConfig): TransformRule[] => {
   if (!transforms) return [];
 
   const allRules: TransformRule[] = [];
 
-  for (const [pattern, rules] of Object.entries(transforms)) if (isMatch(filePath, pattern)) allRules.push(...rules);
+  for (const [pattern, transformRules] of Object.entries(transforms))
+    if (isMatch(filePath, pattern)) allRules.push(...(transformRules.content ?? []));
 
   return allRules;
 };
@@ -66,11 +64,7 @@ const transformValueRecursive = (value: unknown, rules: TransformRule[]): unknow
 // Public API
 // ============================================================================
 
-export const applyTransforms = (
-  data: unknown,
-  filePath: string,
-  transforms?: Record<string, TransformRule[]>
-): unknown => {
+export const applyTransforms = (data: unknown, filePath: string, transforms?: TransformConfig): unknown => {
   if (!transforms) return data;
 
   const matchedRules = getTransformsForFile(filePath, transforms);

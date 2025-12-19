@@ -1,7 +1,7 @@
 import { isMatch } from 'picomatch';
 import YAML from 'yaml';
 
-import { Config, TransformRule } from './configFile';
+import { Config, TransformConfig } from './configFile';
 import { FileMap } from './fileLoader';
 import { deepEqual } from './utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
@@ -120,7 +120,7 @@ const processYamlFile = (
   sourceContent: string,
   destinationContent: string,
   skipPath?: Record<string, string[]>,
-  transforms?: Record<string, TransformRule[]>
+  transforms?: TransformConfig
 ): ChangedFile | undefined => {
   let sourceParsed: unknown;
   let destinationParsed: unknown;
@@ -180,7 +180,7 @@ const processChangedFiles = (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
   skipPath?: Record<string, string[]>,
-  transforms?: Record<string, TransformRule[]>
+  transforms?: TransformConfig
 ): { changedFiles: ChangedFile[]; unchangedFiles: string[] } => {
   const changedFiles: ChangedFile[] = [];
   const unchangedFiles: string[] = [];

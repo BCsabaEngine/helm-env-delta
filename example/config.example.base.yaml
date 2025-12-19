@@ -60,16 +60,18 @@ outputFormat: # Output formatting options
 
 transforms: # Find/replace transformations - applies to ALL string values in matched files
   "svc/**/values.yaml":
-    - find: "uat-db\\.(.+)\\.internal" # Regex with escaped dots
-      replace: "prod-db.$1.internal" # Capture group $1
-    - find: "uat-redis" # Simple string replacement
-      replace: "prod-redis"
+    content:
+      - find: "uat-db\\.(.+)\\.internal" # Regex with escaped dots
+        replace: "prod-db.$1.internal" # Capture group $1
+      - find: "uat-redis" # Simple string replacement
+        replace: "prod-redis"
 
   "apps/*.yaml":
-    - find: "-uat\\b" # Suffix replacement (word boundary)
-      replace: "-prod"
-    - find: "\\buat/" # Prefix with slash
-      replace: "prod/"
+    content:
+      - find: "-uat\\b" # Suffix replacement (word boundary)
+        replace: "-prod"
+      - find: "\\buat/" # Prefix with slash
+        replace: "prod/"
 
 stopRules: # Rules to block running operations, default: none = allow all changes
   "apps/*.yaml":

@@ -10,6 +10,8 @@ import { isFileUpdaterError, updateFiles } from './fileUpdater';
 import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
 import { generateJsonReport, isJsonReporterError } from './jsonReporter';
 import { validateStopRules } from './stopRulesValidator';
+import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
+import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isZodValidationError } from './ZodError';
 
 /**
@@ -31,9 +33,15 @@ const main = async (): Promise<void> => {
   const sourceFiles = await loadFiles({
     baseDirectory: config.source,
     include: config.include,
-    exclude: config.exclude
+    exclude: config.exclude,
+    transforms: config.transforms
   });
   console.log(formatProgressMessage(`Loaded ${sourceFiles.size} source file(s)`, 'success'));
+
+  // Detect filename collisions
+  const collisions = detectCollisions(sourceFiles, config.transforms);
+  if (collisions.length > 0) validateNoCollisions(collisions);
+
   const destinationFiles = await loadFiles({
     baseDirectory: config.destination,
     include: config.include,
@@ -99,6 +107,8 @@ const main = async (): Promise<void> => {
     if (isConfigMergerError(error)) console.error(error.message);
     else if (isZodValidationError(error)) console.error(error.message);
     else if (isFileLoaderError(error)) console.error(error.message);
+    else if (isFilenameTransformerError(error)) console.error(error.message);
+    else if (isCollisionDetectorError(error)) console.error(error.message);
     else if (isFileDiffError(error)) console.error(error.message);
     else if (isFileUpdaterError(error)) console.error(error.message);
     else if (isHtmlReporterError(error)) console.error(error.message);

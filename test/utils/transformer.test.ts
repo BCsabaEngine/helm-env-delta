@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TransformRule } from '../../src/configFile';
+import type { TransformConfig } from '../../src/configFile';
 import { applyTransforms, getTransformsForFile } from '../../src/utils/transformer';
 
 describe('utils/transformer', () => {
@@ -8,8 +8,8 @@ describe('utils/transformer', () => {
     describe('string value transformations', () => {
       it('should transform string values in flat object', () => {
         const data = { url: 'uat-db.internal', name: 'test' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -19,8 +19,8 @@ describe('utils/transformer', () => {
 
       it('should transform string values in nested objects', () => {
         const data = { database: { url: 'uat-db.internal', port: 5432 } };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-db', replace: 'prod-db' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-db', replace: 'prod-db' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -30,8 +30,8 @@ describe('utils/transformer', () => {
 
       it('should transform string values in arrays', () => {
         const data = { urls: ['uat-db.internal', 'uat-redis.internal'] };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -41,8 +41,8 @@ describe('utils/transformer', () => {
 
       it('should transform multiple string values in same object', () => {
         const data = { db: 'uat-db', cache: 'uat-redis', queue: 'uat-mq' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -60,8 +60,8 @@ describe('utils/transformer', () => {
             }
           }
         };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -81,11 +81,13 @@ describe('utils/transformer', () => {
     describe('multiple transform rules', () => {
       it('should apply multiple transform rules sequentially', () => {
         const data = { url: 'uat-db-primary.internal' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [
-            { find: 'uat-', replace: 'prod-' },
-            { find: '-primary', replace: '-master' }
-          ]
+        const transforms: TransformConfig = {
+          'test.yaml': {
+            content: [
+              { find: 'uat-', replace: 'prod-' },
+              { find: '-primary', replace: '-master' }
+            ]
+          }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -95,11 +97,13 @@ describe('utils/transformer', () => {
 
       it('should apply rules in order (chained transformations)', () => {
         const data = { version: 'v1/alpha' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [
-            { find: 'v1/alpha', replace: 'v1/beta' },
-            { find: 'v1/beta', replace: 'v1' }
-          ]
+        const transforms: TransformConfig = {
+          'test.yaml': {
+            content: [
+              { find: 'v1/alpha', replace: 'v1/beta' },
+              { find: 'v1/beta', replace: 'v1' }
+            ]
+          }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -111,8 +115,8 @@ describe('utils/transformer', () => {
     describe('regex features', () => {
       it('should support regex capture groups', () => {
         const data = { url: 'uat-db.postgres.internal' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: String.raw`uat-db\.(.+)\.internal`, replace: 'prod-db.$1.internal' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: String.raw`uat-db\.(.+)\.internal`, replace: 'prod-db.$1.internal' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -122,8 +126,8 @@ describe('utils/transformer', () => {
 
       it('should support multiple capture groups', () => {
         const data = { url: 'uat-db-postgres-primary.internal' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: String.raw`uat-(\w+)-(\w+)-(\w+)`, replace: 'prod-$1-$2-$3' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: String.raw`uat-(\w+)-(\w+)-(\w+)`, replace: 'prod-$1-$2-$3' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -133,8 +137,8 @@ describe('utils/transformer', () => {
 
       it('should support global regex replacement (multiple matches in same string)', () => {
         const data = { text: 'uat-db and uat-redis and uat-mq' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -144,8 +148,8 @@ describe('utils/transformer', () => {
 
       it('should support case-sensitive regex by default', () => {
         const data = { level: 'DEBUG', defaultLevel: 'debug', logLevel: 'Debug' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'debug', replace: 'info' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'debug', replace: 'info' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -155,8 +159,8 @@ describe('utils/transformer', () => {
 
       it('should handle special regex characters when escaped', () => {
         const data = { url: 'uat-db.internal' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: String.raw`uat-db\.internal`, replace: 'prod-db.internal' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: String.raw`uat-db\.internal`, replace: 'prod-db.internal' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -166,8 +170,8 @@ describe('utils/transformer', () => {
 
       it('should support empty replace string (deletion)', () => {
         const data = { name: 'test-uat' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: '-uat$', replace: '' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: '-uat$', replace: '' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -179,8 +183,8 @@ describe('utils/transformer', () => {
     describe('key preservation', () => {
       it('should preserve keys and only transform values', () => {
         const data = { 'uat-key': 'uat-value' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -194,8 +198,8 @@ describe('utils/transformer', () => {
             'uat-url': 'uat-db.internal'
           }
         };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -217,8 +221,8 @@ describe('utils/transformer', () => {
           empty: undefined,
           text: 'uat-db'
         };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -234,8 +238,8 @@ describe('utils/transformer', () => {
 
       it('should preserve numbers in arrays', () => {
         const data = { ports: [8080, 8081, 8082] };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'test', replace: 'production' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'test', replace: 'production' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -245,8 +249,8 @@ describe('utils/transformer', () => {
 
       it('should preserve mixed type arrays', () => {
         const data = { mixed: ['uat-db', 123, true, undefined, 'uat-redis'] };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -258,8 +262,8 @@ describe('utils/transformer', () => {
     describe('edge cases', () => {
       it('should handle empty objects', () => {
         const data = {};
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -269,8 +273,8 @@ describe('utils/transformer', () => {
 
       it('should handle empty arrays', () => {
         const data = { items: [] };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -280,8 +284,8 @@ describe('utils/transformer', () => {
 
       it('should handle empty strings', () => {
         const data = { empty: '', notEmpty: 'uat-db' };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -291,8 +295,8 @@ describe('utils/transformer', () => {
 
       it('should return original data when no transforms match file', () => {
         const data = { url: 'uat-db.internal' };
-        const transforms: Record<string, TransformRule[]> = {
-          'other.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'other.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -315,8 +319,8 @@ describe('utils/transformer', () => {
             { name: 'cache', url: 'uat-redis.internal' }
           ]
         };
-        const transforms: Record<string, TransformRule[]> = {
-          'test.yaml': [{ find: 'uat-', replace: 'prod-' }]
+        const transforms: TransformConfig = {
+          'test.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         };
 
         const result = applyTransforms(data, 'test.yaml', transforms);
@@ -333,8 +337,8 @@ describe('utils/transformer', () => {
 
   describe('getTransformsForFile', () => {
     it('should return rules for matching pattern', () => {
-      const transforms: Record<string, TransformRule[]> = {
-        '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+      const transforms: TransformConfig = {
+        '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
       };
 
       const rules = getTransformsForFile('test.yaml', transforms);
@@ -343,8 +347,8 @@ describe('utils/transformer', () => {
     });
 
     it('should return empty array when no patterns match', () => {
-      const transforms: Record<string, TransformRule[]> = {
-        '*.json': [{ find: 'uat-', replace: 'prod-' }]
+      const transforms: TransformConfig = {
+        '*.json': { content: [{ find: 'uat-', replace: 'prod-' }] }
       };
 
       const rules = getTransformsForFile('test.yaml', transforms);
@@ -353,9 +357,9 @@ describe('utils/transformer', () => {
     });
 
     it('should combine rules from multiple matching patterns', () => {
-      const transforms: Record<string, TransformRule[]> = {
-        '*.yaml': [{ find: 'uat-', replace: 'prod-' }],
-        'test.*': [{ find: 'debug', replace: 'info' }]
+      const transforms: TransformConfig = {
+        '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] },
+        'test.*': { content: [{ find: 'debug', replace: 'info' }] }
       };
 
       const rules = getTransformsForFile('test.yaml', transforms);
@@ -367,8 +371,8 @@ describe('utils/transformer', () => {
     });
 
     it('should support glob wildcards (**/*.yaml)', () => {
-      const transforms: Record<string, TransformRule[]> = {
-        'svc/**/*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+      const transforms: TransformConfig = {
+        'svc/**/*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
       };
 
       const rules1 = getTransformsForFile('svc/app/values.yaml', transforms);
@@ -387,8 +391,8 @@ describe('utils/transformer', () => {
     });
 
     it('should match exact file paths', () => {
-      const transforms: Record<string, TransformRule[]> = {
-        'config/prod.yaml': [{ find: 'uat-', replace: 'prod-' }]
+      const transforms: TransformConfig = {
+        'config/prod.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
       };
 
       const rules1 = getTransformsForFile('config/prod.yaml', transforms);
@@ -399,10 +403,10 @@ describe('utils/transformer', () => {
     });
 
     it('should preserve rule order from multiple patterns', () => {
-      const transforms: Record<string, TransformRule[]> = {
-        '*.yaml': [{ find: 'first', replace: 'FIRST' }],
-        'test.*': [{ find: 'second', replace: 'SECOND' }],
-        'test.yaml': [{ find: 'third', replace: 'THIRD' }]
+      const transforms: TransformConfig = {
+        '*.yaml': { content: [{ find: 'first', replace: 'FIRST' }] },
+        'test.*': { content: [{ find: 'second', replace: 'SECOND' }] },
+        'test.yaml': { content: [{ find: 'third', replace: 'THIRD' }] }
       };
 
       const rules = getTransformsForFile('test.yaml', transforms);
