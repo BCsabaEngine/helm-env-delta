@@ -149,5 +149,122 @@ describe('fileUpdater', () => {
 
       expect(writeFile).toHaveBeenCalled();
     });
+
+    it('should apply transforms when updating YAML files', async () => {
+      const transformedData = { url: 'prod-db.cluster-abc123.rds.amazonaws.com', version: '1.0.0' };
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: 'url: uat-db.cluster-abc123.rds.amazonaws.com\nversion: 1.0.0',
+            destinationContent: 'url: old-db.cluster-xyz789.rds.amazonaws.com\nversion: 1.0.0',
+            processedSourceContent: {},
+            processedDestContent: {},
+            rawParsedSource: transformedData,
+            rawParsedDest: { url: 'old-db.cluster-xyz789.rds.amazonaws.com', version: '1.0.0' }
+          }
+        ],
+        unchangedFiles: []
+      };
+      const source = new Map([['values.yaml', 'url: uat-db.cluster-abc123.rds.amazonaws.com\nversion: 1.0.0']]);
+      const destination = new Map([
+        ['values.yaml', 'url: old-db.cluster-xyz789.rds.amazonaws.com\nversion: 1.0.0']
+      ]);
+      const config = { source: './src', destination: './dest' };
+
+      await updateFiles(diffResult, source, destination, config, false);
+
+      expect(writeFile).toHaveBeenCalled();
+      const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(writtenContent).toContain('prod-db.cluster-abc123.rds.amazonaws.com');
+      expect(writtenContent).not.toContain('uat-db.cluster-abc123.rds.amazonaws.com');
+    });
+
+    it('should preserve skipPath behavior during updates', async () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: 'url: uat-db.internal',
+            destinationContent: 'url: old-db.internal\nversion: 1.0.0',
+            processedSourceContent: {},
+            processedDestContent: {},
+            rawParsedSource: { url: 'prod-db.internal' },
+            rawParsedDest: { url: 'old-db.internal', version: '1.0.0' }
+          }
+        ],
+        unchangedFiles: []
+      };
+      const source = new Map([['values.yaml', 'url: uat-db.internal']]);
+      const destination = new Map([['values.yaml', 'url: old-db.internal\nversion: 1.0.0']]);
+      const config = { source: './src', destination: './dest' };
+
+      await updateFiles(diffResult, source, destination, config, false);
+
+      expect(writeFile).toHaveBeenCalled();
+      const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(writtenContent).toContain('version: 1.0.0');
+      expect(writtenContent).toContain('prod-db.internal');
+    });
+
+    it('should merge transformed source with destination', async () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: 'image:\n  tag: uat-v2.0.0\nreplicas: 3',
+            destinationContent: 'image:\n  tag: old-v1.0.0\n  pullPolicy: Always',
+            processedSourceContent: {},
+            processedDestContent: {},
+            rawParsedSource: { image: { tag: 'prod-v2.0.0' }, replicas: 3 },
+            rawParsedDest: { image: { tag: 'old-v1.0.0', pullPolicy: 'Always' } }
+          }
+        ],
+        unchangedFiles: []
+      };
+      const source = new Map([['values.yaml', 'image:\n  tag: uat-v2.0.0\nreplicas: 3']]);
+      const destination = new Map([['values.yaml', 'image:\n  tag: old-v1.0.0\n  pullPolicy: Always']]);
+      const config = { source: './src', destination: './dest' };
+
+      await updateFiles(diffResult, source, destination, config, false);
+
+      expect(writeFile).toHaveBeenCalled();
+      const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(writtenContent).toContain('prod-v2.0.0');
+      expect(writtenContent).toContain('pullPolicy: Always');
+      expect(writtenContent).toContain('replicas: 3');
+    });
+
+    it('should handle updates without transforms configured', async () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: 'url: new-url.internal',
+            destinationContent: 'url: old-url.internal',
+            processedSourceContent: {},
+            processedDestContent: {},
+            rawParsedSource: { url: 'new-url.internal' },
+            rawParsedDest: { url: 'old-url.internal' }
+          }
+        ],
+        unchangedFiles: []
+      };
+      const source = new Map([['values.yaml', 'url: new-url.internal']]);
+      const destination = new Map([['values.yaml', 'url: old-url.internal']]);
+      const config = { source: './src', destination: './dest' };
+
+      await updateFiles(diffResult, source, destination, config, false);
+
+      expect(writeFile).toHaveBeenCalled();
+    });
   });
 });

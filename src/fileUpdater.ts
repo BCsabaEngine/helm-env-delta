@@ -202,7 +202,7 @@ const updateFile = async (
   }
 
   let contentToWrite: string = isYamlFile(changedFile.path)
-    ? mergeYamlContent(changedFile.destinationContent, changedFile.processedSourceContent, changedFile.path)
+    ? mergeYamlContent(changedFile.destinationContent, changedFile.rawParsedSource, changedFile.path)
     : changedFile.sourceContent;
 
   if (isYamlFile(changedFile.path)) contentToWrite = formatYaml(contentToWrite, changedFile.path, config.outputFormat);
