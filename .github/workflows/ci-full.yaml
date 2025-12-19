@@ -51,7 +51,6 @@ jobs:
         id: create_tag
         with:
           package-path: ./package.json
-          release: true
 
   package:
     name: Publish NPM package
