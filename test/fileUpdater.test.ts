@@ -169,9 +169,7 @@ describe('fileUpdater', () => {
         unchangedFiles: []
       };
       const source = new Map([['values.yaml', 'url: uat-db.cluster-abc123.rds.amazonaws.com\nversion: 1.0.0']]);
-      const destination = new Map([
-        ['values.yaml', 'url: old-db.cluster-xyz789.rds.amazonaws.com\nversion: 1.0.0']
-      ]);
+      const destination = new Map([['values.yaml', 'url: old-db.cluster-xyz789.rds.amazonaws.com\nversion: 1.0.0']]);
       const config = { source: './src', destination: './dest' };
 
       await updateFiles(diffResult, source, destination, config, false);
