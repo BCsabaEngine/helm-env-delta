@@ -77,6 +77,10 @@ flowchart LR
 ```
 
 - **Intelligent YAML Diff & Sync**: Deep comparison of YAML content, ignoring formatting differences
+  - Parses YAML structure instead of comparing text lines
+  - Normal git diffs show changes when array items are reordered, but HelmEnvDelta's deep analysis recognizes that content is identical
+  - Detects only meaningful changes (values, keys, structure) while ignoring whitespace, comments, and quote style differences
+  - Results in cleaner, more accurate diffs that focus on what actually changed
 - **Path Filtering (`skipPath`)**: Exclude environment-specific JSON paths from synchronization
 - **Transformations (`transforms`)**: Regex-based find/replace for environment-specific values (DB URLs, service names)
 - **Stop Rules (`stopRules`)**: Prevent dangerous changes (major version upgrades, scaling violations, forbidden patterns)
@@ -652,6 +656,51 @@ git push origin main
 
 ## Advanced Features
 
+### Structural YAML Comparison
+
+HelmEnvDelta compares YAML by parsing and analyzing structure, not by comparing text lines. This provides much cleaner diffs than traditional git comparison.
+
+**Example: Array Reordering**
+
+Git diff would show many changes when array items are reordered, but HelmEnvDelta recognizes the content is identical:
+
+```yaml
+# Source (UAT)
+env:
+  - name: DATABASE_URL
+    value: uat-db.internal
+  - name: CACHE_URL
+    value: uat-redis.internal
+  - name: LOG_LEVEL
+    value: debug
+
+# Destination (Prod)
+env:
+  - name: LOG_LEVEL
+    value: info
+  - name: DATABASE_URL
+    value: prod-db.internal
+  - name: CACHE_URL
+    value: prod-redis.internal
+```
+
+**Git diff output (noisy):**
+
+- Shows all lines as changed due to reordering
+- Difficult to identify actual value differences
+
+**HelmEnvDelta output (clean):**
+
+- Recognizes array items are the same (after transforms)
+- Only shows actual value changes: `LOG_LEVEL: debug → info`
+- Ignores reordering, focusing on meaningful differences
+
+This structural comparison is especially valuable for:
+
+- YAML files with arrays that may be sorted differently
+- Files reformatted by different tools
+- Configurations where order doesn't matter semantically
+
 ### Deep YAML Merge
 
 HelmEnvDelta uses intelligent deep merging to preserve destination values:
@@ -764,8 +813,9 @@ helm-env-delta --config config.yaml --diff-json | jq '.files.deleted'
 ### Auditability
 
 - **Clear Diff Reports**: See exactly what changed and why
+- **Structural Comparison**: Unlike git diffs that show line changes, HelmEnvDelta compares YAML structure, ignoring reordered arrays and formatting noise
 - **Multiple Formats**: Console, HTML, JSON for different review needs
-- **Field-Level Detection**: Track changes at individual field level
+- **Field-Level Detection**: Track changes at individual field level with JSONPath notation
 
 ### Flexibility
 
