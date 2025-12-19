@@ -88,8 +88,8 @@ const arraySortRuleSchema = z.object({
 // ============================================================================
 
 /**
- * Transform rules for regex find/replace operations on YAML values.
- * Applies to ALL string values in matched files (not JSONPath-specific).
+ * Transform rule for regex find/replace operations.
+ * Used for both content transforms (on YAML values) and filename transforms (on paths).
  */
 const transformRuleSchema = z
   .object({
@@ -110,6 +110,21 @@ const transformRuleSchema = z
       path: ['find']
     }
   );
+
+/**
+ * Transform rules configuration for a file pattern.
+ * - content: Transforms applied to YAML values (not keys)
+ * - filename: Transforms applied to file paths (full relative path including folders)
+ * At least one of content or filename must be specified.
+ */
+const transformRulesSchema = z
+  .object({
+    content: z.array(transformRuleSchema).optional(),
+    filename: z.array(transformRuleSchema).optional()
+  })
+  .refine((data) => data.content !== undefined || data.filename !== undefined, {
+    message: 'At least one of content or filename must be specified'
+  });
 
 // Base Configuration Schema (allows partial configs for inheritance, no defaults)
 const baseConfigSchema = z.object({
@@ -137,7 +152,7 @@ const baseConfigSchema = z.object({
     })
     .optional(),
 
-  transforms: z.record(z.string(), z.array(transformRuleSchema)).optional(),
+  transforms: z.record(z.string(), transformRulesSchema).optional(),
 
   stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional()
 });
@@ -173,6 +188,8 @@ export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
 export type TransformRule = z.infer<typeof transformRuleSchema>;
+export type TransformRules = z.infer<typeof transformRulesSchema>;
+export type TransformConfig = Record<string, TransformRules>;
 export type OutputFormat = BaseConfig['outputFormat'];
 
 //Parses and validates base configuration (allows partial configs)

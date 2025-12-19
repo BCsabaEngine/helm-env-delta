@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import * as YAML from 'yaml';
 
-import { type BaseConfig, parseBaseConfig } from './configFile';
+import { type BaseConfig, parseBaseConfig, type TransformRules } from './configFile';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 
 // ============================================================================
@@ -95,7 +95,7 @@ export const mergeConfigs = (parent: BaseConfig, child: BaseConfig): BaseConfig 
 
   // Per-file Records - merge keys, concatenate arrays
   merged.skipPath = mergePerFileRecords(parent.skipPath, child.skipPath);
-  merged.transforms = mergePerFileRecords(parent.transforms, child.transforms);
+  merged.transforms = mergeTransformRecords(parent.transforms, child.transforms);
   merged.stopRules = mergePerFileRecords(parent.stopRules, child.stopRules);
 
   // Note: 'extends' field is intentionally NOT included in merged result
@@ -104,7 +104,41 @@ export const mergeConfigs = (parent: BaseConfig, child: BaseConfig): BaseConfig 
 };
 
 /**
- * Merges per-file record configurations (skipPath, transforms, stopRules).
+ * Merges transform rules from parent and child configs.
+ * Concatenates both content and filename arrays.
+ */
+const mergeTransformRules = (parent?: TransformRules, child?: TransformRules): TransformRules => {
+  return {
+    content: [...(parent?.content ?? []), ...(child?.content ?? [])],
+    filename: [...(parent?.filename ?? []), ...(child?.filename ?? [])]
+  };
+};
+
+/**
+ * Merges per-file transform configurations.
+ * For each file pattern, merges transform rules from parent and child.
+ */
+const mergeTransformRecords = (
+  parent: Record<string, TransformRules> | undefined,
+  child: Record<string, TransformRules> | undefined
+): Record<string, TransformRules> | undefined => {
+  if (parent === undefined && child === undefined) return undefined;
+
+  const merged: Record<string, TransformRules> = {};
+
+  const allPatterns = new Set([...Object.keys(parent ?? {}), ...Object.keys(child ?? {})]);
+
+  for (const pattern of allPatterns) {
+    const parentRules = parent?.[pattern];
+    const childRules = child?.[pattern];
+    merged[pattern] = mergeTransformRules(parentRules, childRules);
+  }
+
+  return merged;
+};
+
+/**
+ * Merges per-file record configurations (skipPath, stopRules).
  * For each file pattern, concatenates arrays from parent and child.
  */
 const mergePerFileRecords = <T>(

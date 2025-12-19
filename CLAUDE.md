@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
 HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool for environment-aware YAML delta and sync for GitOps workflows. It processes Helm values files and other YAML configurations, allowing controlled synchronization between environments (e.g., UAT → Production) while respecting environment-specific differences and validation rules.
@@ -22,7 +24,7 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # Running CLI
-helm-env-delta --config config.yaml [--dry-run] [--force] [--diff] [--diff-html] [--diff-json]
+helm-env-delta --config config.yaml [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format]
 hed --config config.yaml  # Short alias
 ```
 
@@ -34,6 +36,7 @@ hed --config config.yaml  # Short alias
 - `--diff` - Console diff output
 - `--diff-html` - HTML diff report (opens in browser)
 - `--diff-json` - JSON diff to stdout (pipe to jq)
+- `--skip-format` - Skip YAML formatting (outputFormat section)
 
 ## Architecture
 
@@ -53,6 +56,8 @@ hed --config config.yaml  # Short alias
 - `htmlReporter.ts` / `consoleDiffReporter.ts` / `jsonReporter.ts` - Diff output
 - `consoleFormatter.ts` - Colorized terminal output
 - `arrayDiffer.ts` - Array comparison utilities
+- `utils/filenameTransformer.ts` - Filename/path transformation (full path regex transforms)
+- `utils/collisionDetector.ts` - Detects when multiple source files transform to same name
 
 **Configuration Schema:**
 
@@ -67,7 +72,11 @@ Config Inheritance (`extends`):
 Processing:
 
 - `skipPath` - JSONPath patterns to skip (per-file glob patterns)
-- `transforms` - Regex find/replace on ALL string values (supports capture groups, sequential, per-file patterns)
+- `transforms` - **NEW FORMAT (BREAKING)**: Object with `content` and/or `filename` arrays
+  - `content`: Regex find/replace on YAML values (supports capture groups, sequential)
+  - `filename`: Regex find/replace on file paths (full relative path including folders)
+  - At least one of `content` or `filename` must be specified
+  - Example: `'**/*.yaml': { content: [{find: 'uat-', replace: 'prod-'}], filename: [{find: '/uat/', replace: '/prod/'}] }`
 
 Stop Rules: `semverMajorUpgrade`, `semverDowngrade`, `numeric` (min/max), `regex`
 
@@ -101,7 +110,12 @@ Field-level detection with JSONPath (e.g., `$.image.tag`). Pipe to jq or save to
 
 **CI/CD:** Node 22.x/24.x, format → lint → build → test
 
-**Status:** Core features complete (CLI, config loading/merging/validation, file sync, transforms, stop rules, diff reports, dry-run, force, prune). 16 test files, 60%+ coverage. TODO: coverage for fileLoader, htmlReporter, consoleDiffReporter.
+**Status:** Core features complete (CLI, config loading/merging/validation, file sync, content+filename transforms, stop rules, diff reports, dry-run, force, prune). 20 test files, 60%+ coverage.
+
+**BREAKING CHANGES:**
+
+- Transform format changed from array to object: `transforms: {'*.yaml': [{find, replace}]}` → `transforms: {'*.yaml': {content: [...], filename: [...]}}`
+- Old format no longer supported - users must migrate configs
 
 ## Utilities (`src/utils/`)
 
@@ -119,11 +133,49 @@ Barrel exports via `index.ts`:
 
 ## YAML Processing Pipeline
 
-1. **File Loading** - tinyglobby + parallel load → Map<string, string>
-2. **Diff Computation** - YAML.parse → transforms → skipPath → normalize → deep equal
+1. **File Loading** - tinyglobby + parallel load → filename transforms → include/exclude filtering → Map<string, string>
+2. **Diff Computation** - YAML.parse → content transforms → skipPath → normalize → deep equal
 3. **Stop Rules** - Validate JSONPath values (semver, numeric, regex), fails unless --force
 4. **File Update** - Deep merge (preserves skipped paths) → yamlFormatter → write/dry-run
 5. **YAML Formatting** - Parse to AST → apply (key ordering, quoting, array sort, keySeparator) → serialize
+
+## Filename Transforms
+
+**Purpose**: Transform source file paths to match destination file paths during sync.
+
+**Scope**: Full relative path (folders + filename). Example: `envs/uat/app.yaml` → `envs/prod/app.yaml`
+
+**Config Format**:
+
+```yaml
+transforms:
+  '**/*.yaml':
+    content: # Transforms YAML values (not keys)
+      - find: 'uat-cluster'
+        replace: 'prod-cluster'
+    filename: # Transforms file paths
+      - find: 'envs/uat/'
+        replace: 'envs/prod/'
+      - find: '-uat\.'
+        replace: '-prod.'
+# Result: envs/uat/app-uat.yaml → envs/prod/app-prod.yaml
+```
+
+**Behavior**:
+
+- Filename transforms apply BEFORE include/exclude filtering
+- Uses regex find/replace (supports capture groups like `$1`, `$2`)
+- Sequential processing (rule N output → rule N+1 input)
+- Content transforms apply ONLY to YAML values (keys preserved)
+- Name collisions detected and reported as errors
+- Transforms apply to source files only (destination files unchanged)
+
+**Error Handling**:
+
+- Empty transformed path → error
+- Path traversal (`../`, leading `/`) → error
+- Invalid characters (`<>:"|?*\x00-\x1F`) → error
+- Name collisions (multiple sources → same name) → error with details
 
 ## Testing
 
@@ -132,6 +184,40 @@ Barrel exports via `index.ts`:
 **Mocking:** vi.mock at top, vi.clearAllMocks in beforeEach, vi.restoreAllMocks in afterEach
 
 **Guidelines:** Use undefined not null, descriptive names (error1 not e1), test happy + error paths, use type guards for error testing
+
+## Key Design Patterns
+
+**Type Safety & Validation:**
+
+- Zod schema-based validation for all configuration
+- Two-stage validation: `BaseConfig` (partial, allows inheritance) → `FinalConfig` (strict)
+- Custom error messages with hints
+- Type inference: `type FinalConfig = z.infer<typeof finalConfigSchema>`
+
+**Error Handling Strategy:**
+
+```typescript
+// Each module creates:
+const ErrorClass = createErrorClass('Module Error', {
+  CODE1: 'explanation',
+  CODE2: 'explanation'
+}, customFormatter?);
+
+export class ModuleError extends ErrorClass {}
+export const isModuleError = createErrorTypeGuard(ModuleError);
+```
+
+**File Maps as Core Data Structure:**
+
+- `Map<string, string>` instead of arrays for O(1) lookup
+- Sorted keys for deterministic ordering
+- Easy source/destination correlation
+
+**Deep Merge Strategy:**
+
+- Deep merge preserves destination structure
+- Arrays replaced entirely (not merged element-by-element)
+- Preserves skipped paths that weren't in source
 
 ## Key Notes
 

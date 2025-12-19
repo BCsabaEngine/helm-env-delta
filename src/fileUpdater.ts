@@ -142,7 +142,8 @@ const addFile = async (
   content: string,
   absoluteDestinationDirectory: string,
   config: Config,
-  dryRun: boolean
+  dryRun: boolean,
+  skipFormat = false
 ): Promise<void> => {
   const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
@@ -166,7 +167,8 @@ const addFile = async (
       contentToWrite = YAML.stringify(transformed);
 
       // Apply formatting
-      contentToWrite = formatYaml(contentToWrite, relativePath, config.outputFormat);
+      const effectiveOutputFormat = skipFormat ? undefined : config.outputFormat;
+      contentToWrite = formatYaml(contentToWrite, relativePath, effectiveOutputFormat);
     } catch (error) {
       throw new FileUpdaterError('Failed to process YAML file for adding', {
         code: 'YAML_PARSE_ERROR',
@@ -192,7 +194,8 @@ const updateFile = async (
   changedFile: ChangedFile,
   absoluteDestinationDirectory: string,
   config: Config,
-  dryRun: boolean
+  dryRun: boolean,
+  skipFormat = false
 ): Promise<void> => {
   const absolutePath = path.join(absoluteDestinationDirectory, changedFile.path);
 
@@ -202,10 +205,13 @@ const updateFile = async (
   }
 
   let contentToWrite: string = isYamlFile(changedFile.path)
-    ? mergeYamlContent(changedFile.destinationContent, changedFile.processedSourceContent, changedFile.path)
+    ? mergeYamlContent(changedFile.destinationContent, changedFile.rawParsedSource, changedFile.path)
     : changedFile.sourceContent;
 
-  if (isYamlFile(changedFile.path)) contentToWrite = formatYaml(contentToWrite, changedFile.path, config.outputFormat);
+  if (isYamlFile(changedFile.path)) {
+    const effectiveOutputFormat = skipFormat ? undefined : config.outputFormat;
+    contentToWrite = formatYaml(contentToWrite, changedFile.path, effectiveOutputFormat);
+  }
 
   try {
     await ensureParentDirectory(absolutePath);
@@ -256,7 +262,8 @@ export const updateFiles = async (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
   config: Config,
-  dryRun: boolean
+  dryRun: boolean,
+  skipFormat = false
 ): Promise<string[]> => {
   console.log('\n' + formatProgressMessage('Updating files...', 'info'));
 
@@ -270,7 +277,7 @@ export const updateFiles = async (
   for (const relativePath of diffResult.addedFiles)
     try {
       const content = sourceFiles.get(relativePath)!;
-      await addFile(relativePath, content, absoluteDestinationDirectory, config, dryRun);
+      await addFile(relativePath, content, absoluteDestinationDirectory, config, dryRun, skipFormat);
     } catch (error) {
       errors.push({ operation: 'add', path: relativePath, error: error as Error });
     }
@@ -278,7 +285,7 @@ export const updateFiles = async (
   // Update changed files
   for (const changedFile of diffResult.changedFiles)
     try {
-      await updateFile(changedFile, absoluteDestinationDirectory, config, dryRun);
+      await updateFile(changedFile, absoluteDestinationDirectory, config, dryRun, skipFormat);
     } catch (error) {
       errors.push({ operation: 'update', path: changedFile.path, error: error as Error });
     }
@@ -289,7 +296,8 @@ export const updateFiles = async (
     if (isYamlFile(relativePath))
       try {
         const content = destinationFiles.get(relativePath)!;
-        const formatted = formatYaml(content, relativePath, config.outputFormat);
+        const effectiveOutputFormat = skipFormat ? undefined : config.outputFormat;
+        const formatted = formatYaml(content, relativePath, effectiveOutputFormat);
 
         if (formatted !== content) {
           const absolutePath = path.join(absoluteDestinationDirectory, relativePath);

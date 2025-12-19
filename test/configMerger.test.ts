@@ -109,24 +109,37 @@ describe('configMerger', () => {
     it('should merge per-file transforms rules', () => {
       const parent: BaseConfig = {
         transforms: {
-          'apps/*.yaml': [{ find: 'old', replace: 'new' }]
+          'apps/*.yaml': {
+            content: [{ find: 'old', replace: 'new' }],
+            filename: [{ find: 'uat', replace: 'prod' }]
+          }
         }
       };
       const child: BaseConfig = {
         transforms: {
-          'apps/*.yaml': [{ find: 'dev', replace: 'prod' }],
-          'svc/*.yaml': [{ find: 'test', replace: 'live' }]
+          'apps/*.yaml': {
+            content: [{ find: 'dev', replace: 'prod' }]
+          },
+          'svc/*.yaml': {
+            filename: [{ find: 'test', replace: 'live' }]
+          }
         }
       };
 
       const result = mergeConfigs(parent, child);
 
       expect(result.transforms).toEqual({
-        'apps/*.yaml': [
-          { find: 'old', replace: 'new' },
-          { find: 'dev', replace: 'prod' }
-        ],
-        'svc/*.yaml': [{ find: 'test', replace: 'live' }]
+        'apps/*.yaml': {
+          content: [
+            { find: 'old', replace: 'new' },
+            { find: 'dev', replace: 'prod' }
+          ],
+          filename: [{ find: 'uat', replace: 'prod' }]
+        },
+        'svc/*.yaml': {
+          content: [],
+          filename: [{ find: 'test', replace: 'live' }]
+        }
       });
     });
 

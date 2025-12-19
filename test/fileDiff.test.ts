@@ -155,7 +155,7 @@ describe('fileDiff', () => {
         source: './src',
         destination: './dest',
         transforms: {
-          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+          '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         },
         skipPath: { '*.yaml': ['version'] }
       };
@@ -172,7 +172,7 @@ describe('fileDiff', () => {
         source: './src',
         destination: './dest',
         transforms: {
-          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+          '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         }
       };
 
@@ -189,7 +189,7 @@ describe('fileDiff', () => {
         source: './src',
         destination: './dest',
         transforms: {
-          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+          '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         }
       };
 
@@ -205,7 +205,7 @@ describe('fileDiff', () => {
         source: './src',
         destination: './dest',
         transforms: {
-          '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+          '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         },
         skipPath: { '*.yaml': ['version'] }
       };
@@ -241,7 +241,7 @@ describe('fileDiff', () => {
         source: './src',
         destination: './dest',
         transforms: {
-          'svc/*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+          'svc/*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
         }
       };
 

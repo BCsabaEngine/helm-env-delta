@@ -1,6 +1,6 @@
 {
   "name": "helm-env-delta",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "HelmEnvDelta – environment-aware YAML delta and sync for GitOps",
   "author": "BCsabaEngine",
   "license": "ISC",
@@ -31,6 +31,7 @@
   "scripts": {
     "dev": "tsx src/index.ts -c ./example/config.example.yaml",
     "dev:clear": "rm -rf ./example/prod",
+    "dev:live": "tsx src/index.ts -c ./example.dev/config.yaml",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -61,7 +62,7 @@
   },
   "devDependencies": {
     "@types/hogan.js": "^3.0.5",
-    "@types/node": "^25.0.2",
+    "@types/node": "^25.0.3",
     "@types/picomatch": "^4.0.2",
     "@typescript-eslint/eslint-plugin": "^8.50.0",
     "@typescript-eslint/parser": "^8.50.0",

@@ -31,6 +31,7 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool that safely synchronizes 
 - [Real-World Configuration Examples](#real-world-configuration-examples)
 - [Mermaid Diagrams](#mermaid-diagrams)
 - [JSON Output Schema](#json-output-schema)
+- [Migration Guide](#migration-guide)
 - [Troubleshooting](#troubleshooting)
 - [License & Links](#license--links)
 
@@ -76,6 +77,10 @@ flowchart LR
 ```
 
 - **Intelligent YAML Diff & Sync**: Deep comparison of YAML content, ignoring formatting differences
+  - Parses YAML structure instead of comparing text lines
+  - Normal git diffs show changes when array items are reordered, but HelmEnvDelta's deep analysis recognizes that content is identical
+  - Detects only meaningful changes (values, keys, structure) while ignoring whitespace, comments, and quote style differences
+  - Results in cleaner, more accurate diffs that focus on what actually changed
 - **Path Filtering (`skipPath`)**: Exclude environment-specific JSON paths from synchronization
 - **Transformations (`transforms`)**: Regex-based find/replace for environment-specific values (DB URLs, service names)
 - **Stop Rules (`stopRules`)**: Prevent dangerous changes (major version upgrades, scaling violations, forbidden patterns)
@@ -121,8 +126,9 @@ skipPath:
 # Transform environment names
 transforms:
   '**/*.yaml':
-    - find: "-uat\\b"
-      replace: '-prod'
+    content:
+      - find: "-uat\\b"
+        replace: '-prod'
 ```
 
 **2. Run dry-run to preview changes:**
@@ -258,36 +264,60 @@ skipPath:
 
 ### Transformations (transforms)
 
-Regex-based find/replace that applies to **all string values** in matched files.
+Regex-based find/replace for both YAML content and file paths.
 
 ```yaml
 transforms:
   'svc/**/values.yaml':
-    - find: "uat-db\\.(.+)\\.internal" # Regex with escaped dots
-      replace: 'prod-db.$1.internal' # Capture group $1
-    - find: 'uat-redis'
-      replace: 'prod-redis'
+    content: # Transforms YAML values (not keys)
+      - find: "uat-db\\.(.+)\\.internal" # Regex with escaped dots
+        replace: 'prod-db.$1.internal' # Capture group $1
+      - find: 'uat-redis'
+        replace: 'prod-redis'
 
   'apps/*.yaml':
-    - find: "-uat\\b" # Word boundary suffix
-      replace: '-prod'
-    - find: "\\buat/" # Prefix with slash
-      replace: 'prod/'
+    content: # Transforms YAML values
+      - find: "-uat\\b" # Word boundary suffix
+        replace: '-prod'
+      - find: "\\buat/" # Prefix with slash
+        replace: 'prod/'
+
+  '**/*.yaml':
+    filename: # Transforms file paths (full relative path)
+      - find: 'envs/uat/'
+        replace: 'envs/prod/'
+      - find: '-uat\.'
+        replace: '-prod.'
 ```
+
+**Configuration Structure:**
+
+Each file pattern can have:
+
+- `content`: Transforms YAML values (preserves keys)
+- `filename`: Transforms file paths (folders + filename)
+- At least one of `content` or `filename` must be specified
 
 **Features:**
 
 - **Regex Support**: Full regex patterns with escaping
 - **Capture Groups**: Use `$1`, `$2`, etc. for captured values
 - **Sequential Application**: Rules apply in order (first rule's output becomes input for second)
-- **Global Scope**: Transforms ALL string values in matched files, not just specific paths
+- **Content Scope**: Transforms ALL string values in matched files, not just specific paths
+- **Filename Scope**: Transforms full relative path (e.g., `envs/uat/app.yaml` → `envs/prod/app.yaml`)
 
 **Common Use Cases:**
 
-- Database URLs: `uat-db.example.internal` → `prod-db.example.internal`
-- Service names: `my-service-uat` → `my-service-prod`
-- Domain names: `uat.example.com` → `prod.example.com`
-- Environment prefixes/suffixes in any string field
+- **Content transforms:**
+  - Database URLs: `uat-db.example.internal` → `prod-db.example.internal`
+  - Service names: `my-service-uat` → `my-service-prod`
+  - Domain names: `uat.example.com` → `prod.example.com`
+  - Environment prefixes/suffixes in any string field
+
+- **Filename transforms:**
+  - Environment folders: `envs/uat/app.yaml` → `envs/prod/app.yaml`
+  - Environment suffixes: `app-uat.yaml` → `app-prod.yaml`
+  - Combined: `config/uat/service-uat.yaml` → `config/prod/service-prod.yaml`
 
 ---
 
@@ -449,8 +479,9 @@ skipPath:
 # Environment-specific transforms
 transforms:
   '**/*.yaml':
-    - find: "-uat\\b"
-      replace: '-prod'
+    content:
+      - find: "-uat\\b"
+        replace: '-prod'
 ```
 
 **Merging Rules:**
@@ -476,16 +507,17 @@ hed --config <file> [options]
 
 ### Options
 
-| Option            | Short | Description                              | Default      |
-| ----------------- | ----- | ---------------------------------------- | ------------ |
-| `--config <path>` | `-c`  | Path to YAML configuration file          | **required** |
-| `--dry-run`       |       | Preview changes without writing files    | `false`      |
-| `--force`         |       | Override stop rules and proceed          | `false`      |
-| `--diff`          |       | Display console diff for changed files   | `false`      |
-| `--diff-html`     |       | Generate HTML report and open in browser | `false`      |
-| `--diff-json`     |       | Output diff as JSON to stdout            | `false`      |
-| `--version`       | `-V`  | Show version number                      |              |
-| `--help`          | `-h`  | Display help                             |              |
+| Option            | Short | Description                                 | Default      |
+| ----------------- | ----- | ------------------------------------------- | ------------ |
+| `--config <path>` | `-c`  | Path to YAML configuration file             | **required** |
+| `--dry-run`       |       | Preview changes without writing files       | `false`      |
+| `--force`         |       | Override stop rules and proceed             | `false`      |
+| `--diff`          |       | Display console diff for changed files      | `false`      |
+| `--diff-html`     |       | Generate HTML report and open in browser    | `false`      |
+| `--diff-json`     |       | Output diff as JSON to stdout               | `false`      |
+| `--skip-format`   |       | Skip YAML formatting (outputFormat section) | `false`      |
+| `--version`       | `-V`  | Show version number                         |              |
+| `--help`          | `-h`  | Display help                                |              |
 
 ### Examples
 
@@ -534,10 +566,11 @@ skipPath:
 
 transforms:
   'services/**/values.yaml':
-    - find: "uat-database\\.(.+)\\.internal"
-      replace: 'prod-database.$1.internal'
-    - find: "\\.uat\\."
-      replace: '.prod.'
+    content:
+      - find: "uat-database\\.(.+)\\.internal"
+        replace: 'prod-database.$1.internal'
+      - find: "\\.uat\\."
+        replace: '.prod.'
 
 stopRules:
   'services/**/values.yaml':
@@ -622,6 +655,51 @@ git push origin main
 ---
 
 ## Advanced Features
+
+### Structural YAML Comparison
+
+HelmEnvDelta compares YAML by parsing and analyzing structure, not by comparing text lines. This provides much cleaner diffs than traditional git comparison.
+
+**Example: Array Reordering**
+
+Git diff would show many changes when array items are reordered, but HelmEnvDelta recognizes the content is identical:
+
+```yaml
+# Source (UAT)
+env:
+  - name: DATABASE_URL
+    value: uat-db.internal
+  - name: CACHE_URL
+    value: uat-redis.internal
+  - name: LOG_LEVEL
+    value: debug
+
+# Destination (Prod)
+env:
+  - name: LOG_LEVEL
+    value: info
+  - name: DATABASE_URL
+    value: prod-db.internal
+  - name: CACHE_URL
+    value: prod-redis.internal
+```
+
+**Git diff output (noisy):**
+
+- Shows all lines as changed due to reordering
+- Difficult to identify actual value differences
+
+**HelmEnvDelta output (clean):**
+
+- Recognizes array items are the same (after transforms)
+- Only shows actual value changes: `LOG_LEVEL: debug → info`
+- Ignores reordering, focusing on meaningful differences
+
+This structural comparison is especially valuable for:
+
+- YAML files with arrays that may be sorted differently
+- Files reformatted by different tools
+- Configurations where order doesn't matter semantically
 
 ### Deep YAML Merge
 
@@ -735,8 +813,9 @@ helm-env-delta --config config.yaml --diff-json | jq '.files.deleted'
 ### Auditability
 
 - **Clear Diff Reports**: See exactly what changed and why
+- **Structural Comparison**: Unlike git diffs that show line changes, HelmEnvDelta compares YAML structure, ignoring reordered arrays and formatting noise
 - **Multiple Formats**: Console, HTML, JSON for different review needs
-- **Field-Level Detection**: Track changes at individual field level
+- **Field-Level Detection**: Track changes at individual field level with JSONPath notation
 
 ### Flexibility
 
@@ -785,8 +864,9 @@ skipPath:
 
 transforms:
   '**/*.yaml':
-    - find: "-uat\\b"
-      replace: '-prod'
+    content:
+      - find: "-uat\\b"
+        replace: '-prod'
 ```
 
 ### Intermediate: With Stop Rules
@@ -810,8 +890,9 @@ skipPath:
 
 transforms:
   'svc/**/values.yaml':
-    - find: "uat-db\\.(.+)\\.internal"
-      replace: 'prod-db.$1.internal'
+    content:
+      - find: "uat-db\\.(.+)\\.internal"
+        replace: 'prod-db.$1.internal'
 
 stopRules:
   'svc/**/values.yaml':
@@ -864,10 +945,11 @@ destination: './helm/prod'
 
 transforms:
   '**/*.yaml':
-    - find: "-uat\\b"
-      replace: '-prod'
-    - find: "\\.uat\\."
-      replace: '.prod.'
+    content:
+      - find: "-uat\\b"
+        replace: '-prod'
+      - find: "\\.uat\\."
+        replace: '.prod.'
 
 stopRules:
   'svc/**/values.yaml':
@@ -998,6 +1080,104 @@ When using `--diff-json`, the tool outputs structured JSON to stdout:
 - `summary`: Counts for each file category
 - `files.changed[].changes`: Field-level changes with JSONPath notation
 - `stopRuleViolations`: All validation failures with context
+
+---
+
+## Migration Guide
+
+### Transform Configuration Format
+
+The `transforms` configuration structure supports both content and filename transformations.
+
+**Transform Structure:**
+
+```yaml
+transforms:
+  '**/*.yaml':
+    content: # Transforms YAML values
+      - find: '-uat'
+        replace: '-prod'
+      - find: 'uat-db'
+        replace: 'prod-db'
+```
+
+**Features:**
+
+The transform format enables:
+
+1. **Content transformations**: Transform YAML values while preserving keys
+2. **Filename transformations**: Transform file paths including folder structures
+3. **Clear separation**: Explicit distinction between content and filename transforms
+
+**Configuration Examples:**
+
+Basic content transform:
+
+```yaml
+transforms:
+  'pattern':
+    content:
+      - find: '...'
+        replace: '...'
+```
+
+Filename transform:
+
+```yaml
+transforms:
+  '**/*.yaml':
+    filename: # Transform file paths
+      - find: 'envs/uat/'
+        replace: 'envs/prod/'
+```
+
+Combining both:
+
+```yaml
+transforms:
+  '**/*.yaml':
+    content:
+      - find: 'uat-'
+        replace: 'prod-'
+    filename:
+      - find: 'envs/uat/'
+        replace: 'envs/prod/'
+```
+
+**Advanced Features:**
+
+- **Transform file paths**: Change folder structures and filenames
+
+  ```yaml
+  transforms:
+    '**/*.yaml':
+      filename:
+        - find: '/staging/'
+          replace: '/production/'
+        - find: '-stg\.'
+          replace: '-prod.'
+  ```
+
+- **Use capture groups in paths**:
+  ```yaml
+  transforms:
+    '**/*.yaml':
+      filename:
+        - find: 'config/(uat)/(.+)\.yaml'
+          replace: 'config/prod/$2.yaml'
+  ```
+
+**Collision Detection:**
+
+The tool automatically detects when multiple source files would transform to the same destination filename, preventing accidental overwrites.
+
+**Testing:**
+
+Always test your transform configuration with dry-run:
+
+```bash
+helm-env-delta --config config.yaml --dry-run --diff
+```
 
 ---
 

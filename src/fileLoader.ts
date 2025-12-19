@@ -1,15 +1,19 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
+import { isMatch } from 'picomatch';
 import { glob } from 'tinyglobby';
 
+import type { TransformConfig } from './configFile';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { transformFilename, transformFilenameMap } from './utils/filenameTransformer';
 
 // Types
 export interface FileLoaderOptions {
   baseDirectory: string;
   include: string[];
   exclude: string[];
+  transforms?: TransformConfig;
 }
 
 export type FileMap = Map<string, string>;
@@ -61,12 +65,25 @@ const validateAndResolveBaseDirectory = async (baseDirectory: string): Promise<s
 const findMatchingFiles = async (
   baseDirectory: string,
   includePatterns: string[],
-  excludePatterns: string[]
+  excludePatterns: string[],
+  transforms?: TransformConfig
 ): Promise<string[]> => {
   try {
-    const allPatterns = [...includePatterns, ...excludePatterns.map((pattern) => `!${pattern}`)];
+    if (!transforms) {
+      const allPatterns = [...includePatterns, ...excludePatterns.map((pattern) => `!${pattern}`)];
 
-    const matchedFiles = await glob(allPatterns, {
+      const matchedFiles = await glob(allPatterns, {
+        cwd: baseDirectory,
+        absolute: true,
+        onlyFiles: true,
+        dot: false,
+        followSymbolicLinks: false
+      });
+
+      return matchedFiles;
+    }
+
+    const allFiles = await glob(['**/*'], {
       cwd: baseDirectory,
       absolute: true,
       onlyFiles: true,
@@ -74,7 +91,22 @@ const findMatchingFiles = async (
       followSymbolicLinks: false
     });
 
-    return matchedFiles;
+    const filtered: string[] = [];
+
+    for (const absolutePath of allFiles) {
+      const relativePath = path.relative(baseDirectory, absolutePath);
+      const transformedPath = transformFilename(relativePath, transforms);
+
+      const included = includePatterns.some((pattern) => isMatch(transformedPath, pattern));
+      if (!included) continue;
+
+      const excluded = excludePatterns.some((pattern) => isMatch(transformedPath, pattern));
+      if (excluded) continue;
+
+      filtered.push(absolutePath);
+    }
+
+    return filtered;
   } catch (error: unknown) {
     throw new FileLoaderError('Failed to search for files using glob patterns', {
       path: baseDirectory,
@@ -126,9 +158,11 @@ export const loadFiles = async (options: FileLoaderOptions): Promise<FileMap> =>
   const includePatterns = options.include ?? ['**/*'];
   const excludePatterns = options.exclude ?? [];
 
-  const files = await findMatchingFiles(absoluteBaseDirectory, includePatterns, excludePatterns);
+  const files = await findMatchingFiles(absoluteBaseDirectory, includePatterns, excludePatterns, options.transforms);
 
   const fileMap = await readFilesIntoMap(absoluteBaseDirectory, files);
 
-  return sortMapByKeys(fileMap);
+  const transformedMap = options.transforms ? transformFilenameMap(fileMap, options.transforms) : fileMap;
+
+  return sortMapByKeys(transformedMap);
 };

@@ -206,7 +206,7 @@ describe('configLoader', () => {
           source: './src',
           destination: './dest',
           transforms: {
-            '*.yaml': [{ find: 'uat-', replace: 'prod-' }]
+            '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] }
           }
         };
         vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
@@ -214,7 +214,7 @@ describe('configLoader', () => {
         const result = loadConfigFile('config.yaml');
 
         expect(result.transforms).toBeDefined();
-        expect(result.transforms?.['*.yaml']).toEqual([{ find: 'uat-', replace: 'prod-' }]);
+        expect(result.transforms?.['*.yaml']).toEqual({ content: [{ find: 'uat-', replace: 'prod-' }] });
       });
 
       it('should accept multiple transform rules per pattern', () => {
@@ -222,17 +222,19 @@ describe('configLoader', () => {
           source: './src',
           destination: './dest',
           transforms: {
-            '*.yaml': [
-              { find: 'uat-', replace: 'prod-' },
-              { find: 'debug', replace: 'info' }
-            ]
+            '*.yaml': {
+              content: [
+                { find: 'uat-', replace: 'prod-' },
+                { find: 'debug', replace: 'info' }
+              ]
+            }
           }
         };
         vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
 
         const result = loadConfigFile('config.yaml');
 
-        expect(result.transforms?.['*.yaml']).toHaveLength(2);
+        expect(result.transforms?.['*.yaml']?.content).toHaveLength(2);
       });
 
       it('should accept empty replace string', () => {
@@ -240,14 +242,14 @@ describe('configLoader', () => {
           source: './src',
           destination: './dest',
           transforms: {
-            '*.yaml': [{ find: 'uat-', replace: '' }]
+            '*.yaml': { content: [{ find: 'uat-', replace: '' }] }
           }
         };
         vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
 
         const result = loadConfigFile('config.yaml');
 
-        expect(result.transforms?.['*.yaml']?.[0]?.replace).toBe('');
+        expect(result.transforms?.['*.yaml']?.content?.[0]?.replace).toBe('');
       });
 
       it('should accept complex regex patterns', () => {
@@ -255,14 +257,14 @@ describe('configLoader', () => {
           source: './src',
           destination: './dest',
           transforms: {
-            '*.yaml': [{ find: String.raw`uat-db\.(.+)\.internal`, replace: 'prod-db.$1.internal' }]
+            '*.yaml': { content: [{ find: String.raw`uat-db\.(.+)\.internal`, replace: 'prod-db.$1.internal' }] }
           }
         };
         vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
 
         const result = loadConfigFile('config.yaml');
 
-        expect(result.transforms?.['*.yaml']?.[0]?.find).toBe(String.raw`uat-db\.(.+)\.internal`);
+        expect(result.transforms?.['*.yaml']?.content?.[0]?.find).toBe(String.raw`uat-db\.(.+)\.internal`);
       });
 
       it('should throw error for invalid regex pattern', () => {
