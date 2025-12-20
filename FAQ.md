@@ -88,12 +88,6 @@ HelmEnvDelta handles the file synchronization, while your GitOps tool handles th
 npm install -g helm-env-delta
 ```
 
-**Verification:**
-
-```bash
-helm-env-delta --version
-```
-
 ---
 
 ### 6. How do I get started with a minimal configuration?

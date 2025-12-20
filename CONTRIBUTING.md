@@ -462,8 +462,7 @@ parseCommandLine → loadConfigFile → loadFiles → computeFileDiff → valida
 ### Before Creating an Issue
 
 1. **Search existing issues** to avoid duplicates
-2. **Verify on latest version** - run `helm-env-delta --version`
-3. **Test with minimal config** - isolate the problem
+2. **Test with minimal config** - isolate the problem
 
 ### Bug Report Template
 

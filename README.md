@@ -256,9 +256,6 @@ flowchart LR
 ```bash
 # Global installation
 npm install -g helm-env-delta
-
-# Verify installation
-helm-env-delta --version
 ```
 
 **Prerequisites:**
@@ -675,7 +672,6 @@ hed --config <file> [options]
 | `--diff-html`     |       | Generate HTML report and open in browser    | `false`      |
 | `--diff-json`     |       | Output diff as JSON to stdout               | `false`      |
 | `--skip-format`   |       | Skip YAML formatting (outputFormat section) | `false`      |
-| `--version`       | `-V`  | Show version number                         |              |
 | `--help`          | `-h`  | Display help                                |              |
 
 ### Examples
