@@ -12,6 +12,7 @@ import { generateJsonReport, isJsonReporterError } from './jsonReporter';
 import { validateStopRules } from './stopRulesValidator';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
+import { checkForUpdates } from './utils/versionChecker';
 import { isZodValidationError } from './ZodError';
 
 /**
@@ -116,5 +117,8 @@ const main = async (): Promise<void> => {
     else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
+  } finally {
+    // Fire-and-forget version check (don't await, silent fail)
+    void checkForUpdates(packageJson.version);
   }
 })();
