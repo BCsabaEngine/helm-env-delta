@@ -21,8 +21,16 @@ export class ZodValidationError extends Error {
       let message = `  - ${path}: ${error.message}`;
 
       // Add helpful context for common errors
-      if (error.code === 'invalid_type' && 'expected' in error && 'received' in error)
+      if (error.code === 'invalid_type' && 'expected' in error && 'received' in error) {
         message += ` (expected ${error.expected}, got ${error.received})`;
+
+        // Detect old transform format (array instead of object)
+        if (path.includes('transforms') && error.expected === 'object' && error.received === 'array') {
+          message += '\n    BREAKING CHANGE: Transform format changed in v2.0.0';
+          message += '\n    OLD: transforms: { "*.yaml": [{ find: "uat", replace: "prod" }] }';
+          message += '\n    NEW: transforms: { "*.yaml": { content: [{ find: "uat", replace: "prod" }] } }';
+        }
+      }
 
       if (error.code === 'unrecognized_keys' && 'keys' in error) {
         const keys = error.keys as string[];

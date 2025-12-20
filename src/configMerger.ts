@@ -178,12 +178,20 @@ export const resolveConfigWithExtends = (
   depth: number = 0
 ): BaseConfig => {
   // Check depth limit
-  if (depth > MAX_EXTENDS_DEPTH)
-    throw new ConfigMergerError('Extends chain exceeds maximum depth of 5', {
+  if (depth > MAX_EXTENDS_DEPTH) {
+    const depthError = new ConfigMergerError('Extends chain exceeds maximum depth of 5', {
       code: 'MAX_DEPTH_EXCEEDED',
       path: configPath,
       depth
     });
+
+    depthError.message += '\n\n  Hint: Simplify your config inheritance:';
+    depthError.message += '\n    - Maximum depth is 5 levels';
+    depthError.message += `\n    - Current depth: ${depth}`;
+    depthError.message += '\n    - Consider consolidating base configs';
+
+    throw depthError;
+  }
 
   // Resolve absolute path
   const absolutePath = path.resolve(configPath);
@@ -191,11 +199,18 @@ export const resolveConfigWithExtends = (
   // Check circular dependency
   if (visited.has(absolutePath)) {
     const chain = [...visited, absolutePath].map((filePath) => filePath.split('/').pop()).join(' → ');
-    throw new ConfigMergerError('Circular dependency detected in extends chain', {
+    const circularError = new ConfigMergerError('Circular dependency detected in extends chain', {
       code: 'CIRCULAR_DEPENDENCY',
       path: absolutePath,
       chain
     });
+
+    circularError.message += '\n\n  Hint: Break the circular reference in your extends chain:';
+    circularError.message += '\n    - Review the chain shown above';
+    circularError.message += '\n    - Remove one of the extends references';
+    circularError.message += '\n    - Consider flattening configs into a single file';
+
+    throw circularError;
   }
 
   // Add to visited set
@@ -207,12 +222,26 @@ export const resolveConfigWithExtends = (
   try {
     configContent = readFileSync(absolutePath, 'utf8');
   } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error)
-      throw new ConfigMergerError(`Failed to read config file`, {
+    if (error instanceof Error && 'code' in error) {
+      const readError = new ConfigMergerError(`Failed to read config file`, {
         code: (error as NodeJS.ErrnoException).code,
         path: absolutePath,
         cause: error as Error
       });
+
+      const errorCode = (error as NodeJS.ErrnoException).code;
+      if (errorCode === 'ENOENT') {
+        readError.message += '\n\n  Hint: Config file not found:';
+        readError.message += '\n    - Check the file path is correct';
+        readError.message += '\n    - Use absolute path or path relative to current directory';
+      } else if (errorCode === 'EACCES') {
+        readError.message += '\n\n  Hint: Permission denied:';
+        readError.message += `\n    - Check file permissions: ls -la ${absolutePath}`;
+        readError.message += `\n    - Fix permissions: chmod 644 ${absolutePath}`;
+      }
+
+      throw readError;
+    }
 
     throw new ConfigMergerError('Failed to read config file', {
       path: absolutePath,
@@ -244,14 +273,22 @@ export const resolveConfigWithExtends = (
   try {
     readFileSync(parentPath, 'utf8');
   } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error)
-      throw new ConfigMergerError('Extended config file not found', {
+    if (error instanceof Error && 'code' in error) {
+      const extendsError = new ConfigMergerError('Extended config file not found', {
         code: 'INVALID_EXTENDS_PATH',
         path: absolutePath,
         extends: config.extends,
         resolved: parentPath,
         cause: error as Error
       });
+
+      extendsError.message += '\n\n  Hint: Cannot find extended config file:';
+      extendsError.message += '\n    - Check the extends path in your config';
+      extendsError.message += `\n    - Path is resolved relative to: ${path.dirname(absolutePath)}`;
+      extendsError.message += '\n    - Use paths relative to the config file location';
+
+      throw extendsError;
+    }
 
     throw new ConfigMergerError('Extended config file not found', {
       code: 'INVALID_EXTENDS_PATH',

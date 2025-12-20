@@ -30,37 +30,72 @@ const applySequentialTransforms = (value: string, rules: TransformRule[]): strin
       const regex = new RegExp(rule.find, 'g');
       result = result.replace(regex, rule.replace);
     } catch (error) {
-      throw new FilenameTransformerError('Failed to apply regex transformation', {
+      const regexError = new FilenameTransformerError('Failed to apply regex transformation', {
         code: 'REGEX_ERROR',
         cause: error instanceof Error ? error : undefined
       });
+
+      regexError.message += `\n\n  Hint: The regex pattern failed to compile. Check for:`;
+      regexError.message += `\n    - Balanced parentheses: (group)`;
+      regexError.message += `\n    - Escaped special chars: \\. \\[ \\]`;
+      regexError.message += `\n    - Valid capture groups: $1, $2, etc.`;
+      regexError.message += `\n    Pattern: ${rule.find}`;
+
+      throw regexError;
     }
 
   return result;
 };
 
 const validateTransformedPath = (transformedPath: string, originalPath: string): void => {
-  if (!transformedPath || transformedPath.trim() === '')
-    throw new FilenameTransformerError('Transformed path is empty', {
+  if (!transformedPath || transformedPath.trim() === '') {
+    const emptyError = new FilenameTransformerError('Transformed path is empty', {
       code: 'EMPTY_FILENAME',
       path: originalPath
     });
 
-  if (transformedPath.startsWith('/') || transformedPath.includes('..'))
-    throw new FilenameTransformerError('Path transform attempted traversal outside source/destination', {
-      code: 'PATH_TRAVERSAL',
-      path: originalPath,
-      details: `Transformed path: ${transformedPath}`
-    });
+    emptyError.message += '\n\n  Hint: The transform produced an empty path. Check your regex pattern:';
+    emptyError.message += "\n    - Ensure 'replace' value is not empty";
+    emptyError.message += '\n    - Verify pattern matches expected part of filename';
+
+    throw emptyError;
+  }
+
+  if (transformedPath.startsWith('/') || transformedPath.includes('..')) {
+    const traversalError = new FilenameTransformerError(
+      'Path transform attempted traversal outside source/destination',
+      {
+        code: 'PATH_TRAVERSAL',
+        path: originalPath,
+        details: `Transformed path: ${transformedPath}`
+      }
+    );
+
+    traversalError.message += '\n\n  Hint: Filename transforms must not navigate outside source/destination:';
+    traversalError.message += "\n    BAD: { find: 'file\\.yaml', replace: '../file.yaml' }  (contains ..)";
+    traversalError.message += "\n    BAD: { find: 'file', replace: '/etc/passwd' }  (absolute path)";
+    traversalError.message += "\n    GOOD: { find: 'envs/uat/', replace: 'envs/prod/' }";
+    traversalError.message += '\n    This is a security feature to prevent accidental overwrites.';
+
+    throw traversalError;
+  }
 
   // eslint-disable-next-line no-control-regex
   const invalidChars = /[\u0000-\u001F"*:<>?|]/;
-  if (invalidChars.test(transformedPath))
-    throw new FilenameTransformerError('Transformed path contains invalid characters', {
+  if (invalidChars.test(transformedPath)) {
+    const invalidError = new FilenameTransformerError('Transformed path contains invalid characters', {
       code: 'INVALID_FILENAME',
       path: originalPath,
       details: `Transformed path: ${transformedPath}`
     });
+
+    invalidError.message += '\n\n  Hint: The transformed path contains characters not allowed in filenames:';
+    invalidError.message += '\n    - Remove control characters (\\x00-\\x1F)';
+    invalidError.message += '\n    - Avoid: " * : < > ? |';
+    invalidError.message += '\n    - Check your regex replacement string';
+
+    throw invalidError;
+  }
 };
 
 // ============================================================================

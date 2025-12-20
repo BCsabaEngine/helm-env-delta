@@ -62,11 +62,18 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
 
     return result;
   } catch (error) {
-    throw new YamlFormatterError('Failed to format YAML', {
+    const formatError = new YamlFormatterError('Failed to format YAML', {
       code: 'YAML_FORMAT_ERROR',
       path: filePath,
       cause: error instanceof Error ? error : undefined
     });
+
+    formatError.message += '\n\n  Hint: Formatting failed. Options:';
+    formatError.message += '\n    - Skip formatting: --skip-format';
+    formatError.message += '\n    - Check keyOrders patterns match YAML structure';
+    formatError.message += '\n    - Verify arraySort paths exist in files';
+
+    throw formatError;
   }
 };
 

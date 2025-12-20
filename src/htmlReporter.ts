@@ -565,11 +565,18 @@ const writeHtmlFile = async (htmlContent: string, outputPath: string): Promise<v
     // Write HTML file
     await writeFile(outputPath, htmlContent, 'utf8');
   } catch (error) {
-    throw new HtmlReporterError('Failed to write HTML report file', {
+    const writeError = new HtmlReporterError('Failed to write HTML report file', {
       code: 'WRITE_FAILED',
       path: outputPath,
       cause: error as Error
     });
+
+    writeError.message += '\n\n  Hint: Cannot write HTML report:';
+    writeError.message += '\n    - Check temp directory permissions';
+    writeError.message += '\n    - Use --diff for console output instead';
+    writeError.message += '\n    - Or --diff-json to pipe to jq';
+
+    throw writeError;
   }
 };
 
@@ -580,11 +587,19 @@ const openInBrowser = async (filePath: string): Promise<void> => {
     const absolutePath = path.resolve(filePath);
     await open(absolutePath);
   } catch (error) {
-    throw new HtmlReporterError('Failed to open report in browser', {
+    const openError = new HtmlReporterError('Failed to open report in browser', {
       code: 'BROWSER_OPEN_FAILED',
       path: filePath,
       cause: error as Error
     });
+
+    const absolutePath = path.resolve(filePath);
+    openError.message += '\n\n  Hint: Open the report manually:';
+    openError.message += `\n    - File location: ${absolutePath}`;
+    openError.message += `\n    - macOS: open ${absolutePath}`;
+    openError.message += `\n    - Linux: xdg-open ${absolutePath}`;
+
+    throw openError;
   }
 };
 

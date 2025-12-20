@@ -106,11 +106,18 @@ const mergeYamlContent = (destinationContent: string, processedSourceContent: un
   try {
     destinationParsed = YAML.parse(destinationContent);
   } catch (error) {
-    throw new FileUpdaterError('Failed to parse destination YAML for merge', {
+    const parseError = new FileUpdaterError('Failed to parse destination YAML for merge', {
       code: 'YAML_PARSE_ERROR',
       path: filePath,
       cause: error instanceof Error ? error : undefined
     });
+
+    parseError.message += '\n\n  Hint: YAML syntax error in destination file:';
+    parseError.message += '\n    - Validate at: https://www.yamllint.com/';
+    parseError.message += '\n    - Common issues: incorrect indentation, missing quotes';
+    parseError.message += '\n    - Try --skip-format flag if formatting is the issue';
+
+    throw parseError;
   }
 
   // 2. Deep merge source changes into destination

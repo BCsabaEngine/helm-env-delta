@@ -18,6 +18,12 @@ const StopRulesValidatorErrorClass = createErrorClass('Stop Rules Validator Erro
     fullMessage += `\n  Violations (${options['violations'].length}):`;
     for (const v of options['violations'] as StopRuleViolation[])
       fullMessage += `\n    - ${v.file}:${v.path} (${v.rule.type})`;
+
+    fullMessage += '\n\n  Hint: Review stop rule violations carefully:';
+    fullMessage += '\n    - Preview changes: --dry-run --diff';
+    fullMessage += '\n    - Override if safe: --force (use with caution!)';
+    fullMessage += '\n    - Semver violations indicate major version changes';
+    fullMessage += '\n    - Numeric violations may indicate unsafe scaling';
   }
 
   if (options.cause) fullMessage += `\n  Cause: ${options.cause.message}`;
