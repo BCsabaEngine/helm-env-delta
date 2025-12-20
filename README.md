@@ -1,4 +1,4 @@
-# HelmEnvDelta v1.1.0
+# HelmEnvDelta
 
 [![npm version](https://img.shields.io/npm/v/helm-env-delta.svg)](https://www.npmjs.com/package/helm-env-delta)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
