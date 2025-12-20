@@ -74,7 +74,36 @@ HelmEnvDelta handles the file synchronization, while your GitOps tool handles th
 
 ## Installation & Setup
 
-### 5. What are the system requirements?
+### 5. Does HelmEnvDelta automatically check for updates?
+
+**Yes!** HelmEnvDelta automatically checks for newer versions on npm every time it runs.
+
+**Behavior:**
+
+- Checks https://registry.npmjs.org on every run
+- Displays a notification if a newer version is available
+- Automatically skipped in CI/CD environments (detects CI env vars)
+- Silent failure if npm is unreachable (doesn't interrupt your work)
+- 3-second timeout to avoid delays
+
+**Disable check:** Set the `CI` environment variable to skip the check:
+
+```bash
+CI=true helm-env-delta --config config.yaml
+```
+
+**Example notification:**
+
+```
+⚠ Update available! v1.2.3 → v2.0.0
+Run: npm install -g helm-env-delta@latest
+```
+
+The check runs in the background and never blocks your main operation. If you see the notification, simply run `npm install -g helm-env-delta@latest` to upgrade.
+
+---
+
+### 6. What are the system requirements?
 
 **Minimum requirements:**
 
@@ -90,7 +119,7 @@ npm install -g helm-env-delta
 
 ---
 
-### 6. How do I get started with a minimal configuration?
+### 7. How do I get started with a minimal configuration?
 
 Create a `config.yaml` file with the bare minimum:
 
@@ -115,7 +144,7 @@ This shows what would change without modifying any files.
 
 ---
 
-### 7. Can I test HelmEnvDelta without modifying my files?
+### 8. Can I test HelmEnvDelta without modifying my files?
 
 **Yes!** Always use `--dry-run` to preview changes:
 
@@ -136,7 +165,7 @@ Dry-run shows exactly what would change without writing any files.
 
 ## Configuration
 
-### 8. What's the difference between skipPath and transforms?
+### 9. What's the difference between skipPath and transforms?
 
 **skipPath**: Fields to **completely ignore** during sync
 
@@ -164,7 +193,7 @@ transforms:
 
 ---
 
-### 9. How do I handle environment-specific values like namespaces or replica counts?
+### 10. How do I handle environment-specific values like namespaces or replica counts?
 
 Use `skipPath` to preserve these values:
 
@@ -182,7 +211,7 @@ These fields will never be overwritten during sync, keeping production-specific 
 
 ---
 
-### 10. Can I use a base configuration and override it per environment?
+### 11. Can I use a base configuration and override it per environment?
 
 **Yes!** Use config inheritance with `extends`:
 
@@ -217,7 +246,7 @@ Run with: `helm-env-delta --config config.prod.yaml`
 
 ---
 
-### 11. How deep can config inheritance go?
+### 12. How deep can config inheritance go?
 
 Maximum **5 levels** of inheritance to prevent excessive nesting.
 
@@ -237,7 +266,7 @@ Circular dependencies are detected and rejected automatically.
 
 ## Usage & Workflow
 
-### 12. What's the recommended workflow for syncing environments?
+### 13. What's the recommended workflow for syncing environments?
 
 **Standard workflow:**
 
@@ -264,7 +293,7 @@ git push
 
 ---
 
-### 13. Can I sync multiple environment pairs with one config?
+### 14. Can I sync multiple environment pairs with one config?
 
 Not directly, but you can create multiple configs:
 
@@ -290,7 +319,7 @@ done
 
 ---
 
-### 14. How do I integrate HelmEnvDelta into my CI/CD pipeline?
+### 15. How do I integrate HelmEnvDelta into my CI/CD pipeline?
 
 **Example GitHub Actions workflow:**
 
@@ -324,7 +353,7 @@ Use `--diff-json` for programmatic analysis with jq.
 
 ---
 
-### 15. What does the prune option do and when should I use it?
+### 16. What does the prune option do and when should I use it?
 
 `prune: true` **deletes files in destination that don't exist in source**:
 
@@ -352,7 +381,7 @@ helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files.deleted'
 
 ## Transforms & Path Filtering
 
-### 16. How do transforms work and in what order are they applied?
+### 17. How do transforms work and in what order are they applied?
 
 **Transforms apply sequentially:**
 
@@ -376,7 +405,7 @@ transforms:
 
 ---
 
-### 17. Can I transform file paths, not just content?
+### 18. Can I transform file paths, not just content?
 
 **Yes!** Use `filename` transforms:
 
@@ -400,7 +429,7 @@ Filename transforms apply **before** include/exclude filtering.
 
 ---
 
-### 18. How do I use regex capture groups in transforms?
+### 19. How do I use regex capture groups in transforms?
 
 Use `$1`, `$2`, etc. to reference captured groups:
 
@@ -434,7 +463,7 @@ transforms:
 
 ---
 
-### 19. What JSONPath syntax should I use for skipPath and stopRules?
+### 20. What JSONPath syntax should I use for skipPath and stopRules?
 
 **JSONPath syntax (without `$.` prefix):**
 
@@ -460,7 +489,7 @@ skipPath:
 
 ## Stop Rules & Safety
 
-### 20. What are stop rules and when should I use them?
+### 21. What are stop rules and when should I use them?
 
 **Stop rules prevent dangerous changes** from being applied:
 
@@ -494,7 +523,7 @@ stopRules:
 
 ---
 
-### 21. How do I override stop rules when I actually want to make a blocked change?
+### 22. How do I override stop rules when I actually want to make a blocked change?
 
 Use the `--force` flag:
 
@@ -516,7 +545,7 @@ helm-env-delta --config config.yaml --force --dry-run --diff
 
 ---
 
-### 22. Can I validate changes without actually syncing files?
+### 23. Can I validate changes without actually syncing files?
 
 **Yes!** Use dry-run with JSON output:
 
@@ -540,7 +569,7 @@ cat report.json | jq '.files.changed[].changes[] | select(.path == "$.image.tag"
 
 ## Troubleshooting
 
-### 23. Why are my glob patterns not matching files?
+### 24. Why are my glob patterns not matching files?
 
 **Common issues:**
 
@@ -576,7 +605,7 @@ helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files | keys'
 
 ---
 
-### 24. Why are some fields still being synced when I have them in skipPath?
+### 25. Why are some fields still being synced when I have them in skipPath?
 
 **Common causes:**
 
@@ -614,7 +643,7 @@ helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files.changed[]
 
 ---
 
-### 25. What should I do if I get file collision errors?
+### 26. What should I do if I get file collision errors?
 
 **Error:** Multiple source files transform to the same destination filename.
 
@@ -664,7 +693,7 @@ Both transform to: envs/prod/app.yaml
 
 ## Advanced Topics
 
-### 26. How does the deep merge work and what gets preserved?
+### 27. How does the deep merge work and what gets preserved?
 
 **Deep merge process:**
 
@@ -698,7 +727,7 @@ spec:
 
 ---
 
-### 27. Can I sort arrays or enforce key ordering in output YAML?
+### 28. Can I sort arrays or enforce key ordering in output YAML?
 
 **Yes!** Use `outputFormat`:
 
@@ -728,7 +757,7 @@ outputFormat:
 
 ---
 
-### 28. What's the difference between --diff, --diff-html, and --diff-json?
+### 29. What's the difference between --diff, --diff-html, and --diff-json?
 
 **Different output formats for different needs:**
 
@@ -753,7 +782,7 @@ helm-env-delta --config config.yaml --diff --diff-html --diff-json > report.json
 
 ---
 
-### 29. How can I see field-level changes instead of file-level changes?
+### 30. How can I see field-level changes instead of file-level changes?
 
 Use `--diff-json` with jq:
 
@@ -778,7 +807,7 @@ The JSON output includes JSONPath notation for each changed field (e.g., `$.spec
 
 ---
 
-### 30. Can HelmEnvDelta handle binary files or non-YAML files?
+### 31. Can HelmEnvDelta handle binary files or non-YAML files?
 
 **Yes, with limitations:**
 
