@@ -669,6 +669,7 @@ hed --config <file> [options]
 | Option            | Short | Description                                 | Default      |
 | ----------------- | ----- | ------------------------------------------- | ------------ |
 | `--config <path>` | `-c`  | Path to YAML configuration file             | **required** |
+| `--validate`      |       | Validate configuration file and exit        | `false`      |
 | `--dry-run`       |       | Preview changes without writing files       | `false`      |
 | `--force`         |       | Override stop rules and proceed             | `false`      |
 | `--diff`          |       | Display console diff for changed files      | `false`      |
@@ -680,6 +681,9 @@ hed --config <file> [options]
 ### Examples
 
 ```bash
+# Validate configuration file
+helm-env-delta --config config.yaml --validate
+
 # Basic sync
 helm-env-delta --config config.yaml
 

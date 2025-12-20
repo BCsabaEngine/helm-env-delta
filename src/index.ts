@@ -29,6 +29,12 @@ const main = async (): Promise<void> => {
   // Load and validate config
   const config = loadConfigFile(command.config);
 
+  // Early exit for validation-only mode
+  if (command.validate) {
+    console.log('\n' + formatProgressMessage('Configuration is valid', 'success'));
+    return;
+  }
+
   // Load source + destination files
   console.log('\n' + formatProgressMessage('Loading files...', 'loading'));
   const sourceFiles = await loadFiles({

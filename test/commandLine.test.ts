@@ -24,7 +24,8 @@ describe('commandLine', () => {
         diff: false,
         diffHtml: false,
         diffJson: false,
-        skipFormat: false
+        skipFormat: false,
+        validate: false
       });
     });
 
@@ -86,7 +87,8 @@ describe('commandLine', () => {
         diff: true,
         diffHtml: true,
         diffJson: true,
-        skipFormat: false
+        skipFormat: false,
+        validate: false
       });
     });
 
@@ -105,6 +107,7 @@ describe('commandLine', () => {
       expect(result.diffHtml).toBe(false);
       expect(result.diffJson).toBe(false);
       expect(result.skipFormat).toBe(false);
+      expect(result.validate).toBe(false);
     });
 
     it('should parse config path with spaces', () => {
@@ -135,7 +138,8 @@ describe('commandLine', () => {
         diff: false,
         diffHtml: false,
         diffJson: false,
-        skipFormat: false
+        skipFormat: false,
+        validate: false
       });
     });
 
@@ -202,8 +206,36 @@ describe('commandLine', () => {
         diff: true,
         diffHtml: false,
         diffJson: false,
-        skipFormat: true
+        skipFormat: true,
+        validate: false
       });
+    });
+
+    it('should parse command with --validate', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--validate']);
+
+      expect(result.validate).toBe(true);
+      expect(result.dryRun).toBe(false);
+    });
+
+    it('should default validate to false when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.validate).toBe(false);
+    });
+
+    it('should parse command with --validate and other flags', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--validate', '--diff']);
+
+      expect(result.validate).toBe(true);
+      expect(result.diff).toBe(true);
+    });
+
+    it('should parse flags in different orders with --validate', () => {
+      const result = parseCommandLine(['node', 'cli', '--validate', '--config', 'test.yaml']);
+
+      expect(result.config).toBe('test.yaml');
+      expect(result.validate).toBe(true);
     });
   });
 });

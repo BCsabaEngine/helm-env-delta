@@ -24,13 +24,14 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # Running CLI
-helm-env-delta --config config.yaml [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format]
+helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format]
 hed --config config.yaml  # Short alias
 ```
 
 **CLI Flags:**
 
 - `--config <path>` (required) - YAML config file path
+- `--validate` - Validate configuration file and exit (skips file operations)
 - `--dry-run` - Preview without writing
 - `--force` - Override stop rules
 - `--diff` - Console diff output
