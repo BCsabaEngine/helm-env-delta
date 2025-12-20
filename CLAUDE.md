@@ -58,6 +58,7 @@ hed --config config.yaml  # Short alias
 - `arrayDiffer.ts` - Array comparison utilities
 - `utils/filenameTransformer.ts` - Filename/path transformation (full path regex transforms)
 - `utils/collisionDetector.ts` - Detects when multiple source files transform to same name
+- `utils/versionChecker.ts` - Automatic update notifications from npm registry
 
 **Configuration Schema:**
 
@@ -110,7 +111,7 @@ Field-level detection with JSONPath (e.g., `$.image.tag`). Pipe to jq or save to
 
 **CI/CD:** Node 22.x/24.x, format → lint → build → test
 
-**Status:** Core features complete (CLI, config loading/merging/validation, file sync, content+filename transforms, stop rules, diff reports, dry-run, force, prune). 20 test files, 60%+ coverage.
+**Status:** Core features complete (CLI, config loading/merging/validation, file sync, content+filename transforms, stop rules, diff reports, dry-run, force, prune, automatic update notifications). 21 test files, 60%+ coverage.
 
 **BREAKING CHANGES:**
 
@@ -128,6 +129,7 @@ Barrel exports via `index.ts`:
 - `deepEqual.ts` - deepEqual() (normalize then compare)
 - `jsonPath.ts` - parseJsonPath(), getValueAtPath() (wildcards, array indices)
 - `transformer.ts` - applyTransforms() (regex on values only, preserves keys, sequential)
+- `versionChecker.ts` - checkForUpdates() (npm registry check, CI detection, silent fail)
 
 **Error Pattern:** All modules use factory from `errors.ts` (createErrorClass + createErrorTypeGuard). Custom error classes with type guards, consistent formatting, error codes (ENOENT, EACCES, etc.). Override constructor for hints.
 
@@ -226,3 +228,4 @@ export const isModuleError = createErrorTypeGuard(ModuleError);
 - File operations: async/await with Promise.all for parallel processing
 - Deep merge: preserves destination values for paths not in source
 - Utilities: barrel exports from `src/utils/index.ts`
+- Version check: Automatic update notifications on every run (skips in CI environments, silent fail on errors, 3-second timeout)

@@ -18,3 +18,6 @@ export { isYamlFile } from './fileType';
 
 // Diff utilities
 export { generateUnifiedDiff } from './diffGenerator';
+
+// Version checking utilities
+export { checkForUpdates, isVersionCheckerError, VersionCheckerError } from './versionChecker';

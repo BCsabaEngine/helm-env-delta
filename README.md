@@ -248,6 +248,7 @@ flowchart LR
 - **Multiple Reporting Formats**: Console diff, HTML report (visual side-by-side), JSON output (CI/CD integration)
 - **Prune Mode**: Remove destination files not present in source
 - **Dry-Run Preview**: Review all changes before applying them
+- **Automatic Update Notifications**: Notifies when newer versions are available on npm (skips in CI/CD environments)
 
 ---
 
@@ -262,6 +263,8 @@ npm install -g helm-env-delta
 
 - Node.js >= 22
 - npm >= 9
+
+**Note:** The tool automatically checks for updates on every run and displays a notification if a newer version is available. This check is skipped in CI/CD environments and fails silently if the npm registry is unreachable.
 
 ---
 
