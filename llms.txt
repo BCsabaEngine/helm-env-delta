@@ -1,0 +1,292 @@
+# HelmEnvDelta - LLM Context
+
+> Environment-aware YAML delta and sync for GitOps workflows
+
+**NPM Package:** helm-env-delta
+**Tech Stack:** TypeScript, Node.js 22+, Vitest
+**License:** ISC
+
+## What This Tool Does
+
+HelmEnvDelta safely synchronizes YAML configuration files between environments (UAT → Production, Dev → Staging) while:
+- Preserving environment-specific values (namespaces, replica counts)
+- Transforming environment-specific strings (uat-db → prod-db)
+- Validating against safety rules (semver upgrades, numeric limits)
+- Enforcing consistent YAML formatting
+- Providing structural YAML comparison (not line-by-line)
+
+**Key Difference from git diff:** Parses YAML structure to ignore formatting/reordering, showing only meaningful content changes.
+
+## Project Structure
+
+```
+helm-env-delta/
+├── src/
+│   ├── index.ts              # Main entry: parseCommandLine → loadConfigFile → loadFiles → computeFileDiff → validateStopRules → updateFiles → reports
+│   ├── commandLine.ts        # CLI parsing (commander)
+│   ├── configLoader.ts       # YAML config loading with extends chain (max 5 levels, circular detection)
+│   ├── configFile.ts         # Zod schemas: BaseConfig (partial), FinalConfig (strict)
+│   ├── configMerger.ts       # Config inheritance (arrays concat, objects deep merge)
+│   ├── fileLoader.ts         # Glob-based parallel loading (tinyglobby) → Map<string, string>
+│   ├── fileDiff.ts           # YAML diff pipeline: parse → transforms → skipPath → normalize → deep equal
+│   ├── yamlFormatter.ts      # YAML AST formatting (key ordering, quoting, array sort, keySeparator)
+│   ├── stopRulesValidator.ts # Validation (semver, numeric, regex)
+│   ├── fileUpdater.ts        # Deep merge (preserves skipped paths) + file sync
+│   ├── utils/
+│   │   ├── index.ts          # Barrel exports for utilities
+│   │   ├── errors.ts         # Error factory: createErrorClass + createErrorTypeGuard
+│   │   ├── transformer.ts    # applyTransforms (regex on YAML values, sequential)
+│   │   ├── filenameTransformer.ts    # Full path regex transforms (folders + filename)
+│   │   ├── collisionDetector.ts      # Detects multiple sources → same destination name
+│   │   ├── jsonPath.ts       # parseJsonPath, getValueAtPath (wildcards, array indices)
+│   │   ├── deepEqual.ts      # deepEqual (normalize then compare)
+│   │   ├── serialization.ts  # serializeForDiff, normalizeForComparison
+│   │   ├── diffGenerator.ts  # generateUnifiedDiff
+│   │   └── fileType.ts       # isYamlFile
+│   └── reporters/
+│       ├── consoleDiffReporter.ts    # Console unified diff
+│       ├── htmlReporter.ts           # HTML side-by-side diff (opens browser)
+│       └── jsonReporter.ts           # JSON output (CI/CD integration)
+├── bin/
+│   └── index.js              # CLI entry point
+├── tests/                    # Mirrors src/ structure, 60%+ coverage enforced
+├── examples/                 # Example configs
+├── README.md                 # Comprehensive user guide
+├── CLAUDE.md                 # Claude Code implementation guide
+├── CONTRIBUTING.md           # Contributor guidelines
+└── FAQ.md                    # 30 common questions
+
+```
+
+## Core Concepts
+
+### Configuration Schema (Zod-based)
+
+**Core Settings:**
+- `source` (required in final config) - Source folder path
+- `destination` (required in final config) - Destination folder path
+- `include` (default: `['**/*']`) - Glob patterns to include
+- `exclude` (default: `[]`) - Glob patterns to exclude
+- `prune` (default: false) - Remove destination files not in source
+
+**Config Inheritance (`extends`):**
+- Single parent reference, max 5 levels deep
+- Circular dependency detection
+- Base configs can be partial, child configs inherit and override
+- Arrays concatenated, objects deep merged, per-file rules merged
+
+**Path Filtering (`skipPath`):**
+- JSONPath patterns to completely ignore during sync (per-file glob patterns)
+- Format: `{'file-glob': ['jsonpath1', 'jsonpath2']}`
+- Example: `{'**/*.yaml': ['metadata.namespace', 'spec.replicas']}`
+- Omit `$.` prefix in paths
+
+**Transformations (`transforms`):**
+- Object format with `content` and/or `filename` arrays
+- `content`: Regex find/replace on YAML values (preserves keys, sequential, supports capture groups)
+- `filename`: Regex find/replace on file paths (full relative path, folders + filename)
+- At least one of `content` or `filename` must be specified
+- Example: `{'**/*.yaml': {content: [{find: 'uat-', replace: 'prod-'}], filename: [{find: '/uat/', replace: '/prod/'}]}}`
+
+**Stop Rules (`stopRules`):**
+- Validation rules (per-file glob patterns)
+- Types: `semverMajorUpgrade`, `semverDowngrade`, `numeric` (min/max), `regex`
+- Example: `{'**/*.yaml': [{type: 'semverMajorUpgrade', path: 'image.tag'}]}`
+- Override with `--force` flag
+
+**Output Formatting (`outputFormat`):**
+- `indent` (default: 2)
+- `keySeparator` (default: false) - Blank line between top-level keys
+- `quoteValues` (per-file patterns + JSONPaths to quote)
+- `keyOrders` (hierarchical JSONPath ordering)
+- `arraySort` (field-based sorting with asc/desc)
+
+### CLI Flags
+
+```bash
+helm-env-delta --config <path> [options]
+hed --config <path>  # Short alias
+
+--dry-run           # Preview without writing
+--force             # Override stop rules
+--diff              # Console diff output
+--diff-html         # HTML diff report (opens browser)
+--diff-json         # JSON diff to stdout (pipe to jq)
+--skip-format       # Skip YAML formatting (outputFormat section)
+```
+
+### Data Flow
+
+1. **Command Line** → Parse args (commander)
+2. **Config Loading** → Load YAML, resolve extends chain, validate with Zod
+3. **File Loading** → Glob source/dest files, apply filename transforms, parallel load → Map<string, string>
+4. **Diff Computation** → YAML.parse → content transforms → skipPath → normalize → deep equal
+5. **Stop Rules** → Validate JSONPath values, fail unless --force
+6. **File Update** → Deep merge (preserves skipped paths) → yamlFormatter → write/dry-run
+7. **Reports** → Generate console/HTML/JSON diffs
+
+### YAML Processing Pipeline
+
+```
+Source Files → Parse YAML → Apply Content Transforms → Apply skipPath Filtering →
+Normalize Structure → Deep Comparison → Validate Stop Rules → Deep Merge →
+Apply Output Formatting → Write Destination Files
+```
+
+**Important:** Deep merge preserves destination values for paths not in source (including skipped paths). Arrays replaced entirely (not element-by-element).
+
+### JSONPath Syntax
+
+- Top-level: `'version'`
+- Nested: `'spec.destination.namespace'`
+- Array wildcard: `'env[*].value'`
+- Nested arrays: `'spec.items[*].subitems[*].value'`
+- **Omit `$.` prefix** in config
+
+## Code Style & Patterns
+
+### TypeScript Style
+
+- **Functions:** Const arrow functions only: `const fn = (param): Type => { ... };`
+- **No `null`:** Use `undefined` instead
+- **Descriptive names:** `error1` not `e1`
+- **Exports:** Named exports only
+- **Target:** ES2023, CommonJS
+- **ESLint:** unicorn/no-null, unicorn/prevent-abbreviations, unicorn/consistent-function-scoping
+- **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
+
+### Design Patterns
+
+**Type Safety:**
+```typescript
+// Zod schema with TypeScript inference
+const schema = z.object({ source: z.string(), destination: z.string() });
+type Config = z.infer<typeof schema>;
+```
+
+**Error Handling:**
+```typescript
+// Error factory pattern from utils/errors.ts
+const ErrorClass = createErrorClass('Module Error', {
+  CODE1: 'explanation',
+  CODE2: 'explanation'
+});
+export class MyModuleError extends ErrorClass {}
+export const isMyModuleError = createErrorTypeGuard(MyModuleError);
+```
+
+**File Maps:**
+- Use `Map<string, string>` for O(1) lookup
+- Sorted keys for deterministic ordering
+
+**Deep Merge:**
+- Preserve destination structure
+- Arrays replaced entirely
+- Skipped paths never overwritten
+
+### Testing
+
+- **Framework:** Vitest
+- **Coverage:** 60%+ minimum (enforced)
+- **Pattern:** Arrange-Act-Assert
+- **Structure:** `describe` / `it`
+- **Mocking:** `vi.mock` at top, `vi.clearAllMocks` in `beforeEach`, `vi.restoreAllMocks` in `afterEach`
+
+## Common Implementation Tasks
+
+### Adding a New Stop Rule Type
+
+1. Update `StopRule` schema in `src/configFile.ts`
+2. Implement validation logic in `src/stopRulesValidator.ts`
+3. Add tests in `tests/stopRulesValidator.test.ts`
+4. Update README.md documentation
+
+### Adding New Output Format Option
+
+1. Update `outputFormat` schema in `src/configFile.ts`
+2. Add formatter logic in `src/yamlFormatter.ts`
+3. Add tests in `tests/yamlFormatter.test.ts`
+4. Update README.md documentation
+
+### Adding New Transform Capability
+
+1. Update `transforms` schema in `src/configFile.ts`
+2. Update logic in `src/utils/transformer.ts` (content) or `src/utils/filenameTransformer.ts` (filename)
+3. Add tests
+4. Update README.md documentation
+
+### Adding New Configuration Option
+
+1. Add field to `BaseConfig` schema in `src/configFile.ts`
+2. Add to `FinalConfig` if required in final config
+3. Implement logic in relevant module
+4. Update config merger if needed (`src/configMerger.ts`)
+5. Add tests
+6. Update README.md
+
+## Critical Files for AI Assistants
+
+### Schema & Validation
+- `src/configFile.ts` - All Zod schemas (BaseConfig, FinalConfig, StopRule, etc.)
+
+### Core Logic
+- `src/index.ts` - Main entry point and workflow orchestration
+- `src/fileDiff.ts` - YAML comparison pipeline
+- `src/fileUpdater.ts` - Deep merge logic
+- `src/yamlFormatter.ts` - YAML AST formatting
+
+### Utilities
+- `src/utils/errors.ts` - Error factory pattern (all modules use this)
+- `src/utils/transformer.ts` - Content transforms (regex on values)
+- `src/utils/filenameTransformer.ts` - Filename transforms (full paths)
+- `src/utils/jsonPath.ts` - JSONPath parsing and value extraction
+- `src/utils/deepEqual.ts` - Structural equality comparison
+
+### Configuration
+- `src/configLoader.ts` - YAML loading with extends chain
+- `src/configMerger.ts` - Config inheritance merging
+
+## Development Commands
+
+```bash
+npm run build         # Clean build
+npm run dev           # Run with tsx and example config
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report (60% minimum)
+npm run fix           # Format + lint
+npm run all           # Fix + build + test (run before committing)
+```
+
+## Documentation Resources
+
+- **README.md** - Comprehensive user guide (installation, configuration, examples)
+- **CLAUDE.md** - Detailed implementation guide for Claude Code
+- **CONTRIBUTING.md** - Contributor guidelines (setup, workflow, style, PR process)
+- **FAQ.md** - 30 common questions organized by topic
+- **examples/** - Sample configuration files
+
+## Key Dependencies
+
+- **commander** - CLI parsing
+- **yaml** - YAML parsing/serialization
+- **zod** - Schema validation (v4+)
+- **picomatch** - Glob pattern matching
+- **tinyglobby** - Fast file globbing
+- **diff** - Unified diff generation
+- **diff2html** - HTML diff reports
+- **chalk** - Terminal colors
+- **open** - Open browser for HTML reports
+
+## Project Status
+
+- Core features complete
+- 60%+ test coverage with 20+ test files
+- Active development and maintenance
+- Breaking changes in v1.1.0: Transform format changed from array to object
+
+## Links
+
+- **NPM:** https://www.npmjs.com/package/helm-env-delta
+- **GitHub:** https://github.com/BCsabaEngine/helm-env-delta
+- **Issues:** https://github.com/BCsabaEngine/helm-env-delta/issues

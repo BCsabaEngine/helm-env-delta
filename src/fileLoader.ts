@@ -46,19 +46,43 @@ const validateAndResolveBaseDirectory = async (baseDirectory: string): Promise<s
   try {
     const stats = await stat(absolutePath);
 
-    if (!stats.isDirectory())
-      throw new FileLoaderError('Base path is not a directory', { code: 'ENOTDIR', path: absolutePath });
+    if (!stats.isDirectory()) {
+      const notDirectoryError = new FileLoaderError('Base path is not a directory', {
+        code: 'ENOTDIR',
+        path: absolutePath
+      });
+
+      notDirectoryError.message += '\n\n  Hint: The source path must be a directory, not a file:';
+      notDirectoryError.message += `\n    - Current path: ${absolutePath}`;
+      notDirectoryError.message += '\n    - Check your config source/destination paths';
+      notDirectoryError.message += '\n    - Use the parent directory instead';
+
+      throw notDirectoryError;
+    }
 
     return absolutePath;
   } catch (error: unknown) {
     if (isFileLoaderError(error)) throw error;
 
     const nodeError = error as NodeJS.ErrnoException;
-    throw new FileLoaderError('Failed to access base directory', {
+    const accessError = new FileLoaderError('Failed to access base directory', {
       code: nodeError.code,
       path: absolutePath,
       cause: nodeError
     });
+
+    if (nodeError.code === 'ENOENT') {
+      accessError.message += '\n\n  Hint: Directory not found:';
+      accessError.message += '\n    - Check your config source/destination paths';
+      accessError.message += `\n    - Verify directory exists: ls -la ${path.dirname(absolutePath)}`;
+      accessError.message += '\n    - Use absolute paths to avoid ambiguity';
+    } else if (nodeError.code === 'EACCES') {
+      accessError.message += '\n\n  Hint: Permission denied:';
+      accessError.message += `\n    - Check directory permissions: ls -la ${absolutePath}`;
+      accessError.message += `\n    - Fix permissions: chmod 755 ${absolutePath}`;
+    }
+
+    throw accessError;
   }
 };
 
@@ -122,8 +146,18 @@ const readFilesIntoMap = async (baseDirectory: string, absoluteFilePaths: string
     try {
       const content = await readFile(absolutePath, 'utf8');
 
-      if (content.includes('\0'))
-        throw new FileLoaderError('Binary file detected', { code: 'ENOTSUP', path: absolutePath });
+      if (content.includes('\0')) {
+        const binaryError = new FileLoaderError('Binary file detected', {
+          code: 'ENOTSUP',
+          path: absolutePath
+        });
+
+        binaryError.message += '\n\n  Hint: Binary files cannot be processed. Add to exclude:';
+        binaryError.message += "\n    exclude: ['**/*.{png,jpg,pdf,zip,tar,gz,bin}']";
+        binaryError.message += '\n    Or exclude this specific file pattern';
+
+        throw binaryError;
+      }
 
       const relativePath = path.relative(baseDirectory, absolutePath);
 

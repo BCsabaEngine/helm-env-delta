@@ -128,21 +128,33 @@ const processYamlFile = (
   try {
     sourceParsed = YAML.parse(sourceContent);
   } catch (error) {
-    throw new FileDiffError('Failed to parse source YAML file', {
+    const parseError = new FileDiffError('Failed to parse source YAML file', {
       code: 'YAML_PARSE_ERROR',
       path: filePath,
       cause: error instanceof Error ? error : undefined
     });
+
+    parseError.message += '\n\n  Hint: YAML syntax error in source file:';
+    parseError.message += '\n    - Validate at: https://www.yamllint.com/';
+    parseError.message += '\n    - Common issues: incorrect indentation, missing quotes, invalid characters';
+
+    throw parseError;
   }
 
   try {
     destinationParsed = YAML.parse(destinationContent);
   } catch (error) {
-    throw new FileDiffError('Failed to parse destination YAML file', {
+    const parseError = new FileDiffError('Failed to parse destination YAML file', {
       code: 'YAML_PARSE_ERROR',
       path: filePath,
       cause: error instanceof Error ? error : undefined
     });
+
+    parseError.message += '\n\n  Hint: YAML syntax error in destination file:';
+    parseError.message += '\n    - Validate at: https://www.yamllint.com/';
+    parseError.message += '\n    - Common issues: incorrect indentation, missing quotes, invalid characters';
+
+    throw parseError;
   }
 
   const sourceTransformed = applyTransforms(sourceParsed, filePath, transforms);

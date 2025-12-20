@@ -50,8 +50,15 @@ export const validateNoCollisions = (collisions: CollisionInfo[]): void => {
     .map((collision) => `  ${collision.transformedName}: [${collision.originalPaths.join(', ')}]`)
     .join('\n');
 
-  throw new CollisionDetectorError(`Multiple files transform to the same path:\n${collisionDetails}`, {
+  const collisionError = new CollisionDetectorError(`Multiple files transform to the same path:\n${collisionDetails}`, {
     code: 'DUPLICATE_TRANSFORMED_NAME',
     details: JSON.stringify(collisions)
   });
+
+  collisionError.message += '\n\n  Hint: Make your filename transforms more specific:';
+  collisionError.message += "\n    - Use more specific patterns: { find: 'app-uat\\.', replace: 'app-prod.' }";
+  collisionError.message += "\n    - Or match on path: { find: 'services/uat/', replace: 'services/prod/' }";
+  collisionError.message += '\n    - Check the collision details above for conflicting files';
+
+  throw collisionError;
 };

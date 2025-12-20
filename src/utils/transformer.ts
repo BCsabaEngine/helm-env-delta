@@ -73,10 +73,17 @@ export const applyTransforms = (data: unknown, filePath: string, transforms?: Tr
   try {
     return transformValueRecursive(data, matchedRules);
   } catch (error) {
-    throw new TransformerError('Failed to apply transformations', {
+    const transformError = new TransformerError('Failed to apply transformations', {
       code: 'TRANSFORM_APPLICATION_ERROR',
       path: filePath,
       cause: error instanceof Error ? error : new Error(String(error))
     });
+
+    transformError.message += '\n\n  Hint: Common regex issues:';
+    transformError.message += '\n    - Unescaped special chars: use \\. for dots, \\[ for brackets';
+    transformError.message += '\n    - Invalid capture groups: ensure balanced parentheses';
+    transformError.message += '\n    - Test your pattern: https://regex101.com/';
+
+    throw transformError;
   }
 };
