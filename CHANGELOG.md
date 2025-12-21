@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2024-12-21
+
+### Added
+
+- Output verbosity control: New `--verbose` and `--quiet` flags let you control how much information the tool displays. Use `--verbose` to see detailed debug information (config loading, glob matching, transforms, diff pipeline), or `--quiet` to suppress all output except errors and stop rule violations. Perfect for troubleshooting or running in CI/CD pipelines.
+- Configuration validation: New `--validate` flag to check your configuration file without performing any sync operations
+
 ## [1.1.3] - 2024-12-20
 
 ### Added

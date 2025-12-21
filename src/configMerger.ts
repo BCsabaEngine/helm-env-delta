@@ -170,12 +170,14 @@ const mergePerFileRecords = <T>(
  * @param configPath - Path to config file to load
  * @param visited - Set of visited paths for circular detection
  * @param depth - Current depth in extends chain
+ * @param logger - Optional logger for verbose debug output
  * @returns Merged config object (before final validation)
  */
 export const resolveConfigWithExtends = (
   configPath: string,
   visited: Set<string> = new Set(),
-  depth: number = 0
+  depth: number = 0,
+  logger?: import('./logger').Logger
 ): BaseConfig => {
   // Check depth limit
   if (depth > MAX_EXTENDS_DEPTH) {
@@ -262,6 +264,12 @@ export const resolveConfigWithExtends = (
   // Validate as base config
   const config = parseBaseConfig(rawConfig, absolutePath);
 
+  // Add verbose debug output
+  if (logger?.shouldShow('debug')) {
+    const filename = absolutePath.split('/').pop();
+    logger.debug(`Loading config: ${filename} (depth: ${depth})`);
+  }
+
   // If no extends, return config as-is
   if (config.extends === undefined) return config;
 
@@ -299,8 +307,11 @@ export const resolveConfigWithExtends = (
     });
   }
 
+  // Add verbose debug output for extends
+  if (logger?.shouldShow('debug')) logger.debug(`  Extends: ${config.extends} → ${parentPath.split('/').pop()}`);
+
   // Recursively load parent
-  const parentConfig = resolveConfigWithExtends(parentPath, visitedWithCurrent, depth + 1);
+  const parentConfig = resolveConfigWithExtends(parentPath, visitedWithCurrent, depth + 1, logger);
 
   // Merge parent with current (current overrides parent)
   return mergeConfigs(parentConfig, config);

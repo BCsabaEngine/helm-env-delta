@@ -226,7 +226,25 @@ const processChangedFiles = (
 };
 
 // Public API
-export const computeFileDiff = (sourceFiles: FileMap, destinationFiles: FileMap, config: Config): FileDiffResult => {
+export const computeFileDiff = (
+  sourceFiles: FileMap,
+  destinationFiles: FileMap,
+  config: Config,
+  logger?: import('./logger').Logger
+): FileDiffResult => {
+  // Add verbose debug output
+  if (logger?.shouldShow('debug')) {
+    logger.debug('Computing file differences:');
+    logger.debug(`  Source files: ${sourceFiles.size}`);
+    logger.debug(`  Destination files: ${destinationFiles.size}`);
+
+    const transformCount = Object.keys(config.transforms || {}).length;
+    if (transformCount > 0) logger.debug(`  Content transform patterns: ${transformCount}`);
+
+    const skipPathCount = Object.keys(config.skipPath || {}).length;
+    if (skipPathCount > 0) logger.debug(`  SkipPath patterns: ${skipPathCount}`);
+  }
+
   const addedFiles = detectAddedFiles(sourceFiles, destinationFiles);
 
   const deletedFiles = config.prune ? detectDeletedFiles(sourceFiles, destinationFiles) : [];

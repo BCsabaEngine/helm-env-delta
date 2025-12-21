@@ -24,19 +24,24 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # Running CLI
-helm-env-delta --config config.yaml [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format]
+helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--verbose] [--quiet]
 hed --config config.yaml  # Short alias
 ```
 
 **CLI Flags:**
 
 - `--config <path>` (required) - YAML config file path
+- `--validate` - Validate configuration file and exit (skips file operations)
 - `--dry-run` - Preview without writing
 - `--force` - Override stop rules
 - `--diff` - Console diff output
 - `--diff-html` - HTML diff report (opens in browser)
 - `--diff-json` - JSON diff to stdout (pipe to jq)
 - `--skip-format` - Skip YAML formatting (outputFormat section)
+- `--verbose` - Show detailed debug information (config loading, glob matching, transforms, etc.)
+- `--quiet` - Suppress all output except critical errors and stop rule violations
+
+**Note**: `--verbose` and `--quiet` are mutually exclusive. Machine-readable output (`--diff-json`) always outputs regardless of verbosity settings.
 
 ## Architecture
 

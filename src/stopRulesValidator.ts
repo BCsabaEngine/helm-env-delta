@@ -58,9 +58,18 @@ export interface ValidationResult {
 
 export const validateStopRules = (
   diffResult: FileDiffResult,
-  stopRulesConfig?: Record<string, StopRule[]>
+  stopRulesConfig?: Record<string, StopRule[]>,
+  logger?: import('./logger').Logger
 ): ValidationResult => {
   if (!stopRulesConfig) return { violations: [], isValid: true };
+
+  // Add verbose debug output
+  if (logger?.shouldShow('debug')) {
+    const totalRules = Object.values(stopRulesConfig).reduce((sum, rules) => sum + rules.length, 0);
+    logger.debug('Stop rule validation:');
+    logger.debug(`  Total rules: ${totalRules}`);
+    logger.debug(`  Files to check: ${diffResult.changedFiles.length}`);
+  }
 
   const violations: StopRuleViolation[] = [];
 
@@ -72,6 +81,9 @@ export const validateStopRules = (
 
   // Note: Added files are not validated as they don't have old values for comparison
   // Stop rules primarily apply to changes in existing files
+
+  // Add verbose debug output for results
+  if (logger?.shouldShow('debug')) logger.debug(`Stop rules: ${violations.length} violation(s) found`);
 
   return {
     violations,

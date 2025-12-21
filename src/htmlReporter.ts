@@ -608,7 +608,8 @@ export const generateHtmlReport = async (
   diffResult: FileDiffResult,
   formattedFiles: string[],
   config: Config,
-  dryRun: boolean
+  dryRun: boolean,
+  logger?: import('./logger').Logger
 ): Promise<void> => {
   // Generate random temp file path
   const reportPath = generateTemporaryFilePath();
@@ -633,14 +634,14 @@ export const generateHtmlReport = async (
 
   // Write HTML file
   await writeHtmlFile(htmlContent, reportPath);
-  console.log(`✓ HTML report generated: ${reportPath}, opening in browser...`);
+  logger?.log(`✓ HTML report generated: ${reportPath}, opening in browser...`);
 
   // Open in browser
   try {
     await openInBrowser(reportPath);
   } catch {
     const absolutePath = path.resolve(reportPath);
-    console.log('⚠ Could not open browser automatically. Please open manually:');
-    console.log(`  file://${absolutePath}`);
+    logger?.log('⚠ Could not open browser automatically. Please open manually:');
+    logger?.log(`  file://${absolutePath}`);
   }
 };
