@@ -24,6 +24,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --dry-run --diff
 ```
 
 **Expected output**:
+
 ```
 🛑 Stop Rule Violations Detected!
 
@@ -66,6 +67,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --force
 ```
 
 **Result**:
+
 - Violations are logged but NOT enforced
 - Files ARE updated despite violations
 - Use with extreme caution!
@@ -77,6 +79,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --diff-json | jq '.stop
 ```
 
 **Output**:
+
 ```json
 [
   {
