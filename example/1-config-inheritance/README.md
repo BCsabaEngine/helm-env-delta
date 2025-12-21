@@ -29,6 +29,7 @@ helm-env-delta --config example-1-config-inheritance/config.dev-to-uat.yaml
 ```
 
 **Expected behavior**:
+
 - Copies `dev/service.yaml` to `uat/service.yaml`
 - Transforms `-dev` → `-uat` and `dev-cluster` → `uat-cluster`
 - Preserves `metadata.namespace` and `metadata.labels.environment` (skipPath)
@@ -44,6 +45,7 @@ helm-env-delta --config example-1-config-inheritance/config.uat-to-prod.yaml
 ```
 
 **Expected behavior**:
+
 - Copies `uat/service.yaml` to `prod/service.yaml`
 - Transforms `-uat` → `-prod` and `uat-cluster` → `prod-cluster`
 - Validates minimum 3 replicas (would fail with current data - demonstrates stopRule)

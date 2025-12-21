@@ -19,10 +19,12 @@ Demonstrates file deletion behavior with `prune: true` vs `prune: false`.
 ## Initial State
 
 **Source** (2 files):
+
 - `active-service-a.yaml` ✓
 - `active-service-b.yaml` ✓
 
 **Destination** (4 files):
+
 - `active-service-a.yaml` ✓ (exists in source)
 - `active-service-b.yaml` ✓ (exists in source)
 - `old-service-c.yaml` ❌ (NOT in source)
@@ -41,6 +43,7 @@ helm-env-delta --config example-4-prune-mode/config.without-prune.yaml
 ```
 
 **Expected output**:
+
 ```
 ✓ Files updated successfully:
   0 files added
@@ -49,6 +52,7 @@ helm-env-delta --config example-4-prune-mode/config.without-prune.yaml
 ```
 
 **Result**:
+
 - `active-service-a.yaml` - UPDATED
 - `active-service-b.yaml` - UPDATED
 - `old-service-c.yaml` - KEPT (not touched)
@@ -69,6 +73,7 @@ helm-env-delta --config example-4-prune-mode/config.with-prune.yaml
 ```
 
 **Expected output**:
+
 ```
 ⚠️  The following files will be DELETED:
   - destination/old-service-c.yaml
@@ -81,6 +86,7 @@ helm-env-delta --config example-4-prune-mode/config.with-prune.yaml
 ```
 
 **Result**:
+
 - `active-service-a.yaml` - UPDATED
 - `active-service-b.yaml` - UPDATED
 - `old-service-c.yaml` - DELETED ❌
@@ -97,32 +103,32 @@ helm-env-delta --config example-4-prune-mode/config.with-prune.yaml --diff-json 
 ```
 
 **Output**:
+
 ```json
-[
-  "destination/old-service-c.yaml",
-  "destination/deprecated-service-d.yaml"
-]
+["destination/old-service-c.yaml", "destination/deprecated-service-d.yaml"]
 ```
 
 ## Side-by-Side Comparison
 
-| Aspect | `prune: false` | `prune: true` |
-|--------|----------------|---------------|
-| **Files synced** | 2 updated | 2 updated |
-| **Extra files** | KEPT | DELETED |
-| **Final count** | 4 files | 2 files |
-| **Safety** | Safer (no deletions) | Riskier (permanent deletions) |
-| **Use case** | Incremental sync | Mirror source exactly |
+| Aspect           | `prune: false`       | `prune: true`                 |
+| ---------------- | -------------------- | ----------------------------- |
+| **Files synced** | 2 updated            | 2 updated                     |
+| **Extra files**  | KEPT                 | DELETED                       |
+| **Final count**  | 4 files              | 2 files                       |
+| **Safety**       | Safer (no deletions) | Riskier (permanent deletions) |
+| **Use case**     | Incremental sync     | Mirror source exactly         |
 
 ## When to Use Prune Mode
 
 ### Use `prune: true` when:
+
 - ✓ Destination should mirror source exactly
 - ✓ Old files need automatic cleanup
 - ✓ You have version control for rollback
 - ✓ You've carefully reviewed deletions in dry-run
 
 ### Use `prune: false` when:
+
 - ✓ Destination may have extra files intentionally
 - ✓ Manual cleanup is preferred
 - ✓ Safer incremental sync is desired
@@ -131,16 +137,19 @@ helm-env-delta --config example-4-prune-mode/config.with-prune.yaml --diff-json 
 ## Safety Best Practices
 
 1. **Always dry-run first**:
+
    ```bash
    helm-env-delta --config config.yaml --dry-run --diff
    ```
 
 2. **Review deleted files list**:
+
    ```bash
    helm-env-delta --config config.yaml --diff-json | jq '.files.deleted'
    ```
 
 3. **Use version control**:
+
    ```bash
    git status  # Review before sync
    git diff    # See changes after sync

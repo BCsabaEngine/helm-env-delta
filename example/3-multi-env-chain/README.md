@@ -22,6 +22,7 @@ Demonstrates progressive promotion through 3 environments with cumulative transf
 ### Option 1: Manual Two-Stage Sync
 
 **Stage 1: Dev → UAT**
+
 ```bash
 # Preview Dev → UAT changes
 helm-env-delta --config example-3-multi-env-chain/config.dev-to-uat.yaml --dry-run --diff
@@ -31,6 +32,7 @@ helm-env-delta --config example-3-multi-env-chain/config.dev-to-uat.yaml
 ```
 
 **Stage 2: UAT → Prod**
+
 ```bash
 # Preview UAT → Prod changes
 helm-env-delta --config example-3-multi-env-chain/config.uat-to-prod.yaml --dry-run --diff
@@ -48,6 +50,7 @@ chmod +x sync-all.sh
 ```
 
 The script will:
+
 1. Show Dev → UAT diff and prompt for confirmation
 2. Execute Dev → UAT sync
 3. Show UAT → Prod diff and prompt for confirmation
@@ -56,53 +59,57 @@ The script will:
 ## Transform Chain Example
 
 **Original (Dev)**:
+
 ```yaml
 env:
   - name: DATABASE_URL
-    value: "dev-database.postgres.internal"
+    value: 'dev-database.postgres.internal'
   - name: CACHE_URL
-    value: "redis.dev.internal"
+    value: 'redis.dev.internal'
 service:
   name: my-service-dev
 ```
 
 **After Dev → UAT**:
+
 ```yaml
 env:
   - name: DATABASE_URL
-    value: "uat-database.postgres.internal"  # ← Transformed
+    value: 'uat-database.postgres.internal' # ← Transformed
   - name: CACHE_URL
-    value: "redis.uat.internal"               # ← Transformed
+    value: 'redis.uat.internal' # ← Transformed
 service:
-  name: my-service-uat                        # ← Transformed
+  name: my-service-uat # ← Transformed
 ```
 
 **After UAT → Prod**:
+
 ```yaml
 env:
   - name: DATABASE_URL
-    value: "prod-database.postgres.internal"  # ← Transformed again
+    value: 'prod-database.postgres.internal' # ← Transformed again
   - name: CACHE_URL
-    value: "redis.prod.internal"               # ← Transformed again
+    value: 'redis.prod.internal' # ← Transformed again
 service:
-  name: my-service-prod                        # ← Transformed again
+  name: my-service-prod # ← Transformed again
 ```
 
 ## Environment-Specific Values
 
 Values preserved by `skipPath`:
 
-| Field | Dev | UAT | Prod | Why Preserved? |
-|-------|-----|-----|------|----------------|
-| `replicaCount` | 1 | 2 | 5 | Environment capacity differs |
-| `resources.memory` | 128Mi | 256Mi | 512Mi | Resource allocation differs |
-| `resources.cpu` | 100m | 200m | 500m | CPU allocation differs |
+| Field              | Dev   | UAT   | Prod  | Why Preserved?               |
+| ------------------ | ----- | ----- | ----- | ---------------------------- |
+| `replicaCount`     | 1     | 2     | 5     | Environment capacity differs |
+| `resources.memory` | 128Mi | 256Mi | 512Mi | Resource allocation differs  |
+| `resources.cpu`    | 100m  | 200m  | 500m  | CPU allocation differs       |
 
 These values are NOT synced - each environment maintains its own values.
 
 ## Stop Rules (Prod Only)
 
 The UAT → Prod sync includes stop rules to prevent:
+
 - Version downgrades on Chart version
 - Major version upgrades on image tag
 - Scaling below 3 or above 20 replicas
