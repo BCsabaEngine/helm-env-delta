@@ -16,6 +16,7 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool that safely synchronizes 
 - [Adopting HelmEnvDelta in Existing GitOps Workflows](#adopting-helmenvdelta-in-existing-gitops-workflows)
 - [Key Features](#key-features)
 - [Installation](#installation)
+- [Examples](#examples)
 - [Quick Start](#quick-start)
 - [Use Cases](#use-cases)
 - [Configuration Guide](#configuration-guide)
@@ -265,6 +266,148 @@ npm install -g helm-env-delta
 - npm >= 9
 
 **Note:** The tool automatically checks for updates on every run and displays a notification if a newer version is available. This check is skipped in CI/CD environments and fails silently if the npm registry is unreachable.
+
+---
+
+## Examples
+
+The repository includes several ready-to-run examples demonstrating common use cases. Each example is self-contained with its own README explaining what it demonstrates and how to run it.
+
+### Example 1: Config Inheritance
+
+**Location**: `example/1-config-inheritance/`
+
+Demonstrates the `extends` pattern for reusing base configuration across multiple environment pairs.
+
+**What it shows**:
+
+- Base configuration with shared settings
+- Child configs that extend and override the base
+- How arrays (skipPath) are concatenated and objects (outputFormat) are deep merged
+- Environment-specific transforms and stop rules
+
+**Quick start**:
+
+```bash
+# Dev → UAT sync
+helm-env-delta --config example/1-config-inheritance/config.dev-to-uat.yaml --dry-run --diff
+
+# UAT → Prod sync (with stop rules)
+helm-env-delta --config example/1-config-inheritance/config.uat-to-prod.yaml --dry-run --diff
+```
+
+---
+
+### Example 2: Stop Rules
+
+**Location**: `example/2-stop-rules/`
+
+Demonstrates stop rule validation for dangerous changes, how violations are detected, and how to override with --force.
+
+**What it shows**:
+
+- All 4 stop rule types: `semverMajorUpgrade`, `semverDowngrade`, `numeric`, `regex`
+- How violations block execution by default
+- Using `--force` to override violations
+- JSON output for CI/CD integration
+
+**Quick start**:
+
+```bash
+# See violations in action
+helm-env-delta --config example/2-stop-rules/config.yaml --dry-run --diff
+
+# Try syncing (will fail due to violations)
+helm-env-delta --config example/2-stop-rules/config.yaml
+
+# Override with force
+helm-env-delta --config example/2-stop-rules/config.yaml --force
+```
+
+---
+
+### Example 3: Multi-Environment Chain
+
+**Location**: `example/3-multi-env-chain/`
+
+Demonstrates progressive promotion through Dev → UAT → Prod with cumulative transforms at each stage.
+
+**What it shows**:
+
+- Multi-stage promotion workflow
+- Cumulative transforms across environments
+- Environment-specific resources preserved via skipPath
+- Stricter validation rules for production
+- Shell script automation with interactive prompts
+
+**Quick start**:
+
+```bash
+# Manual two-stage sync
+helm-env-delta --config example/3-multi-env-chain/config.dev-to-uat.yaml --dry-run --diff
+helm-env-delta --config example/3-multi-env-chain/config.uat-to-prod.yaml --dry-run --diff
+
+# Or use the automated script
+cd example/3-multi-env-chain
+chmod +x sync-all.sh
+./sync-all.sh
+```
+
+---
+
+### Example 4: Prune Mode
+
+**Location**: `example/4-prune-mode/`
+
+Demonstrates file deletion behavior with `prune: true` vs `prune: false`.
+
+**What it shows**:
+
+- How `prune: false` (default) keeps extra files in destination
+- How `prune: true` deletes files not present in source
+- Dry-run safety for previewing deletions
+- JSON output to see deleted files
+
+**Quick start**:
+
+```bash
+# Without prune (keeps extra files)
+helm-env-delta --config example/4-prune-mode/config.without-prune.yaml --dry-run --diff
+
+# With prune (deletes extra files)
+helm-env-delta --config example/4-prune-mode/config.with-prune.yaml --dry-run --diff
+```
+
+---
+
+### Other Examples
+
+**Location**: `example/` (root level files)
+
+The example directory also contains a simple UAT → Prod sync scenario at the root level demonstrating basic features with minimal configuration.
+
+**What it shows**:
+
+- Basic Helm values synchronization
+- Simple content transforms
+- Path filtering with skipPath
+- Array sorting in output format
+
+---
+
+### Real-World Example
+
+**Location**: `example.dev/`
+
+A complex, real-world example showing PreProd → Prod promotion for 50+ microservices in a banking application.
+
+**What it shows**:
+
+- Large-scale infrastructure sync (50+ services)
+- Filename transforms in production
+- Complex URL and environment variable transformations
+- Multi-level hierarchy management
+- Real banking/fintech application structure
 
 ---
 
