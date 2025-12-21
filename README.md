@@ -13,6 +13,8 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool that safely synchronizes 
 ## Table of Contents
 
 - [Why HelmEnvDelta?](#why-helmenvdelta)
+- [Comparison with Alternatives](#comparison-with-alternatives)
+- [When to Use HelmEnvDelta](#when-to-use-helmenvdelta)
 - [Adopting HelmEnvDelta in Existing GitOps Workflows](#adopting-helmenvdelta-in-existing-gitops-workflows)
 - [Key Features](#key-features)
 - [Installation](#installation)
@@ -58,6 +60,159 @@ Managing multiple Kubernetes/Helm environments in GitOps workflows presents seve
 - Validating changes against safety rules before applying them
 - Enforcing consistent YAML formatting across all environments
 - Providing clear diff reports for audit and review
+
+---
+
+## Comparison with Alternatives
+
+HelmEnvDelta focuses on a specific problem that existing tools don't fully address: safe, environment-aware YAML synchronization with deep structural comparison.
+
+| Feature                       | HelmEnvDelta                                                                    | Helmfile                                    | Kustomize                              | Bespoke Scripts            |
+| ----------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------- | -------------------------- |
+| **Deep YAML structural diff** | ✅ Parses and compares YAML structure, ignoring formatting and array reordering | ❌ No diff capability                       | ❌ No diff capability                  | ❌ Text-based diff only    |
+| **Environment-aware sync**    | ✅ Skip specific JSON paths per environment with `skipPath`                     | ⚠️ Environment values but no selective sync | ⚠️ Overlays but manual management      | ⚠️ Custom logic required   |
+| **Safety validation rules**   | ✅ Semver, numeric, regex stop rules prevent dangerous changes                  | ❌ No validation                            | ❌ No validation                       | ⚠️ Must implement manually |
+| **Intelligent merge**         | ✅ Deep merge preserves destination values for skipped paths                    | ❌ N/A                                      | ⚠️ Strategic merge but limited control | ⚠️ Custom logic required   |
+| **Content transformations**   | ✅ Regex find/replace with capture groups                                       | ⚠️ Values templating only                   | ❌ No transformation capability        | ⚠️ sed/awk scripts         |
+| **Filename transformations**  | ✅ Transform file paths and folder structures                                   | ❌ No capability                            | ❌ No capability                       | ⚠️ Complex mv/cp logic     |
+| **Purpose**                   | Sync existing configs between environments                                      | Deploy Helm charts declaratively            | Generate variants from base manifests  | Custom workflows           |
+| **Learning curve**            | Low (YAML config)                                                               | Medium (DSL + Helm)                         | Medium (overlays + patches)            | High (bash scripting)      |
+| **Output consistency**        | ✅ Enforced YAML formatting                                                     | ❌ Depends on Helm                          | ❌ Depends on base files               | ❌ Inconsistent            |
+
+**What HelmEnvDelta uniquely provides:**
+
+1. **Structural YAML comparison**: Unlike git diffs that show line-by-line changes, HelmEnvDelta parses YAML and compares structure, making diffs cleaner and more meaningful
+2. **Environment-specific field preservation**: `skipPath` ensures production namespaces, replica counts, and secrets never get overwritten during sync
+3. **Pre-deployment safety nets**: Stop rules catch dangerous changes (major version upgrades, scaling violations) before they reach production
+4. **Bi-directional awareness**: Understands both source and destination environments, intelligently merging changes while preserving environment-specific values
+
+**Complementary, not competitive:**
+
+HelmEnvDelta works alongside your existing tools:
+
+- **Use with Helm**: HelmEnvDelta syncs Helm values files across environments
+- **Use with Helmfile**: Sync Helmfile environment declarations (UAT → Prod)
+- **Use with Kustomize**: Sync base manifests or overlays between environments
+- **Use with ArgoCD/Flux**: HelmEnvDelta updates files, your GitOps tool deploys them
+
+---
+
+## When to Use HelmEnvDelta
+
+### Ideal Scenarios
+
+**1. Multi-Service, Multi-Environment GitOps with Shared Base Configurations**
+
+You have 20+ microservices deployed across Dev → UAT → Production, each with a Helm chart. Services share a common base configuration but have environment-specific overrides (namespaces, resource limits, external URLs).
+
+**Without HelmEnvDelta:**
+
+- Manually copy files between environment folders
+- Find/replace environment-specific values in IDE
+- Risk accidentally overwriting production namespaces or replica counts
+- Spend 30+ minutes per promotion, prone to human error
+
+**With HelmEnvDelta:**
+
+```yaml
+source: './helm/uat'
+destination: './helm/prod'
+skipPath:
+  '**/*.yaml':
+    - 'metadata.namespace'
+    - 'spec.replicas'
+    - 'resources.limits'
+transforms:
+  '**/*.yaml':
+    content:
+      - find: '-uat\\b'
+        replace: '-prod'
+```
+
+Run `helm-env-delta --config config.yaml` and sync 50+ files in seconds, with guarantees that production-specific values are preserved.
+
+---
+
+**2. Preventing Production Incidents from Configuration Drift**
+
+Your team has experienced production incidents caused by:
+
+- Accidentally promoting a major version upgrade without review
+- Scaling replica counts beyond cluster capacity
+- Deploying pre-release (v0.x) versions to production
+
+**Without HelmEnvDelta:**
+
+- Manual code review is the only safety net
+- Easy to miss version changes buried in 100-line diffs
+- No automated validation before deployment
+
+**With HelmEnvDelta:**
+
+```yaml
+stopRules:
+  'services/**/values.yaml':
+    - type: 'semverMajorUpgrade'
+      path: 'image.tag'
+    - type: 'numeric'
+      path: 'replicaCount'
+      min: 2
+      max: 10
+    - type: 'regex'
+      path: 'image.tag'
+      regex: '^v0\.'
+```
+
+HelmEnvDelta validates every change and blocks dangerous promotions automatically. Use `--force` only when you explicitly intend to make a risky change.
+
+---
+
+**3. Standardizing YAML Formatting Across Teams and Environments**
+
+Your GitOps repository has inconsistent YAML formatting because:
+
+- Different team members use different editors (VS Code, IntelliJ, vim)
+- UAT files have one key ordering, Production has another
+- Git diffs are noisy with formatting changes unrelated to actual config changes
+
+**Without HelmEnvDelta:**
+
+- Enforce formatting rules through documentation (often ignored)
+- Pre-commit hooks can format but don't standardize key ordering
+- Difficult to see meaningful changes in noisy diffs
+
+**With HelmEnvDelta:**
+
+```yaml
+outputFormat:
+  indent: 2
+  keySeparator: true
+  keyOrders:
+    '**/*.yaml':
+      - 'apiVersion'
+      - 'kind'
+      - 'metadata'
+      - 'spec'
+  arraySort:
+    '**/*.yaml':
+      - path: 'env'
+        sortBy: 'name'
+        order: 'asc'
+```
+
+Every file gets consistently formatted on every sync, reducing diff noise and making code reviews easier.
+
+---
+
+### When NOT to Use HelmEnvDelta
+
+**Single environment**: If you only have production, there's nothing to sync
+
+**Completely different environments**: If Dev and Prod are architecturally different (different services, different structures), HelmEnvDelta isn't designed for that
+
+**Template generation**: Use Helm/Helmfile for generating manifests from templates. HelmEnvDelta syncs existing files.
+
+**Real-time deployments**: HelmEnvDelta updates files in git. Use ArgoCD/Flux for actual Kubernetes deployments.
 
 ---
 
