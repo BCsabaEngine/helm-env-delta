@@ -29,9 +29,7 @@
   },
   "homepage": "https://github.com/BCsabaEngine/helm-env-delta",
   "scripts": {
-    "dev": "tsx src/index.ts -c ./example/config.example.yaml",
-    "dev:clear": "rm -rf ./example/prod",
-    "dev:live": "tsx src/index.ts -c ./example.dev/config.yaml",
+    "dev": "tsx src/index.ts -c ./example.dev/config.yaml",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

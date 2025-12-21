@@ -1,0 +1,14 @@
+source: './source'
+destination: './destination'
+
+# Prune disabled (default) - KEEP extra files in dest
+prune: false
+
+transforms:
+  '**/*.yaml':
+    content:
+      - find: '-source'
+        replace: '-dest'
+
+outputFormat:
+  indent: 2

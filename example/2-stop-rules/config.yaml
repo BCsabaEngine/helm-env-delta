@@ -1,0 +1,32 @@
+source: './source'
+destination: './destination'
+
+transforms:
+  '**/*.yaml':
+    content:
+      - find: '-source'
+        replace: '-dest'
+
+# Stop rules demonstrating all types
+stopRules:
+  'app-version.yaml':
+    # Block major version upgrades (v1.x → v2.x)
+    - type: 'semverMajorUpgrade'
+      path: 'image.tag'
+
+    # Block version downgrades
+    - type: 'semverDowngrade'
+      path: 'chart.version'
+
+  'scaling.yaml':
+    # Enforce replica count limits
+    - type: 'numeric'
+      path: 'spec.replicas'
+      min: 2
+      max: 10
+
+  'environment.yaml':
+    # Reject v0.x versions (pre-release)
+    - type: 'regex'
+      path: 'version'
+      regex: '^v0\.'

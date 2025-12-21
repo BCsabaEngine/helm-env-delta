@@ -1,0 +1,11 @@
+# Old service no longer in source
+# Will be DELETED if prune: true
+# Will be KEPT if prune: false
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-c-dest
+spec:
+  type: ClusterIP
+  port: 8082
+  deprecated: true

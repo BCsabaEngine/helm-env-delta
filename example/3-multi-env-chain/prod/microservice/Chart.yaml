@@ -1,0 +1,4 @@
+apiVersion: v2
+name: my-microservice
+description: Production instance
+version: 1.0.0

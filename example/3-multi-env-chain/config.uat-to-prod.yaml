@@ -1,0 +1,32 @@
+source: './uat'
+destination: './prod'
+
+skipPath:
+  '**/values.yaml':
+    - 'replicaCount'
+    - 'resources'
+
+transforms:
+  '**/values.yaml':
+    content:
+      - find: 'uat-database\.(.+)\.internal'
+        replace: 'prod-database.$1.internal'
+      - find: '-uat\b'
+        replace: '-prod'
+      - find: '\.uat\.'
+        replace: '.prod.'
+
+stopRules:
+  '**/Chart.yaml':
+    - type: 'semverDowngrade'
+      path: 'version'
+  '**/values.yaml':
+    - type: 'semverMajorUpgrade'
+      path: 'image.tag'
+    - type: 'numeric'
+      path: 'replicaCount'
+      min: 3
+      max: 20
+
+outputFormat:
+  indent: 2

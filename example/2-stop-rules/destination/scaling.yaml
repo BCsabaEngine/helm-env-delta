@@ -1,0 +1,7 @@
+# Current scaling
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: my-deployment-dest
+spec:
+  replicas: 5

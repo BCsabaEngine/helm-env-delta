@@ -1,0 +1,20 @@
+source: './dev'
+destination: './uat'
+
+skipPath:
+  '**/values.yaml':
+    - 'replicaCount'
+    - 'resources'
+
+transforms:
+  '**/values.yaml':
+    content:
+      - find: 'dev-database\.(.+)\.internal'
+        replace: 'uat-database.$1.internal'
+      - find: '-dev\b'
+        replace: '-uat'
+      - find: '\.dev\.'
+        replace: '.uat.'
+
+outputFormat:
+  indent: 2

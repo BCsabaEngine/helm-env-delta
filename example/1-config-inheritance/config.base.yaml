@@ -1,0 +1,22 @@
+# Base configuration - shared across all environments
+# Can be partial (source/destination not required)
+
+include:
+  - '**/*.yaml'
+
+# Skip environment-specific fields
+skipPath:
+  '**/*.yaml':
+    - 'metadata.namespace'
+    - 'metadata.labels.environment'
+
+# Enforce consistent formatting
+outputFormat:
+  indent: 2
+  keySeparator: true
+  keyOrders:
+    '**/*.yaml':
+      - 'apiVersion'
+      - 'kind'
+      - 'metadata'
+      - 'spec'

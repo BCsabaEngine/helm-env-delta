@@ -1,0 +1,14 @@
+source: './source'
+destination: './destination'
+
+# Enable prune mode - DELETE files in dest not in source
+prune: true
+
+transforms:
+  '**/*.yaml':
+    content:
+      - find: '-source'
+        replace: '-dest'
+
+outputFormat:
+  indent: 2

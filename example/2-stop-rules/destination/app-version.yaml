@@ -1,0 +1,12 @@
+# Current production values
+apiVersion: v1
+kind: Application
+metadata:
+  name: my-app-dest
+spec:
+  image:
+    repository: myapp
+    tag: v1.5.0
+  chart:
+    name: my-chart
+    version: v2.1.0

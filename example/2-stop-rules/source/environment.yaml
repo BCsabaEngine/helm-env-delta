@@ -1,0 +1,7 @@
+# Valid configuration
+apiVersion: v1
+kind: Config
+metadata:
+  name: env-config-source
+spec:
+  version: v1.0.0
