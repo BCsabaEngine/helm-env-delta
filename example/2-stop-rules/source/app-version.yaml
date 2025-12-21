@@ -1,0 +1,12 @@
+# This will trigger violations when synced
+apiVersion: v1
+kind: Application
+metadata:
+  name: my-app-source
+spec:
+  image:
+    repository: myapp
+    tag: v2.0.0
+  chart:
+    name: my-chart
+    version: v1.2.3

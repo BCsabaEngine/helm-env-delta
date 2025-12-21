@@ -1,0 +1,7 @@
+# Scaling config
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: my-deployment-source
+spec:
+  replicas: 15

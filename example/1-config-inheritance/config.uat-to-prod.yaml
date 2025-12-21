@@ -1,0 +1,20 @@
+extends: './config.base.yaml'
+
+source: './uat'
+destination: './prod'
+
+# Different transforms for prod
+transforms:
+  '**/*.yaml':
+    content:
+      - find: '-uat\b'
+        replace: '-prod'
+      - find: 'uat-cluster'
+        replace: 'prod-cluster'
+
+# Production-specific stop rules (added to base)
+stopRules:
+  '**/*.yaml':
+    - type: 'numeric'
+      path: 'spec.replicas'
+      min: 3

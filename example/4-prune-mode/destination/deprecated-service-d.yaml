@@ -1,0 +1,11 @@
+# Deprecated service removed from source
+# Will be DELETED if prune: true
+# Will be KEPT if prune: false
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-d-dest
+spec:
+  type: ClusterIP
+  port: 8083
+  deprecated: true

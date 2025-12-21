@@ -1,0 +1,13 @@
+extends: './config.base.yaml'
+
+source: './dev'
+destination: './uat'
+
+# Environment-specific transforms
+transforms:
+  '**/*.yaml':
+    content:
+      - find: '-dev\b'
+        replace: '-uat'
+      - find: 'dev-cluster'
+        replace: 'uat-cluster'
