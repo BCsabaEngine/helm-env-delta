@@ -186,7 +186,7 @@ const readFilesIntoMap = async (baseDirectory: string, absoluteFilePaths: string
 };
 
 // Loads files from a directory based on include/exclude glob patterns.
-export const loadFiles = async (options: FileLoaderOptions): Promise<FileMap> => {
+export const loadFiles = async (options: FileLoaderOptions, logger?: import('./logger').Logger): Promise<FileMap> => {
   const absoluteBaseDirectory = await validateAndResolveBaseDirectory(options.baseDirectory);
 
   const includePatterns = options.include ?? ['**/*'];
@@ -194,9 +194,33 @@ export const loadFiles = async (options: FileLoaderOptions): Promise<FileMap> =>
 
   const files = await findMatchingFiles(absoluteBaseDirectory, includePatterns, excludePatterns, options.transforms);
 
+  if (logger?.shouldShow('debug')) {
+    logger.debug('Glob matching:');
+    logger.debug(`  Directory: ${absoluteBaseDirectory}`);
+    logger.debug(`  Include patterns: ${includePatterns.join(', ')}`);
+    logger.debug(`  Exclude patterns: ${excludePatterns.join(', ')}`);
+    logger.debug(`  Matched: ${files.length} file(s)`);
+  }
+
   const fileMap = await readFilesIntoMap(absoluteBaseDirectory, files);
 
   const transformedMap = options.transforms ? transformFilenameMap(fileMap, options.transforms) : fileMap;
+
+  if (options.transforms && logger?.shouldShow('debug')) {
+    logger.debug(`Filename transforms applied: ${fileMap.size} → ${transformedMap.size} files`);
+
+    // Show up to 3 examples of transformations
+    let exampleCount = 0;
+    for (const [transformed, content] of transformedMap.entries()) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const original = [...fileMap.entries()].find(([_key, c]) => c === content)?.[0];
+      if (original && original !== transformed) {
+        logger.debug(`  ${original} → ${transformed}`);
+        exampleCount++;
+        if (exampleCount >= 3) break;
+      }
+    }
+  }
 
   return sortMapByKeys(transformedMap);
 };

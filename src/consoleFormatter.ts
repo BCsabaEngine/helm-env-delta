@@ -6,10 +6,10 @@ import { StopRuleViolation } from './stopRulesValidator';
 // Types
 // ============================================================================
 
-type BoxStyle = 'success' | 'warning' | 'error' | 'info';
-type ProgressStyle = 'loading' | 'success' | 'info';
-type ViolationMode = 'error' | 'warning' | 'force';
-type FileOperation = 'add' | 'update' | 'delete' | 'format';
+export type BoxStyle = 'success' | 'warning' | 'error' | 'info';
+export type ProgressStyle = 'loading' | 'success' | 'info';
+export type ViolationMode = 'error' | 'warning' | 'force';
+export type FileOperation = 'add' | 'update' | 'delete' | 'format';
 
 // ============================================================================
 // Generic Box Formatter

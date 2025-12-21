@@ -25,7 +25,9 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: false,
         skipFormat: false,
-        validate: false
+        validate: false,
+        verbose: false,
+        quiet: false
       });
     });
 
@@ -88,7 +90,9 @@ describe('commandLine', () => {
         diffHtml: true,
         diffJson: true,
         skipFormat: false,
-        validate: false
+        validate: false,
+        verbose: false,
+        quiet: false
       });
     });
 
@@ -108,6 +112,8 @@ describe('commandLine', () => {
       expect(result.diffJson).toBe(false);
       expect(result.skipFormat).toBe(false);
       expect(result.validate).toBe(false);
+      expect(result.verbose).toBe(false);
+      expect(result.quiet).toBe(false);
     });
 
     it('should parse config path with spaces', () => {
@@ -139,7 +145,9 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: false,
         skipFormat: false,
-        validate: false
+        validate: false,
+        verbose: false,
+        quiet: false
       });
     });
 
@@ -207,7 +215,9 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: false,
         skipFormat: true,
-        validate: false
+        validate: false,
+        verbose: false,
+        quiet: false
       });
     });
 
@@ -236,6 +246,83 @@ describe('commandLine', () => {
 
       expect(result.config).toBe('test.yaml');
       expect(result.validate).toBe(true);
+    });
+
+    it('should parse command with --verbose', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--verbose']);
+
+      expect(result.verbose).toBe(true);
+      expect(result.quiet).toBe(false);
+    });
+
+    it('should parse command with --quiet', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--quiet']);
+
+      expect(result.quiet).toBe(true);
+      expect(result.verbose).toBe(false);
+    });
+
+    it('should default verbose and quiet to false when flags not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.verbose).toBe(false);
+      expect(result.quiet).toBe(false);
+    });
+
+    it('should exit when both --verbose and --quiet are provided', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--verbose', '--quiet']);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --verbose and --quiet flags are mutually exclusive');
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should exit when both --quiet and --verbose are provided (different order)', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--quiet', '--verbose']);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --verbose and --quiet flags are mutually exclusive');
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should parse command with --verbose and other flags', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--verbose', '--dry-run', '--diff']);
+
+      expect(result).toEqual({
+        config: 'test.yaml',
+        dryRun: true,
+        force: false,
+        diff: true,
+        diffHtml: false,
+        diffJson: false,
+        skipFormat: false,
+        validate: false,
+        verbose: true,
+        quiet: false
+      });
+    });
+
+    it('should parse command with --quiet and other flags', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--quiet', '--diff-json']);
+
+      expect(result).toEqual({
+        config: 'test.yaml',
+        dryRun: false,
+        force: false,
+        diff: false,
+        diffHtml: false,
+        diffJson: true,
+        skipFormat: false,
+        validate: false,
+        verbose: false,
+        quiet: true
+      });
     });
   });
 });

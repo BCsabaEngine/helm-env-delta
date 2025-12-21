@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { updateFiles } from '../src/fileUpdater';
+import { Logger } from '../src/logger';
 
 vi.mock('node:fs/promises', () => ({
   stat: vi.fn(),
@@ -11,7 +12,23 @@ vi.mock('node:fs/promises', () => ({
 
 import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
 
+// Helper to create a mock logger
+const createMockLogger = (): Logger => {
+  return {
+    log: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    progress: vi.fn(),
+    fileOp: vi.fn(),
+    stopRule: vi.fn(),
+    shouldShow: vi.fn(() => true)
+  } as unknown as Logger;
+};
+
 describe('fileUpdater', () => {
+  let mockLogger: Logger;
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(stat).mockResolvedValue({ isDirectory: () => true } as never);
@@ -19,6 +36,7 @@ describe('fileUpdater', () => {
     vi.mocked(writeFile).mockResolvedValue();
     vi.mocked(unlink).mockResolvedValue();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockLogger = createMockLogger();
   });
 
   afterEach(() => {
@@ -37,7 +55,7 @@ describe('fileUpdater', () => {
       const destination = new Map();
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
     });
@@ -63,7 +81,7 @@ describe('fileUpdater', () => {
       const destination = new Map([['file.yaml', 'old']]);
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
     });
@@ -79,7 +97,7 @@ describe('fileUpdater', () => {
       const destination = new Map([['old.yaml', 'content']]);
       const config = { source: './src', destination: './dest', prune: true };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(unlink).toHaveBeenCalled();
     });
@@ -95,7 +113,7 @@ describe('fileUpdater', () => {
       const destination = new Map([['old.yaml', 'content']]);
       const config = { source: './src', destination: './dest', prune: false };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(unlink).not.toHaveBeenCalled();
     });
@@ -111,7 +129,7 @@ describe('fileUpdater', () => {
       const destination = new Map();
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, true);
+      await updateFiles(diffResult, source, destination, config, true, false, mockLogger);
 
       expect(writeFile).not.toHaveBeenCalled();
     });
@@ -127,7 +145,7 @@ describe('fileUpdater', () => {
       const destination = new Map();
       const config = { source: './src', destination: './dest' };
 
-      const result = await updateFiles(diffResult, source, destination, config, false);
+      const result = await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(Array.isArray(result)).toBe(true);
     });
@@ -145,7 +163,7 @@ describe('fileUpdater', () => {
       const destination = new Map();
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
     });
@@ -172,7 +190,7 @@ describe('fileUpdater', () => {
       const destination = new Map([['values.yaml', 'url: old-db.cluster-xyz789.rds.amazonaws.com\nversion: 1.0.0']]);
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
       const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
@@ -201,7 +219,7 @@ describe('fileUpdater', () => {
       const destination = new Map([['values.yaml', 'url: old-db.internal\nversion: 1.0.0']]);
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
       const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
@@ -230,7 +248,7 @@ describe('fileUpdater', () => {
       const destination = new Map([['values.yaml', 'image:\n  tag: old-v1.0.0\n  pullPolicy: Always']]);
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
       const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
@@ -260,7 +278,7 @@ describe('fileUpdater', () => {
       const destination = new Map([['values.yaml', 'url: old-url.internal']]);
       const config = { source: './src', destination: './dest' };
 
-      await updateFiles(diffResult, source, destination, config, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
     });
@@ -280,7 +298,7 @@ describe('fileUpdater', () => {
         outputFormat: { indent: 4, keySeparator: true }
       };
 
-      await updateFiles(diffResult, source, destination, config, false, true);
+      await updateFiles(diffResult, source, destination, config, false, true, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
     });
@@ -300,7 +318,7 @@ describe('fileUpdater', () => {
         outputFormat: { indent: 4, keySeparator: true }
       };
 
-      await updateFiles(diffResult, source, destination, config, false, false);
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
     });

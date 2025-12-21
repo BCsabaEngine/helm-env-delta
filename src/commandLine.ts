@@ -15,6 +15,8 @@ export type SyncCommand = {
   diffJson: boolean;
   skipFormat: boolean;
   validate: boolean;
+  verbose: boolean;
+  quiet: boolean;
 };
 
 // ============================================================================
@@ -35,10 +37,18 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--diff-html', 'Generate and open HTML diff report in browser', false)
     .option('--diff-json', 'Output diff as JSON to stdout', false)
     .option('--skip-format', 'Skip YAML formatting (outputFormat section)', false)
-    .option('--validate', 'Validate configuration file and exit', false);
+    .option('--validate', 'Validate configuration file and exit', false)
+    .option('--verbose', 'Show detailed debug information', false)
+    .option('--quiet', 'Suppress all output except critical errors', false);
 
   program.parse(argv || process.argv);
   const options = program.opts();
+
+  // Check for mutually exclusive flags
+  if (options['verbose'] && options['quiet']) {
+    console.error('Error: --verbose and --quiet flags are mutually exclusive');
+    process.exit(1);
+  }
 
   return {
     config: options['config'],
@@ -48,6 +58,8 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     diffHtml: options['diffHtml'],
     diffJson: options['diffJson'],
     skipFormat: options['skipFormat'],
-    validate: options['validate']
+    validate: options['validate'],
+    verbose: options['verbose'],
+    quiet: options['quiet']
   };
 };

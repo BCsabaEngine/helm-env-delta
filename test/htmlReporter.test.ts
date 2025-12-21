@@ -54,11 +54,26 @@ import { diffArrays, findArrayPaths, hasArrays } from '../src/arrayDiffer';
 import { Config } from '../src/configFile';
 import { ChangedFile, FileDiffResult } from '../src/fileDiff';
 import { generateHtmlReport, HtmlReporterError, isHtmlReporterError } from '../src/htmlReporter';
+import { Logger } from '../src/logger';
 import { deepEqual } from '../src/utils/deepEqual';
 import { generateUnifiedDiff } from '../src/utils/diffGenerator';
 import { isYamlFile } from '../src/utils/fileType';
 import { getValueAtPath } from '../src/utils/jsonPath';
 import { normalizeForComparison, serializeForDiff } from '../src/utils/serialization';
+
+// Helper to create a mock logger
+const createMockLogger = (): Logger => {
+  return {
+    log: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    progress: vi.fn(),
+    fileOp: vi.fn(),
+    stopRule: vi.fn(),
+    shouldShow: vi.fn(() => true)
+  } as unknown as Logger;
+};
 
 const createMockChangedFile = (overrides?: Partial<ChangedFile>): ChangedFile => ({
   path: 'test.yaml',
@@ -212,7 +227,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(writeFile).toHaveBeenCalled();
       const writePath = vi.mocked(writeFile).mock.calls[0][0] as string;
@@ -224,7 +239,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(writeFile).toHaveBeenCalled();
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
@@ -235,7 +250,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig({ source: './custom-src' });
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('./custom-src');
@@ -245,7 +260,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig({ destination: './custom-dest' });
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('./custom-dest');
@@ -255,7 +270,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, true);
+      await generateHtmlReport(diffResult, [], config, true, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('DRY RUN');
@@ -265,7 +280,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).not.toContain('DRY RUN');
@@ -278,7 +293,7 @@ describe('htmlReporter', () => {
       const formattedFiles = ['file2.yaml'];
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, formattedFiles, config, false);
+      await generateHtmlReport(diffResult, formattedFiles, config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('2 Unchanged');
@@ -291,7 +306,7 @@ describe('htmlReporter', () => {
       });
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(serializeForDiff).toHaveBeenCalled();
       expect(generateUnifiedDiff).toHaveBeenCalled();
@@ -307,7 +322,7 @@ describe('htmlReporter', () => {
       });
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('<!DOCTYPE html>');
@@ -320,28 +335,28 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(mkdir).toHaveBeenCalled();
       expect(writeFile).toHaveBeenCalled();
     });
 
     it('should log success message with file path', async () => {
-      const consoleSpy = vi.spyOn(console, 'log');
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
+      const mockLogger = createMockLogger();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, mockLogger);
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('✓ HTML report generated'));
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('helm-env-delta'));
+      expect(mockLogger.log).toHaveBeenCalledWith(expect.stringContaining('✓ HTML report generated'));
+      expect(mockLogger.log).toHaveBeenCalledWith(expect.stringContaining('opening in browser'));
     });
 
     it('should open report in browser', async () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(open).toHaveBeenCalled();
     });
@@ -350,7 +365,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await expect(generateHtmlReport(diffResult, [], config, false)).resolves.toBeUndefined();
+      await expect(generateHtmlReport(diffResult, [], config, false, createMockLogger())).resolves.toBeUndefined();
     });
 
     it('should catch browser open errors gracefully', async () => {
@@ -358,19 +373,19 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await expect(generateHtmlReport(diffResult, [], config, false)).resolves.toBeUndefined();
+      await expect(generateHtmlReport(diffResult, [], config, false, createMockLogger())).resolves.toBeUndefined();
     });
 
     it('should log manual open instructions when browser fails', async () => {
       vi.mocked(open).mockRejectedValue(new Error('Browser not found'));
-      const consoleSpy = vi.spyOn(console, 'log');
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
+      const mockLogger = createMockLogger();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, mockLogger);
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Could not open browser'));
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('file://'));
+      expect(mockLogger.log).toHaveBeenCalledWith(expect.stringContaining('Could not open browser'));
+      expect(mockLogger.log).toHaveBeenCalledWith(expect.stringContaining('file://'));
     });
 
     it('should continue execution even if browser open fails', async () => {
@@ -378,7 +393,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await expect(generateHtmlReport(diffResult, [], config, false)).resolves.toBeUndefined();
+      await expect(generateHtmlReport(diffResult, [], config, false, createMockLogger())).resolves.toBeUndefined();
       expect(writeFile).toHaveBeenCalled();
     });
 
@@ -386,7 +401,7 @@ describe('htmlReporter', () => {
       const diffResult = createMockDiffResult();
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('0 Added');
@@ -401,7 +416,7 @@ describe('htmlReporter', () => {
       const formattedFiles = ['file2.yaml'];
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, formattedFiles, config, false);
+      await generateHtmlReport(diffResult, formattedFiles, config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('1 Formatted');
@@ -415,7 +430,7 @@ describe('htmlReporter', () => {
       const formattedFiles = ['file1.yaml'];
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, formattedFiles, config, false);
+      await generateHtmlReport(diffResult, formattedFiles, config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('1 Formatted');
@@ -428,7 +443,7 @@ describe('htmlReporter', () => {
       });
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(randomBytes).toHaveBeenCalled();
       expect(mkdir).toHaveBeenCalled();
@@ -443,7 +458,7 @@ describe('htmlReporter', () => {
       });
       const config = createMockConfig();
 
-      await generateHtmlReport(diffResult, [], config, false);
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(generateUnifiedDiff).toHaveBeenCalledWith('test-file.yaml', expect.any(String), expect.any(String));
     });

@@ -4,9 +4,10 @@ import path from 'node:path';
 import YAML from 'yaml';
 
 import { Config } from './configFile';
-import { colorizeFileOperation, formatProgressMessage } from './consoleFormatter';
+import { formatProgressMessage } from './consoleFormatter';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { FileMap } from './fileLoader';
+import { Logger } from './logger';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
 import { applyTransforms } from './utils/transformer';
@@ -150,12 +151,13 @@ const addFile = async (
   absoluteDestinationDirectory: string,
   config: Config,
   dryRun: boolean,
-  skipFormat = false
+  skipFormat: boolean,
+  logger: Logger
 ): Promise<void> => {
   const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
   if (dryRun) {
-    console.log(colorizeFileOperation('add', relativePath, true));
+    logger.fileOp('add', relativePath, true);
     return;
   }
 
@@ -187,7 +189,7 @@ const addFile = async (
   try {
     await ensureParentDirectory(absolutePath);
     await writeFile(absolutePath, contentToWrite, 'utf8');
-    console.log(colorizeFileOperation('add', relativePath, false));
+    logger.fileOp('add', relativePath, false);
   } catch (error) {
     throw new FileUpdaterError('Failed to add file', {
       code: (error as NodeJS.ErrnoException).code,
@@ -202,12 +204,13 @@ const updateFile = async (
   absoluteDestinationDirectory: string,
   config: Config,
   dryRun: boolean,
-  skipFormat = false
+  skipFormat: boolean,
+  logger: Logger
 ): Promise<void> => {
   const absolutePath = path.join(absoluteDestinationDirectory, changedFile.path);
 
   if (dryRun) {
-    console.log(colorizeFileOperation('update', changedFile.path, true));
+    logger.fileOp('update', changedFile.path, true);
     return;
   }
 
@@ -223,7 +226,7 @@ const updateFile = async (
   try {
     await ensureParentDirectory(absolutePath);
     await writeFile(absolutePath, contentToWrite, 'utf8');
-    console.log(colorizeFileOperation('update', changedFile.path, false));
+    logger.fileOp('update', changedFile.path, false);
   } catch (error) {
     throw new FileUpdaterError('Failed to update file', {
       code: (error as NodeJS.ErrnoException).code,
@@ -236,22 +239,23 @@ const updateFile = async (
 const deleteFile = async (
   relativePath: string,
   absoluteDestinationDirectory: string,
-  dryRun: boolean
+  dryRun: boolean,
+  logger: Logger
 ): Promise<void> => {
   const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
   if (dryRun) {
-    console.log(colorizeFileOperation('delete', relativePath, true));
+    logger.fileOp('delete', relativePath, true);
     return;
   }
 
   try {
     await unlink(absolutePath);
-    console.log(colorizeFileOperation('delete', relativePath, false));
+    logger.fileOp('delete', relativePath, false);
   } catch (error) {
     // Ignore if file doesn't exist (already deleted)
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.log(colorizeFileOperation('delete', relativePath, false, true));
+      logger.fileOp('delete', relativePath, false, true);
       return;
     }
 
@@ -270,9 +274,10 @@ export const updateFiles = async (
   destinationFiles: FileMap,
   config: Config,
   dryRun: boolean,
-  skipFormat = false
+  skipFormat: boolean,
+  logger: Logger
 ): Promise<string[]> => {
-  console.log('\n' + formatProgressMessage('Updating files...', 'info'));
+  logger.log('\n' + formatProgressMessage('Updating files...', 'info'));
 
   const absoluteDestinationDirectory = await validateDestinationDirectory(config.destination);
   const errors: FileUpdateError[] = [];
@@ -280,19 +285,25 @@ export const updateFiles = async (
   // Stop rules validation is performed in src/index.ts before updateFiles is called
   // This function assumes validation has already passed or --force was used
 
+  // Add verbose debug output
+  if (logger.shouldShow('debug')) logger.debug(`Processing ${diffResult.addedFiles.length} new files`);
+
   // Add new files
   for (const relativePath of diffResult.addedFiles)
     try {
       const content = sourceFiles.get(relativePath)!;
-      await addFile(relativePath, content, absoluteDestinationDirectory, config, dryRun, skipFormat);
+      await addFile(relativePath, content, absoluteDestinationDirectory, config, dryRun, skipFormat, logger);
     } catch (error) {
       errors.push({ operation: 'add', path: relativePath, error: error as Error });
     }
 
+  // Add verbose debug output
+  if (logger.shouldShow('debug')) logger.debug(`Updating ${diffResult.changedFiles.length} changed files`);
+
   // Update changed files
   for (const changedFile of diffResult.changedFiles)
     try {
-      await updateFile(changedFile, absoluteDestinationDirectory, config, dryRun, skipFormat);
+      await updateFile(changedFile, absoluteDestinationDirectory, config, dryRun, skipFormat, logger);
     } catch (error) {
       errors.push({ operation: 'update', path: changedFile.path, error: error as Error });
     }
@@ -309,11 +320,11 @@ export const updateFiles = async (
         if (formatted !== content) {
           const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
-          if (dryRun) console.log(colorizeFileOperation('format', relativePath, true));
+          if (dryRun) logger.fileOp('format', relativePath, true);
           else {
             await ensureParentDirectory(absolutePath);
             await writeFile(absolutePath, formatted, 'utf8');
-            console.log(colorizeFileOperation('format', relativePath, false));
+            logger.fileOp('format', relativePath, false);
           }
 
           formattedFiles.push(relativePath);
@@ -325,31 +336,31 @@ export const updateFiles = async (
   // Delete removed files
   for (const relativePath of diffResult.deletedFiles)
     try {
-      await deleteFile(relativePath, absoluteDestinationDirectory, dryRun);
+      await deleteFile(relativePath, absoluteDestinationDirectory, dryRun, logger);
     } catch (error) {
       errors.push({ operation: 'delete', path: relativePath, error: error as Error });
     }
 
   // Report summary
   if (dryRun) {
-    console.log('\n[DRY RUN] Would perform:');
-    console.log(`  ${diffResult.addedFiles.length} files would be added`);
-    console.log(`  ${diffResult.changedFiles.length} files would be updated`);
-    console.log(`  ${formattedFiles.length} files would be formatted`);
-    console.log(`  ${diffResult.deletedFiles.length} files would be deleted`);
+    logger.log('\n[DRY RUN] Would perform:');
+    logger.log(`  ${diffResult.addedFiles.length} files would be added`);
+    logger.log(`  ${diffResult.changedFiles.length} files would be updated`);
+    logger.log(`  ${formattedFiles.length} files would be formatted`);
+    logger.log(`  ${diffResult.deletedFiles.length} files would be deleted`);
   } else {
-    console.log('\n✓ Files updated successfully:');
-    console.log(`  ${diffResult.addedFiles.length} files added`);
-    console.log(`  ${diffResult.changedFiles.length} files updated`);
-    console.log(`  ${formattedFiles.length} files formatted`);
-    console.log(`  ${diffResult.deletedFiles.length} files deleted`);
+    logger.log('\n✓ Files updated successfully:');
+    logger.log(`  ${diffResult.addedFiles.length} files added`);
+    logger.log(`  ${diffResult.changedFiles.length} files updated`);
+    logger.log(`  ${formattedFiles.length} files formatted`);
+    logger.log(`  ${diffResult.deletedFiles.length} files deleted`);
   }
 
   // Report errors if any occurred
   if (errors.length > 0) {
-    console.error(`\n❌ Encountered ${errors.length} error(s):`);
+    logger.error(`\n❌ Encountered ${errors.length} error(s):`, 'critical');
     for (const { operation, path: errorPath, error } of errors)
-      console.error(`  [${operation}] ${errorPath}: ${error.message}`);
+      logger.error(`  [${operation}] ${errorPath}: ${error.message}`, 'critical');
 
     throw new FileUpdaterError(`Failed to update ${errors.length} file(s)`, { code: 'UPDATE_FAILED' });
   }

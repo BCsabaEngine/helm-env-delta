@@ -5,15 +5,18 @@ import { resolveConfigWithExtends } from './configMerger';
 export type Config = FinalConfig;
 
 // Loads and validates configuration from YAML file with extends support
-export const loadConfigFile = (configPath: string): FinalConfig => {
+export const loadConfigFile = (configPath: string, quiet = false, logger?: import('./logger').Logger): FinalConfig => {
   // Resolve config with extends chain and merge
-  const mergedConfig = resolveConfigWithExtends(configPath);
+  const mergedConfig = resolveConfigWithExtends(configPath, new Set(), 0, logger);
 
   // Validate merged config as final (requires source and destination)
   const config = parseFinalConfig(mergedConfig, configPath);
 
-  // Log successfully loaded config
-  console.log(`\nConfiguration loaded: ${config.source} -> ${config.destination}` + (config.prune ? ' [prune!]' : ''));
+  // Log successfully loaded config (suppress in quiet mode)
+  if (!quiet)
+    console.log(
+      `\nConfiguration loaded: ${config.source} -> ${config.destination}` + (config.prune ? ' [prune!]' : '')
+    );
 
   return config;
 };

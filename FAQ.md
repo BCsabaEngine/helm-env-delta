@@ -691,9 +691,69 @@ Both transform to: envs/prod/app.yaml
 
 ---
 
+### 27. How do I control output verbosity with --verbose and --quiet?
+
+**Three verbosity levels:**
+
+| Flag        | Output Level                         | Use When                              |
+| ----------- | ------------------------------------ | ------------------------------------- |
+| (default)   | Progress, summaries, file operations | Normal interactive usage              |
+| `--verbose` | All default + debug details          | Troubleshooting, understanding config |
+| `--quiet`   | Only errors and stop rule violations | CI/CD, scripting, minimal output      |
+
+**Verbose mode shows additional debug information:**
+
+```bash
+helm-env-delta --config config.yaml --verbose
+```
+
+**Debug output includes:**
+
+- Config inheritance chain resolution
+- Glob pattern matching results
+- Filename transformation examples
+- Diff computation pipeline details
+- Stop rule validation statistics
+
+**Quiet mode suppresses all non-critical output:**
+
+```bash
+helm-env-delta --config config.yaml --quiet
+```
+
+**Still shown in quiet mode:**
+
+- Critical errors (file not found, permission denied, etc.)
+- Stop rule violations
+- JSON output (when using `--diff-json`)
+
+**Important notes:**
+
+- `--verbose` and `--quiet` are **mutually exclusive** (error if both provided)
+- Machine-readable output (`--diff-json`) **always outputs** regardless of verbosity
+- Automatic update check is skipped in quiet mode
+
+**Example use cases:**
+
+```bash
+# Debugging config issues
+helm-env-delta --config config.yaml --verbose --dry-run
+
+# CI/CD with minimal noise
+helm-env-delta --config config.yaml --quiet --diff-json > report.json
+
+# Troubleshoot glob patterns
+helm-env-delta --config config.yaml --verbose --dry-run | grep "Matched:"
+
+# Silent execution (only errors shown)
+helm-env-delta --config config.yaml --quiet
+```
+
+---
+
 ## Advanced Topics
 
-### 27. How does the deep merge work and what gets preserved?
+### 28. How does the deep merge work and what gets preserved?
 
 **Deep merge process:**
 
@@ -727,7 +787,7 @@ spec:
 
 ---
 
-### 28. Can I sort arrays or enforce key ordering in output YAML?
+### 29. Can I sort arrays or enforce key ordering in output YAML?
 
 **Yes!** Use `outputFormat`:
 
@@ -757,7 +817,7 @@ outputFormat:
 
 ---
 
-### 29. What's the difference between --diff, --diff-html, and --diff-json?
+### 30. What's the difference between --diff, --diff-html, and --diff-json?
 
 **Different output formats for different needs:**
 
@@ -782,7 +842,7 @@ helm-env-delta --config config.yaml --diff --diff-html --diff-json > report.json
 
 ---
 
-### 30. How can I see field-level changes instead of file-level changes?
+### 31. How can I see field-level changes instead of file-level changes?
 
 Use `--diff-json` with jq:
 
@@ -807,7 +867,7 @@ The JSON output includes JSONPath notation for each changed field (e.g., `$.spec
 
 ---
 
-### 31. Can HelmEnvDelta handle binary files or non-YAML files?
+### 32. Can HelmEnvDelta handle binary files or non-YAML files?
 
 **Yes, with limitations:**
 
