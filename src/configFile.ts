@@ -69,11 +69,25 @@ const regexRuleSchema = z
     }
   );
 
+/**
+ * Validates version string format.
+ * Enforces strict major.minor.patch format (e.g., "1.2.3" or "v1.2.3").
+ * Rejects incomplete versions, pre-release identifiers, build metadata, and leading zeros.
+ */
+const versionFormatRuleSchema = z
+  .object({
+    type: z.literal('versionFormat'),
+    path: z.string().min(1),
+    vPrefix: z.enum(['required', 'allowed', 'forbidden']).default('allowed')
+  })
+  .strict();
+
 const stopRuleSchema = z.discriminatedUnion('type', [
   semverMajorUpgradeRuleSchema,
   semverDowngradeRuleSchema,
   numericRuleSchema,
-  regexRuleSchema
+  regexRuleSchema,
+  versionFormatRuleSchema
 ]);
 
 // Array Sort Schema
@@ -186,6 +200,7 @@ export type SemverMajorUpgradeRule = z.infer<typeof semverMajorUpgradeRuleSchema
 export type SemverDowngradeRule = z.infer<typeof semverDowngradeRuleSchema>;
 export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
+export type VersionFormatRule = z.infer<typeof versionFormatRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
 export type TransformRule = z.infer<typeof transformRuleSchema>;
 export type TransformRules = z.infer<typeof transformRulesSchema>;

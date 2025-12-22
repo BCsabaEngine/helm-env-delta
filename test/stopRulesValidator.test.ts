@@ -480,6 +480,598 @@ describe('stopRulesValidator', () => {
     });
   });
 
+  describe('versionFormat validation', () => {
+    describe('vPrefix: allowed (default)', () => {
+      it('should accept valid version without v-prefix (1.2.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should accept valid version with v-prefix (v1.2.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: 'v1.2.3' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should reject incomplete version (1.2)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('incomplete');
+        expect(result.violations[0]?.message).toContain('got only 2 part(s)');
+      });
+
+      it('should reject pre-release version (1.2.3-rc)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3-rc' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('pre-release identifier');
+      });
+
+      it('should reject build metadata version (1.2.3+build)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3+build' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('pre-release identifier or build metadata');
+      });
+
+      it('should reject version with both pre-release and build (1.2.3-rc+build)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3-rc+build' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('pre-release identifier or build metadata');
+      });
+    });
+
+    describe('vPrefix: required', () => {
+      it('should accept version with v-prefix (v1.2.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: 'v1.2.3' },
+              processedDestContent: { version: 'v1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'required' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should reject version without v-prefix (1.2.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3' },
+              processedDestContent: { version: 'v1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'required' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('must start with "v" prefix');
+      });
+
+      it('should reject v-prefixed pre-release (v1.2.3-rc)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: 'v1.2.3-rc' },
+              processedDestContent: { version: 'v1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'required' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('pre-release identifier');
+      });
+    });
+
+    describe('vPrefix: forbidden', () => {
+      it('should accept version without v-prefix (1.2.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'forbidden' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should reject version with v-prefix (v1.2.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: 'v1.2.3' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'forbidden' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('must not have "v" prefix');
+      });
+    });
+
+    describe('edge cases', () => {
+      it('should skip validation when value is undefined', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should handle non-standard string value', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: 'invalid' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('incomplete');
+      });
+
+      it('should handle numeric value by converting to string', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: 123 },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('incomplete');
+      });
+
+      it('should accept version 0.0.0', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '0.0.0' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should accept large version numbers (999.999.999)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '999.999.999' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should reject version with too many parts (1.2.3.4)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3.4' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('too many parts');
+        expect(result.violations[0]?.message).toContain('got 4 parts');
+      });
+
+      it('should reject non-numeric parts (1.2.x)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.x' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('non-numeric parts');
+      });
+
+      it('should reject leading zeros (01.2.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '01.2.3' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('leading zeros');
+      });
+
+      it('should reject leading zeros in minor version (1.02.3)', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.02.3' },
+              processedDestContent: { version: '1.0.0' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(false);
+        expect(result.violations[0]?.message).toContain('leading zeros');
+      });
+
+      it('should validate only updatedValue, not oldValue', () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'test.yaml',
+              sourceContent: '',
+              destinationContent: '',
+              processedSourceContent: { version: '1.2.3' },
+              processedDestContent: { version: 'invalid-version' },
+              rawParsedSource: {},
+              rawParsedDest: {}
+            }
+          ],
+          unchangedFiles: []
+        };
+
+        const stopRules = {
+          '*.yaml': [{ type: 'versionFormat' as const, path: 'version', vPrefix: 'allowed' as const }]
+        };
+
+        const result = validateStopRules(diffResult, stopRules);
+
+        expect(result.isValid).toBe(true);
+      });
+    });
+  });
+
   describe('pattern matching', () => {
     it('should apply rules to matching file patterns', () => {
       const diffResult = {
