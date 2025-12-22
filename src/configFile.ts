@@ -14,8 +14,8 @@ const semverMajorUpgradeRuleSchema = z.object({
 });
 
 /**
- * Validates semver major version downgrades.
- * Blocks changes that would decrement the major version (e.g., 2.x.x -> 1.0.0).
+ * Validates semver version downgrades.
+ * Blocks any version downgrade including major, minor, or patch (e.g., 2.0.0 -> 1.0.0, 1.3.2 -> 1.2.4, 1.0.5 -> 1.0.3).
  */
 const semverDowngradeRuleSchema = z.object({
   type: z.literal('semverDowngrade'),
@@ -69,11 +69,25 @@ const regexRuleSchema = z
     }
   );
 
+/**
+ * Validates version string format.
+ * Enforces strict major.minor.patch format (e.g., "1.2.3" or "v1.2.3").
+ * Rejects incomplete versions, pre-release identifiers, build metadata, and leading zeros.
+ */
+const versionFormatRuleSchema = z
+  .object({
+    type: z.literal('versionFormat'),
+    path: z.string().min(1),
+    vPrefix: z.enum(['required', 'allowed', 'forbidden']).default('allowed')
+  })
+  .strict();
+
 const stopRuleSchema = z.discriminatedUnion('type', [
   semverMajorUpgradeRuleSchema,
   semverDowngradeRuleSchema,
   numericRuleSchema,
-  regexRuleSchema
+  regexRuleSchema,
+  versionFormatRuleSchema
 ]);
 
 // Array Sort Schema
@@ -186,6 +200,7 @@ export type SemverMajorUpgradeRule = z.infer<typeof semverMajorUpgradeRuleSchema
 export type SemverDowngradeRule = z.infer<typeof semverDowngradeRuleSchema>;
 export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
+export type VersionFormatRule = z.infer<typeof versionFormatRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
 export type TransformRule = z.infer<typeof transformRuleSchema>;
 export type TransformRules = z.infer<typeof transformRulesSchema>;

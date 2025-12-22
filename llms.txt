@@ -11,7 +11,7 @@
 HelmEnvDelta safely synchronizes YAML configuration files between environments (UAT → Production, Dev → Staging) while:
 - Preserving environment-specific values (namespaces, replica counts)
 - Transforming environment-specific strings (uat-db → prod-db)
-- Validating against safety rules (semver upgrades, numeric limits)
+- Validating against safety rules (semver upgrades/downgrades, version format, numeric limits, regex patterns)
 - Enforcing consistent YAML formatting
 - Providing structural YAML comparison (not line-by-line)
 
@@ -30,7 +30,7 @@ helm-env-delta/
 │   ├── fileLoader.ts         # Glob-based parallel loading (tinyglobby) → Map<string, string>
 │   ├── fileDiff.ts           # YAML diff pipeline: parse → transforms → skipPath → normalize → deep equal
 │   ├── yamlFormatter.ts      # YAML AST formatting (key ordering, quoting, array sort, keySeparator)
-│   ├── stopRulesValidator.ts # Validation (semver, numeric, regex)
+│   ├── stopRulesValidator.ts # Validation (semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex)
 │   ├── fileUpdater.ts        # Deep merge (preserves skipped paths) + file sync
 │   ├── utils/
 │   │   ├── index.ts          # Barrel exports for utilities
@@ -90,7 +90,15 @@ helm-env-delta/
 
 **Stop Rules (`stopRules`):**
 - Validation rules (per-file glob patterns)
-- Types: `semverMajorUpgrade`, `semverDowngrade`, `numeric` (min/max), `regex`
+- Types:
+  - `semverMajorUpgrade` - Block major version increases (v1.x → v2.x)
+  - `semverDowngrade` - Block any version downgrades
+  - `versionFormat` - Enforce strict major.minor.patch format (rejects incomplete versions, pre-release identifiers, build metadata, leading zeros)
+    - `vPrefix: 'required'` - Version MUST start with 'v' (v1.2.3)
+    - `vPrefix: 'allowed'` (default) - Version MAY start with 'v' (1.2.3 or v1.2.3)
+    - `vPrefix: 'forbidden'` - Version MUST NOT start with 'v' (1.2.3)
+  - `numeric` - Validate numeric ranges (min/max)
+  - `regex` - Block values matching forbidden patterns
 - Example: `{'**/*.yaml': [{type: 'semverMajorUpgrade', path: 'image.tag'}]}`
 - Override with `--force` flag
 

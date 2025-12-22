@@ -56,7 +56,7 @@ hed --config config.yaml  # Short alias
 - `fileLoader.ts` - Glob-based file loading (tinyglobby, parallel, returns Map)
 - `fileDiff.ts` - YAML diff (Pipeline: parse → transforms → skipPath → normalize → deep equal)
 - `yamlFormatter.ts` - YAML AST formatting (key ordering, quoting, array sort, keySeparator)
-- `stopRulesValidator.ts` - Validation (semver, numeric, regex)
+- `stopRulesValidator.ts` - Validation (semver, numeric, regex, versionFormat)
 - `fileUpdater.ts` - File sync (deep merge preserves skipped paths, dry-run support)
 - `htmlReporter.ts` / `consoleDiffReporter.ts` / `jsonReporter.ts` - Diff output
 - `consoleFormatter.ts` - Colorized terminal output
@@ -84,7 +84,7 @@ Processing:
   - At least one of `content` or `filename` must be specified
   - Example: `'**/*.yaml': { content: [{find: 'uat-', replace: 'prod-'}], filename: [{find: '/uat/', replace: '/prod/'}] }`
 
-Stop Rules: `semverMajorUpgrade`, `semverDowngrade`, `numeric` (min/max), `regex`
+Stop Rules: `semverMajorUpgrade`, `semverDowngrade`, `versionFormat` (vPrefix: required/allowed/forbidden), `numeric` (min/max), `regex`
 
 Output Format: `indent` (2), `keySeparator` (false), `quoteValues` (wildcards), `keyOrders`, `arraySort` (field + asc/desc)
 
@@ -142,7 +142,7 @@ Barrel exports via `index.ts`:
 
 1. **File Loading** - tinyglobby + parallel load → filename transforms → include/exclude filtering → Map<string, string>
 2. **Diff Computation** - YAML.parse → content transforms → skipPath → normalize → deep equal
-3. **Stop Rules** - Validate JSONPath values (semver, numeric, regex), fails unless --force
+3. **Stop Rules** - Validate JSONPath values (semver, versionFormat, numeric, regex), fails unless --force
 4. **File Update** - Deep merge (preserves skipped paths) → yamlFormatter → write/dry-run
 5. **YAML Formatting** - Parse to AST → apply (key ordering, quoting, array sort, keySeparator) → serialize
 
@@ -183,6 +183,37 @@ transforms:
 - Path traversal (`../`, leading `/`) → error
 - Invalid characters (`<>:"|?*\x00-\x1F`) → error
 - Name collisions (multiple sources → same name) → error with details
+
+## Stop Rules Details
+
+**Rule Types:**
+
+1. **semverMajorUpgrade** - Blocks major version increases (e.g., `v1.2.3` → `v2.0.0`)
+2. **semverDowngrade** - Blocks any version downgrade (major/minor/patch)
+3. **versionFormat** - Enforces strict `major.minor.patch` format with configurable v-prefix
+   - **vPrefix modes**:
+     - `'required'` - Version MUST start with 'v' (accepts `v1.2.3`, rejects `1.2.3`)
+     - `'allowed'` (default) - Version MAY start with 'v' (accepts both `v1.2.3` and `1.2.3`)
+     - `'forbidden'` - Version MUST NOT start with 'v' (accepts `1.2.3`, rejects `v1.2.3`)
+   - **Rejects**: Incomplete (`1.2`), pre-release (`1.2.3-rc`), build metadata (`1.2.3+build`), leading zeros (`01.2.3`)
+   - **Validation target**: Only updated value (new value being introduced)
+4. **numeric** - Validates numeric ranges with `min`/`max` constraints
+5. **regex** - Blocks values matching forbidden patterns
+
+**Config Example:**
+
+```yaml
+stopRules:
+  'chart.yaml':
+    - type: 'versionFormat'
+      path: 'version'
+      vPrefix: 'forbidden' # Helm chart versions: 1.2.3 (no v-prefix)
+
+  'values.yaml':
+    - type: 'versionFormat'
+      path: 'image.tag'
+      vPrefix: 'required' # Docker tags: v1.2.3 (with v-prefix)
+```
 
 ## Testing
 

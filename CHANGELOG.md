@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2024-12-23
+
+### Added
+
+- Version format validation: New `versionFormat` stop rule enforces strict version numbering standards. Prevent incomplete versions (like `1.2` instead of `1.2.3`), pre-release identifiers (`1.2.3-rc`), build metadata (`1.2.3+build`), and leading zeros (`01.2.3`) from being deployed. Configure v-prefix requirements per environment - require `v1.2.3` for Docker tags, forbid it for Helm chart versions, or allow both formats. Perfect for maintaining consistent versioning across your GitOps deployments.
+
 ## [1.2.0] - 2024-12-21
 
 ### Added

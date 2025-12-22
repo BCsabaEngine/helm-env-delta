@@ -461,7 +461,7 @@ Demonstrates stop rule validation for dangerous changes, how violations are dete
 
 **What it shows**:
 
-- All 4 stop rule types: `semverMajorUpgrade`, `semverDowngrade`, `numeric`, `regex`
+- All 5 stop rule types: `semverMajorUpgrade`, `semverDowngrade`, `versionFormat`, `numeric`, `regex`
 - How violations block execution by default
 - Using `--force` to override violations
 - JSON output for CI/CD integration
@@ -547,22 +547,6 @@ The example directory also contains a simple UAT → Prod sync scenario at the r
 - Simple content transforms
 - Path filtering with skipPath
 - Array sorting in output format
-
----
-
-### Real-World Example
-
-**Location**: `example.dev/`
-
-A complex, real-world example showing PreProd → Prod promotion for 50+ microservices in a banking application.
-
-**What it shows**:
-
-- Large-scale infrastructure sync (50+ services)
-- Filename transforms in production
-- Complex URL and environment variable transformations
-- Multi-level hierarchy management
-- Real banking/fintech application structure
 
 ---
 
@@ -784,12 +768,13 @@ Validation rules that prevent dangerous changes from being applied.
 
 #### Rule Types
 
-| Rule Type            | Purpose                       | Example Use Case                   |
-| -------------------- | ----------------------------- | ---------------------------------- |
-| `semverMajorUpgrade` | Block major version increases | Prevent `v1.x.x` → `v2.0.0`        |
-| `semverDowngrade`    | Block major version decreases | Prevent `v2.x.x` → `v1.0.0`        |
-| `numeric`            | Validate numeric ranges       | Ensure `replicaCount` between 2-10 |
-| `regex`              | Block pattern matches         | Reject production URLs in staging  |
+| Rule Type            | Purpose                       | Example Use Case                          |
+| -------------------- | ----------------------------- | ----------------------------------------- |
+| `semverMajorUpgrade` | Block major version increases | Prevent `v1.x.x` → `v2.0.0`               |
+| `semverDowngrade`    | Block any version downgrades  | Prevent `v1.3.2` → `v1.2.4`               |
+| `versionFormat`      | Enforce strict version format | Reject `1.2`, `1.2.3-rc`, require `1.2.3` |
+| `numeric`            | Validate numeric ranges       | Ensure `replicaCount` between 2-10        |
+| `regex`              | Block pattern matches         | Reject production URLs in staging         |
 
 #### Configuration Examples
 
@@ -803,7 +788,13 @@ stopRules:
   'svc/**/Chart.yaml':
     - type: 'semverDowngrade'
       path: 'version'
-      # Blocks: v2.1.0 → v1.9.9
+      # Blocks: v2.0.0 → v1.0.0 (major), v1.3.2 → v1.2.4 (minor), v1.2.5 → v1.2.3 (patch)
+
+    - type: 'versionFormat'
+      path: 'version'
+      vPrefix: 'forbidden'
+      # Blocks: 1.2 (incomplete), 1.2.3-rc (pre-release), v1.2.3 (has v-prefix)
+      # Accepts: 1.2.3 (strict major.minor.patch format)
 
   'svc/**/values.yaml':
     - type: 'numeric'
@@ -816,6 +807,12 @@ stopRules:
       path: 'image.tag'
       regex: "^v0\\."
       # Blocks: any tag starting with "v0."
+
+    - type: 'versionFormat'
+      path: 'image.tag'
+      vPrefix: 'required'
+      # Blocks: 1.2.3 (missing v-prefix), 1.2 (incomplete), v1.2.3-alpha (pre-release)
+      # Accepts: v1.2.3 (requires v-prefix)
 ```
 
 **Overriding Stop Rules:**

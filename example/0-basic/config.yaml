@@ -1,0 +1,29 @@
+# Basic configuration for syncing UAT → Production
+
+source: './source'
+destination: './destination'
+
+# Sync all YAML files
+include:
+  - '**/*.yaml'
+
+# Skip environment-specific paths - these won't be overwritten in destination
+skipPath:
+  '**/*.yaml':
+    - 'environment'
+    - 'cluster.name'
+
+# Transform UAT values to Production equivalents
+transforms:
+  '**/*.yaml':
+    content:
+      - find: 'uat-cluster'
+        replace: 'prod-cluster'
+      - find: 'uat\.'
+        replace: 'prod.'
+
+# Stop rules prevent dangerous changes
+stopRules:
+  '**/*.yaml':
+    - type: 'semverDowngrade'
+      path: 'image.tag'
