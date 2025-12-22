@@ -6,6 +6,7 @@ Demonstrates stop rule validation for dangerous changes, how violations are dete
 
 - **semverMajorUpgrade**: Block major version bumps (v1.x → v2.x)
 - **semverDowngrade**: Block any version downgrades (major: v2.0.0 → v1.0.0, minor: v1.3.2 → v1.2.4, patch: v1.2.5 → v1.2.3)
+- **versionFormat**: Enforce strict version format (major.minor.patch only, reject incomplete versions and pre-release identifiers)
 - **numeric**: Enforce value ranges (min/max)
 - **regex**: Block pattern matches (reject v0.x versions)
 
@@ -39,6 +40,12 @@ helm-env-delta --config example-2-stop-rules/config.yaml --dry-run --diff
    Path: chart.version
    Change: v2.1.0 → v1.2.3
    Message: Version downgrade detected (major downgrade)
+
+❌ File: destination/app-version.yaml
+   Rule: versionFormat
+   Path: app.releaseVersion
+   Change: 1.1.0 → 1.2-rc
+   Message: Version "1.2-rc" is incomplete. Expected format: major.minor.patch (e.g., "1.2.3"), got only 2 part(s)
 
 ❌ File: destination/scaling.yaml
    Rule: numeric (min: 2, max: 10)
@@ -101,6 +108,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --diff-json | jq '.stop
 1. **Stop Rules Prevent Dangerous Changes**:
    - Major version upgrades (breaking changes)
    - Version downgrades (regression)
+   - Invalid version formats (incomplete versions, pre-release identifiers)
    - Scaling beyond safe limits
    - Forbidden patterns (pre-release versions)
 
@@ -118,7 +126,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --diff-json | jq '.stop
 
 ## What You'll Learn
 
-- How to configure all 4 stop rule types
+- How to configure all 5 stop rule types (semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex)
 - What violations look like in console output
 - How violations block sync by default
 - When and how to use --force flag

@@ -18,6 +18,11 @@ stopRules:
     - type: 'semverDowngrade'
       path: 'chart.version'
 
+    # Enforce strict version format (major.minor.patch only, no pre-release)
+    - type: 'versionFormat'
+      path: 'app.releaseVersion'
+      vPrefix: 'forbidden'
+
   'scaling.yaml':
     # Enforce replica count limits
     - type: 'numeric'

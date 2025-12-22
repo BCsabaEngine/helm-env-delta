@@ -10,3 +10,5 @@ spec:
   chart:
     name: my-chart
     version: v2.1.0
+  app:
+    releaseVersion: 1.1.0
