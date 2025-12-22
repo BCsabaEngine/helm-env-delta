@@ -1,0 +1,19 @@
+environment: production
+image:
+  repository: myapp
+  tag: 0.9.0
+  pullPolicy: Always
+replicas: 2
+cluster:
+  name: prod-cluster
+  region: us-west-2
+database:
+  host: db.prod.example.com
+  port: 5432
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
