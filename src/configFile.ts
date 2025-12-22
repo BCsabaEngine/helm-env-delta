@@ -14,8 +14,8 @@ const semverMajorUpgradeRuleSchema = z.object({
 });
 
 /**
- * Validates semver major version downgrades.
- * Blocks changes that would decrement the major version (e.g., 2.x.x -> 1.0.0).
+ * Validates semver version downgrades.
+ * Blocks any version downgrade including major, minor, or patch (e.g., 2.0.0 -> 1.0.0, 1.3.2 -> 1.2.4, 1.0.5 -> 1.0.3).
  */
 const semverDowngradeRuleSchema = z.object({
   type: z.literal('semverDowngrade'),

@@ -201,19 +201,26 @@ const validateSemverDowngrade = (
   const oldVersion = String(oldValue);
   const updatedVersion = String(updatedValue);
 
-  const oldMajor = parseMajorVersion(oldVersion);
-  const updatedMajor = parseMajorVersion(updatedVersion);
+  const oldParsed = parseSemver(oldVersion);
+  const updatedParsed = parseSemver(updatedVersion);
 
-  if (oldMajor === undefined || updatedMajor === undefined) return undefined;
+  if (!oldParsed || !updatedParsed) return undefined;
 
-  if (updatedMajor < oldMajor)
+  // Compare versions: major, then minor, then patch
+  if (
+    updatedParsed.major < oldParsed.major ||
+    (updatedParsed.major === oldParsed.major && updatedParsed.minor < oldParsed.minor) ||
+    (updatedParsed.major === oldParsed.major &&
+      updatedParsed.minor === oldParsed.minor &&
+      updatedParsed.patch < oldParsed.patch)
+  )
     return {
       file: filePath,
       rule,
       path: rule.path,
       oldValue,
       updatedValue,
-      message: `Major version downgrade detected: ${oldVersion} → ${updatedVersion}`
+      message: `Version downgrade detected: ${oldVersion} → ${updatedVersion}`
     };
 
   return undefined;
@@ -294,4 +301,18 @@ const parseMajorVersion = (version: string): number | undefined => {
   if (!match || !match[1]) return undefined;
 
   return Number.parseInt(match[1], 10);
+};
+
+const parseSemver = (version: string): { major: number; minor: number; patch: number } | undefined => {
+  const cleaned = version.startsWith('v') ? version.slice(1) : version;
+
+  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(cleaned);
+
+  if (!match || !match[1] || !match[2] || !match[3]) return undefined;
+
+  return {
+    major: Number.parseInt(match[1], 10),
+    minor: Number.parseInt(match[2], 10),
+    patch: Number.parseInt(match[3], 10)
+  };
 };

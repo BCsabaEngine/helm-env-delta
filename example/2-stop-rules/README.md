@@ -5,7 +5,7 @@ Demonstrates stop rule validation for dangerous changes, how violations are dete
 ## What This Shows
 
 - **semverMajorUpgrade**: Block major version bumps (v1.x → v2.x)
-- **semverDowngrade**: Block version downgrades (v2.x → v1.x)
+- **semverDowngrade**: Block any version downgrades (major: v2.0.0 → v1.0.0, minor: v1.3.2 → v1.2.4, patch: v1.2.5 → v1.2.3)
 - **numeric**: Enforce value ranges (min/max)
 - **regex**: Block pattern matches (reject v0.x versions)
 
@@ -38,7 +38,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --dry-run --diff
    Rule: semverDowngrade
    Path: chart.version
    Change: v2.1.0 → v1.2.3
-   Message: Version downgrade detected
+   Message: Version downgrade detected (major downgrade)
 
 ❌ File: destination/scaling.yaml
    Rule: numeric (min: 2, max: 10)

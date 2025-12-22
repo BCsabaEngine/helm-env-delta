@@ -496,7 +496,7 @@ skipPath:
 | Rule Type            | Purpose                       | Example                 |
 | -------------------- | ----------------------------- | ----------------------- |
 | `semverMajorUpgrade` | Block major version increases | Prevent v1.x → v2.0     |
-| `semverDowngrade`    | Block version decreases       | Prevent v2.x → v1.0     |
+| `semverDowngrade`    | Block any version downgrades  | Prevent v1.3.2 → v1.2.4 |
 | `numeric`            | Validate number ranges        | Ensure replicas 2-10    |
 | `regex`              | Block pattern matches         | Reject pre-release tags |
 

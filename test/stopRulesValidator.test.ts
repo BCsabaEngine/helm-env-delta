@@ -227,7 +227,63 @@ describe('stopRulesValidator', () => {
       expect(result.violations[0]?.message).toContain('downgrade');
     });
 
-    it('should allow same major version', () => {
+    it('should detect minor version downgrade (1.3.2 → 1.2.4)', () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'test.yaml',
+            sourceContent: '',
+            destinationContent: '',
+            processedSourceContent: { version: '1.2.4' },
+            processedDestContent: { version: '1.3.2' },
+            rawParsedSource: {},
+            rawParsedDest: {}
+          }
+        ],
+        unchangedFiles: []
+      };
+
+      const stopRules = {
+        '*.yaml': [{ type: 'semverDowngrade' as const, path: 'version' }]
+      };
+
+      const result = validateStopRules(diffResult, stopRules);
+
+      expect(result.isValid).toBe(false);
+      expect(result.violations[0]?.message).toContain('downgrade');
+    });
+
+    it('should detect patch version downgrade (1.2.5 → 1.2.3)', () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'test.yaml',
+            sourceContent: '',
+            destinationContent: '',
+            processedSourceContent: { version: '1.2.3' },
+            processedDestContent: { version: '1.2.5' },
+            rawParsedSource: {},
+            rawParsedDest: {}
+          }
+        ],
+        unchangedFiles: []
+      };
+
+      const stopRules = {
+        '*.yaml': [{ type: 'semverDowngrade' as const, path: 'version' }]
+      };
+
+      const result = validateStopRules(diffResult, stopRules);
+
+      expect(result.isValid).toBe(false);
+      expect(result.violations[0]?.message).toContain('downgrade');
+    });
+
+    it('should allow version upgrades', () => {
       const diffResult = {
         addedFiles: [],
         deletedFiles: [],
@@ -238,6 +294,33 @@ describe('stopRulesValidator', () => {
             destinationContent: '',
             processedSourceContent: { version: '2.1.0' },
             processedDestContent: { version: '2.0.0' },
+            rawParsedSource: {},
+            rawParsedDest: {}
+          }
+        ],
+        unchangedFiles: []
+      };
+
+      const stopRules = {
+        '*.yaml': [{ type: 'semverDowngrade' as const, path: 'version' }]
+      };
+
+      const result = validateStopRules(diffResult, stopRules);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should allow same version', () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'test.yaml',
+            sourceContent: '',
+            destinationContent: '',
+            processedSourceContent: { version: '1.2.3' },
+            processedDestContent: { version: '1.2.3' },
             rawParsedSource: {},
             rawParsedDest: {}
           }

@@ -787,7 +787,7 @@ Validation rules that prevent dangerous changes from being applied.
 | Rule Type            | Purpose                       | Example Use Case                   |
 | -------------------- | ----------------------------- | ---------------------------------- |
 | `semverMajorUpgrade` | Block major version increases | Prevent `v1.x.x` → `v2.0.0`        |
-| `semverDowngrade`    | Block major version decreases | Prevent `v2.x.x` → `v1.0.0`        |
+| `semverDowngrade`    | Block any version downgrades  | Prevent `v1.3.2` → `v1.2.4`        |
 | `numeric`            | Validate numeric ranges       | Ensure `replicaCount` between 2-10 |
 | `regex`              | Block pattern matches         | Reject production URLs in staging  |
 
@@ -803,7 +803,7 @@ stopRules:
   'svc/**/Chart.yaml':
     - type: 'semverDowngrade'
       path: 'version'
-      # Blocks: v2.1.0 → v1.9.9
+      # Blocks: v2.0.0 → v1.0.0 (major), v1.3.2 → v1.2.4 (minor), v1.2.5 → v1.2.3 (patch)
 
   'svc/**/values.yaml':
     - type: 'numeric'
