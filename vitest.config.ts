@@ -7,14 +7,20 @@ export default defineConfig({
     include: ['test/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
+      reporter: ['text', 'html', 'lcov', 'json-summary'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.d.ts', 'dist/**', 'node_modules/**'],
+      exclude: [
+        'src/**/*.d.ts',
+        'dist/**',
+        'node_modules/**',
+        'src/utils/index.ts', // Barrel exports only
+        'src/index.ts' // Entry point, needs refactoring for testability
+      ],
       thresholds: {
-        lines: 60,
-        functions: 60,
-        branches: 60,
-        statements: 60
+        lines: 80,
+        functions: 95,
+        branches: 75,
+        statements: 80
       }
     }
   }
