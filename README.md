@@ -1292,7 +1292,7 @@ helm-env-delta --config config.yaml --diff-json | jq '.files.deleted'
 
 ### Reliability
 
-- **60%+ Test Coverage**: 429 comprehensive tests ensure stability
+- **84%+ Test Coverage**: 760 comprehensive tests across 28 test files ensure stability
 - **Error Handling**: Clear, actionable error messages
 - **Binary File Detection**: Safely handle non-text files
 
