@@ -14,7 +14,7 @@ npm run build         # Clean build
 npm run dev           # Run with tsx and example config
 npm run clean         # Clean build artifacts
 
-# Testing (60% minimum coverage enforced)
+# Testing (60% minimum coverage enforced, currently at 84%+)
 npm test              # Run all tests
 npm run test:watch    # Watch mode
 npm run test:coverage # Coverage report
@@ -116,7 +116,7 @@ Field-level detection with JSONPath (e.g., `$.image.tag`). Pipe to jq or save to
 
 **CI/CD:** Node 22.x/24.x, format → lint → build → test
 
-**Status:** Core features complete (CLI, config loading/merging/validation, file sync, content+filename transforms, stop rules, diff reports, dry-run, force, prune, automatic update notifications). 21 test files, 60%+ coverage.
+**Status:** Core features complete (CLI, config loading/merging/validation, file sync, content+filename transforms, stop rules, diff reports, dry-run, force, prune, automatic update notifications). 28 test files with 760 tests, 84%+ coverage.
 
 **BREAKING CHANGES:**
 
@@ -222,6 +222,18 @@ stopRules:
 **Mocking:** vi.mock at top, vi.clearAllMocks in beforeEach, vi.restoreAllMocks in afterEach
 
 **Guidelines:** Use undefined not null, descriptive names (error1 not e1), test happy + error paths, use type guards for error testing
+
+**Test Files (28 total, 760 tests):**
+
+Core modules: `commandLine.test.ts`, `configFile.test.ts`, `configLoader.test.ts`, `configMerger.test.ts`, `fileLoader.test.ts`, `fileDiff.test.ts`, `fileUpdater.test.ts`, `arrayDiffer.test.ts`, `yamlFormatter.test.ts`, `stopRulesValidator.test.ts`
+
+Reporters: `consoleDiffReporter.test.ts`, `jsonReporter.test.ts`, `htmlReporter.test.ts`, `consoleFormatter.test.ts`, `logger.test.ts`
+
+Utils: `utils/errors.test.ts`, `utils/fileType.test.ts`, `utils/diffGenerator.test.ts`, `utils/serialization.test.ts`, `utils/deepEqual.test.ts`, `utils/jsonPath.test.ts`, `utils/transformer.test.ts`, `utils/filenameTransformer.test.ts`, `utils/collisionDetector.test.ts`, `utils/versionChecker.test.ts`, `utils/index.test.ts`
+
+Integration: `index.test.ts`, `ZodError.test.ts`
+
+**Recent Additions (chore/tests branch):** Added 6 new test files (`ZodError.test.ts`, `configFile.test.ts`, `consoleDiffReporter.test.ts`, `fileLoader.test.ts`, `index.test.ts`, `utils/index.test.ts`) bringing total coverage from 60%+ to 84%+
 
 ## Key Design Patterns
 
