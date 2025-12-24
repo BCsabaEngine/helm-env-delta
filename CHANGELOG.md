@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2024-12-24
+
+### Fixed
+
+- Deep merge: Fixed critical bug where fields present in destination but not in source were not being deleted during sync. The `deepMerge` function now correctly removes fields from the destination when they don't exist in the source (unless they are in `skipPath`). This ensures that changes like removing `extraVolumeMounts` from source files properly propagate to destination files.
+- YAML formatting: Multi-line strings with embedded newlines are now properly preserved using YAML literal block scalar style (`|-`). Previously, strings like cronjob args with newlines were being reformatted incorrectly, causing repeated changes on every run.
+- YAML formatting: All YAML files now end with a trailing newline to match VSCode and other editor formatting conventions, preventing unnecessary format-only changes in git diffs.
+
 ## [1.3.1] - 2024-12-24
 
 ### Fixed

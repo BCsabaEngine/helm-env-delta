@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/helm-env-delta.svg)](https://www.npmjs.com/package/helm-env-delta)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org/)
-![Tests](https://img.shields.io/badge/tests-761%20passing-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-763%20passing-brightgreen.svg)
 ![Coverage](https://img.shields.io/badge/coverage-84%25-brightgreen.svg)
 
 **Environment-aware YAML delta and sync for GitOps workflows**
@@ -35,7 +35,6 @@ HelmEnvDelta (`helm-env-delta` or `hed`) is a CLI tool that safely synchronizes 
 - [Advanced Features](#advanced-features)
 - [Advantages & Benefits](#advantages--benefits)
 - [Real-World Configuration Examples](#real-world-configuration-examples)
-- [Mermaid Diagrams](#mermaid-diagrams)
 - [JSON Output Schema](#json-output-schema)
 - [Migration Guide](#migration-guide)
 - [Troubleshooting](#troubleshooting)
@@ -876,6 +875,7 @@ outputFormat:
 - **Better Diffs**: Format changes don't show up as content changes
 - **Readability**: Logical key ordering makes files easier to understand
 - **Safety**: Value quoting protects special characters
+- **VSCode Compatible**: Output includes trailing newlines and preserves multi-line strings to match VSCode formatting, preventing unnecessary git diffs
 
 ---
 
@@ -1294,7 +1294,7 @@ helm-env-delta --config config.yaml --diff-json | jq '.files.deleted'
 
 ### Reliability
 
-- **84%+ Test Coverage**: 761 comprehensive tests across 28 test files ensure stability
+- **84%+ Test Coverage**: 763 comprehensive tests across 28 test files ensure stability
 - **Error Handling**: Clear, actionable error messages
 - **Binary File Detection**: Safely handle non-text files
 
