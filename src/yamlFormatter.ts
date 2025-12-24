@@ -94,6 +94,9 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
     // Apply keySeparator
     if (outputFormat.keySeparator) result = applyKeySeparator(result, indent);
 
+    // Ensure trailing newline
+    if (!result.endsWith('\n')) result += '\n';
+
     return result;
   } catch (error) {
     const formatError = new YamlFormatterError('Failed to format YAML', {
