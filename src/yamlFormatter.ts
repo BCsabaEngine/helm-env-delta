@@ -33,6 +33,37 @@ const matchPatternConfig = <T>(filePath: string, patternConfig?: Record<string, 
   return matched;
 };
 
+const preserveMultilineStrings = (document_: Document): void => {
+  if (!document_.contents) return;
+
+  const traverse = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+
+    // Handle Scalar nodes
+    if ('value' in node && !('items' in node)) {
+      const scalar = node as Scalar;
+      if (typeof scalar.value === 'string' && scalar.value.includes('\n')) scalar.type = 'BLOCK_LITERAL';
+
+      return;
+    }
+
+    // Handle Maps and Sequences
+    if ('items' in node && Array.isArray((node as YAMLMap | YAMLSeq).items)) {
+      const items = (node as YAMLMap | YAMLSeq).items;
+
+      if (items.length > 0 && items[0] && typeof items[0] === 'object' && 'key' in items[0]) {
+        const map = node as YAMLMap;
+        for (const item of map.items) if (item.value) traverse(item.value);
+      } else {
+        const seq = node as YAMLSeq;
+        for (const item of seq.items) traverse(item);
+      }
+    }
+  };
+
+  traverse(document_.contents);
+};
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -53,12 +84,18 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
     // Apply value quoting
     if (outputFormat.quoteValues) applyValueQuoting(document_, filePath, outputFormat.quoteValues);
 
-    // Serialize with indent
+    // Preserve literal block scalars for multi-line strings
+    preserveMultilineStrings(document_);
+
+    // Serialize with indent and disable line wrapping
     const indent = outputFormat.indent ?? 2;
-    let result = document_.toString({ indent });
+    let result = document_.toString({ indent, lineWidth: 0 });
 
     // Apply keySeparator
     if (outputFormat.keySeparator) result = applyKeySeparator(result, indent);
+
+    // Ensure trailing newline
+    if (!result.endsWith('\n')) result += '\n';
 
     return result;
   } catch (error) {

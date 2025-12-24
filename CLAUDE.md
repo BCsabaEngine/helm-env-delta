@@ -116,7 +116,7 @@ Field-level detection with JSONPath (e.g., `$.image.tag`). Pipe to jq or save to
 
 **CI/CD:** Node 22.x/24.x, format → lint → build → test
 
-**Status:** Core features complete (CLI, config loading/merging/validation, file sync, content+filename transforms, stop rules, diff reports, dry-run, force, prune, automatic update notifications). 28 test files with 761 tests, 84%+ coverage.
+**Status:** Core features complete (CLI, config loading/merging/validation, file sync, content+filename transforms, stop rules, diff reports, dry-run, force, prune, automatic update notifications). 28 test files with 763 tests, 84%+ coverage.
 
 **BREAKING CHANGES:**
 
@@ -223,7 +223,7 @@ stopRules:
 
 **Guidelines:** Use undefined not null, descriptive names (error1 not e1), test happy + error paths, use type guards for error testing
 
-**Test Files (28 total, 761 tests):**
+**Test Files (28 total, 763 tests):**
 
 Core modules: `commandLine.test.ts`, `configFile.test.ts`, `configLoader.test.ts`, `configMerger.test.ts`, `fileLoader.test.ts`, `fileDiff.test.ts`, `fileUpdater.test.ts`, `arrayDiffer.test.ts`, `yamlFormatter.test.ts`, `stopRulesValidator.test.ts`
 
