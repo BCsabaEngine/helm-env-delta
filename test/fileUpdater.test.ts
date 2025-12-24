@@ -205,25 +205,25 @@ describe('fileUpdater', () => {
         changedFiles: [
           {
             path: 'values.yaml',
-            sourceContent: 'url: uat-db.internal',
-            destinationContent: 'url: old-db.internal\nversion: 1.0.0',
+            sourceContent: 'url: uat-db.internal\nversion: 1.0.0',
+            destinationContent: 'url: old-db.internal\nversion: 2.0.0',
             processedSourceContent: {},
             processedDestContent: {},
             rawParsedSource: { url: 'prod-db.internal' },
-            rawParsedDest: { url: 'old-db.internal', version: '1.0.0' }
+            rawParsedDest: { url: 'old-db.internal' }
           }
         ],
         unchangedFiles: []
       };
-      const source = new Map([['values.yaml', 'url: uat-db.internal']]);
-      const destination = new Map([['values.yaml', 'url: old-db.internal\nversion: 1.0.0']]);
+      const source = new Map([['values.yaml', 'url: uat-db.internal\nversion: 1.0.0']]);
+      const destination = new Map([['values.yaml', 'url: old-db.internal\nversion: 2.0.0']]);
       const config = { source: './src', destination: './dest' };
 
       await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
 
       expect(writeFile).toHaveBeenCalled();
       const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
-      expect(writtenContent).toContain('version: 1.0.0');
+      expect(writtenContent).toContain('version: 2.0.0');
       expect(writtenContent).toContain('prod-db.internal');
     });
 
@@ -253,8 +253,73 @@ describe('fileUpdater', () => {
       expect(writeFile).toHaveBeenCalled();
       const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(writtenContent).toContain('prod-v2.0.0');
-      expect(writtenContent).toContain('pullPolicy: Always');
+      expect(writtenContent).not.toContain('pullPolicy');
       expect(writtenContent).toContain('replicas: 3');
+    });
+
+    it('should delete fields that exist in destination but not in source', async () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: 'image:\n  tag: v1.0.0',
+            destinationContent: 'image:\n  tag: v1.0.0\nextraVolumeMounts:\n  - name: ca\n    mountPath: /opt/ca',
+            processedSourceContent: {},
+            processedDestContent: {},
+            rawParsedSource: { image: { tag: 'v1.0.0' } },
+            rawParsedDest: { image: { tag: 'v1.0.0' }, extraVolumeMounts: [{ name: 'ca', mountPath: '/opt/ca' }] }
+          }
+        ],
+        unchangedFiles: []
+      };
+      const source = new Map([['values.yaml', 'image:\n  tag: v1.0.0']]);
+      const destination = new Map([
+        ['values.yaml', 'image:\n  tag: v1.0.0\nextraVolumeMounts:\n  - name: ca\n    mountPath: /opt/ca']
+      ]);
+      const config = { source: './src', destination: './dest' };
+
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+      expect(writeFile).toHaveBeenCalled();
+      const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(writtenContent).toContain('tag: v1.0.0');
+      expect(writtenContent).not.toContain('extraVolumeMounts');
+      expect(writtenContent).not.toContain('mountPath');
+    });
+
+    it('should delete nested fields that exist in destination but not in source', async () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: 'microservice:\n  image:\n    tag: v2.0.0',
+            destinationContent:
+              'microservice:\n  image:\n    tag: v1.0.0\n    pullPolicy: Always\n  extraField: removed',
+            processedSourceContent: {},
+            processedDestContent: {},
+            rawParsedSource: { microservice: { image: { tag: 'v2.0.0' } } },
+            rawParsedDest: { microservice: { image: { tag: 'v1.0.0', pullPolicy: 'Always' }, extraField: 'removed' } }
+          }
+        ],
+        unchangedFiles: []
+      };
+      const source = new Map([['values.yaml', 'microservice:\n  image:\n    tag: v2.0.0']]);
+      const destination = new Map([
+        ['values.yaml', 'microservice:\n  image:\n    tag: v1.0.0\n    pullPolicy: Always\n  extraField: removed']
+      ]);
+      const config = { source: './src', destination: './dest' };
+
+      await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+      expect(writeFile).toHaveBeenCalled();
+      const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(writtenContent).toContain('tag: v2.0.0');
+      expect(writtenContent).not.toContain('pullPolicy');
+      expect(writtenContent).not.toContain('extraField');
     });
 
     it('should handle updates without transforms configured', async () => {

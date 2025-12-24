@@ -76,32 +76,45 @@ const ensureParentDirectory = async (filePath: string): Promise<void> => {
   }
 };
 
-const deepMerge = (target: unknown, source: unknown): unknown => {
+const deepMerge = (fullTarget: unknown, filteredSource: unknown, filteredTarget: unknown): unknown => {
   // Handle null/undefined cases
-  if (source === null || source === undefined) return target;
-  if (target === null || target === undefined) return source;
+  if (filteredSource === null || filteredSource === undefined) return fullTarget;
+  if (fullTarget === null || fullTarget === undefined) return filteredSource;
 
   // Type mismatch: replace with source
-  if (typeof target !== typeof source) return source;
+  if (typeof fullTarget !== typeof filteredSource) return filteredSource;
 
   // Arrays: Replace entirely (no element-by-element merge)
-  if (Array.isArray(source)) return source;
+  if (Array.isArray(filteredSource)) return filteredSource;
 
-  // Objects: Recursive merge
-  if (typeof source === 'object' && typeof target === 'object') {
-    const result = { ...target } as Record<string, unknown>;
+  // Objects: Merge with skipPath preservation
+  if (typeof filteredSource === 'object' && typeof fullTarget === 'object') {
+    const sourceObject = filteredSource as Record<string, unknown>;
+    const fullTargetObject = fullTarget as Record<string, unknown>;
+    const filteredTargetObject = (filteredTarget as Record<string, unknown>) || {};
+    const result = { ...sourceObject } as Record<string, unknown>;
 
-    for (const [key, value] of Object.entries(source as Record<string, unknown>))
-      result[key] = key in result ? deepMerge(result[key], value) : value;
+    // Add skipPath fields from full target (fields that were filtered out)
+    for (const [key, value] of Object.entries(fullTargetObject))
+      if (!(key in filteredTargetObject) && !(key in sourceObject)) result[key] = value;
+
+    // Recursively merge fields that exist in source
+    for (const [key, value] of Object.entries(sourceObject))
+      if (key in fullTargetObject) result[key] = deepMerge(fullTargetObject[key], value, filteredTargetObject[key]);
 
     return result;
   }
 
   // Primitives: Replace
-  return source;
+  return filteredSource;
 };
 
-const mergeYamlContent = (destinationContent: string, processedSourceContent: unknown, filePath: string): string => {
+const mergeYamlContent = (
+  destinationContent: string,
+  processedSourceContent: unknown,
+  filteredDestinationContent: unknown,
+  filePath: string
+): string => {
   // 1. Parse current destination (full, unfiltered)
   let destinationParsed: unknown;
   try {
@@ -124,7 +137,7 @@ const mergeYamlContent = (destinationContent: string, processedSourceContent: un
   // 2. Deep merge source changes into destination
   let merged: unknown;
   try {
-    merged = deepMerge(destinationParsed, processedSourceContent);
+    merged = deepMerge(destinationParsed, processedSourceContent, filteredDestinationContent);
   } catch (error) {
     throw new FileUpdaterError('Failed to merge YAML content', {
       code: 'YAML_MERGE_ERROR',
@@ -215,7 +228,12 @@ const updateFile = async (
   }
 
   let contentToWrite: string = isYamlFile(changedFile.path)
-    ? mergeYamlContent(changedFile.destinationContent, changedFile.rawParsedSource, changedFile.path)
+    ? mergeYamlContent(
+        changedFile.destinationContent,
+        changedFile.rawParsedSource,
+        changedFile.rawParsedDest,
+        changedFile.path
+      )
     : changedFile.sourceContent;
 
   if (isYamlFile(changedFile.path)) {
