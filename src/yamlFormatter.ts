@@ -376,20 +376,19 @@ const applyKeySeparator = (yamlString: string, indent: number): string => {
 
   const topLevelKeys = countTopLevelKeys(yamlString);
   const baseIndent = ' '.repeat(indent);
+  let hasSeenSecondLevelKey = false;
 
   for (const line of lines) {
     if (!line) continue;
 
     if (topLevelKeys > 1) {
       if (!line.startsWith(' ') && result.length > 0 && result.at(-1) !== '') result.push('');
-    } else if (
-      topLevelKeys === 1 &&
-      line.startsWith(baseIndent) &&
-      !line.startsWith(baseIndent + ' ') &&
-      result.length > 0 &&
-      result.at(-1) !== ''
-    )
-      result.push('');
+    } else if (topLevelKeys === 1 && line.startsWith(baseIndent) && !line.startsWith(baseIndent + ' ')) {
+      // Only add blank line if this is NOT the first second-level key
+      if (hasSeenSecondLevelKey && result.length > 0 && result.at(-1) !== '') result.push('');
+
+      hasSeenSecondLevelKey = true;
+    }
 
     result.push(line);
   }

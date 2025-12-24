@@ -50,7 +50,28 @@ metadata:
 
       const result = formatYaml(input, 'test.yaml', { indent: 2, keySeparator: true });
 
-      expect(result).toMatch(/name: my-app\n\n {2}namespace: default\n\n {2}labels:/);
+      // Should NOT have blank line after top-level key
+      expect(result).toMatch(/metadata:\n {2}name: my-app/);
+      // Should have blank lines BETWEEN second-level keys
+      expect(result).toMatch(/name: my-app\n\n {2}namespace: default/);
+      expect(result).toMatch(/namespace: default\n\n {2}labels:/);
+    });
+
+    it('should not add blank line before first second-level key with nested structure', () => {
+      const input = `microservice:
+  image:
+    repository: test
+    tag: v1.0.0
+  resources:
+    requests:
+      memory: 512Mi`;
+
+      const result = formatYaml(input, 'test.yaml', { indent: 2, keySeparator: true });
+
+      // No blank line after microservice:
+      expect(result).toMatch(/microservice:\n {2}image:/);
+      // Blank line between image and resources
+      expect(result).toMatch(/tag: v1\.0\.0\n\n {2}resources:/);
     });
 
     it('should not add blank lines when keySeparator is false', () => {
