@@ -86,7 +86,6 @@ npm run clean         # Clean build artifacts
 
 # Testing
 npm test              # Run all tests
-npm run test:watch    # Watch mode
 npm run test:coverage # Coverage report (60% minimum required)
 
 # Code Quality
@@ -269,9 +268,6 @@ describe('MyModule', () => {
 ```bash
 # Run all tests
 npm test
-
-# Watch mode (recommended during development)
-npm run test:watch
 
 # Coverage report
 npm run test:coverage

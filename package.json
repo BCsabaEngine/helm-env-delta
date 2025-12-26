@@ -31,8 +31,10 @@
   "scripts": {
     "dev": "tsx src/index.ts -c ./example.dev/config.yaml",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:perf": "vitest bench --run",
+    "test:perf:json": "vitest bench --run --reporter=json --outputFile=benchmark-results.json",
+    "test:all": "npm test && npm run test:perf",
     "clean": "tsc --build --clean",
     "build": "tsc --build --clean && tsc --build --force",
     "format:check": "prettier --check .",

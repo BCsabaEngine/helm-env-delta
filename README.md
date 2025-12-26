@@ -587,6 +587,46 @@ helm-env-delta --config config.yaml
 
 ---
 
+## Test Types
+
+HelmEnvDelta uses comprehensive testing to ensure reliability and performance:
+
+### Unit Tests (763 tests, 84%+ coverage)
+
+Functional correctness testing for all modules:
+
+```bash
+npm test              # Run all unit tests
+npm run test:coverage # Coverage report
+```
+
+**Coverage thresholds:** 80% lines, 95% functions, 75% branches
+
+### Performance Benchmarks (8 critical units)
+
+Performance regression testing for performance-sensitive operations:
+
+```bash
+npm run test:perf     # Run performance benchmarks
+```
+
+**Benchmarked operations:**
+
+- YAML parsing & comparison (100-1000 files)
+- Deep equality checks (nested objects, large arrays)
+- File loading & globbing (1K-100K files)
+- YAML formatting (50KB-5MB files)
+- Content transforms (regex, sequential application)
+- Array normalization (10-1000 elements)
+- Stop rules validation (semver, numeric, regex)
+- Deep merge operations (preserve skipped paths)
+
+**Thresholds:** 10x safety margin over local baselines for CI/CD stability.
+
+See `test/perf/` for detailed performance test implementation.
+
+---
+
 ## Use Cases
 
 ### 1. Multi-Environment Promotion (UAT → Production)

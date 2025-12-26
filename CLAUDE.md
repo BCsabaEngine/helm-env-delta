@@ -16,7 +16,6 @@ npm run clean         # Clean build artifacts
 
 # Testing (60% minimum coverage enforced, currently at 84%+)
 npm test              # Run all tests
-npm run test:watch    # Watch mode
 npm run test:coverage # Coverage report
 
 # Code Quality
@@ -234,6 +233,59 @@ Utils: `utils/errors.test.ts`, `utils/fileType.test.ts`, `utils/diffGenerator.te
 Integration: `index.test.ts`, `ZodError.test.ts`
 
 **Recent Additions (chore/tests branch):** Added 6 new test files (`ZodError.test.ts`, `configFile.test.ts`, `consoleDiffReporter.test.ts`, `fileLoader.test.ts`, `index.test.ts`, `utils/index.test.ts`) bringing total coverage from 60%+ to 84%+
+
+### Performance Tests
+
+Performance benchmarks measure critical operations to detect regressions and ensure scalability.
+
+**Structure:** `test/perf/**/*.perf.test.ts` (separate from unit tests)
+
+**Test Units (8 critical performance-sensitive modules):**
+
+1. **fileDiff.perf.test.ts** - YAML parsing & comparison pipeline (EXTREME criticality)
+2. **deepEqual.perf.test.ts** - Deep equality checks (VERY HIGH criticality)
+3. **fileLoader.perf.test.ts** - File loading & globbing (VERY HIGH criticality)
+4. **yamlFormatter.perf.test.ts** - YAML formatting (HIGH criticality)
+5. **transformer.perf.test.ts** - Content transforms (HIGH criticality)
+6. **serialization.perf.test.ts** - Array normalization (HIGH criticality)
+7. **stopRulesValidator.perf.test.ts** - Stop rules validation (MEDIUM-HIGH criticality)
+8. **fileUpdater.perf.test.ts** - File update & merge (MEDIUM-HIGH criticality)
+
+**Test Data Sizes:**
+
+- **Small:** 1KB files, 10 items (fast iteration)
+- **Medium:** 50KB files, 100 items (realistic production)
+- **Large:** 500KB-5MB files, 1000+ items (stress testing)
+
+**Thresholds:**
+
+- 10x safety margin over local baseline for CI/CD stability
+- Defined in `test/perf/thresholds.ts`
+- Validates mean time metrics
+
+**Running Performance Tests:**
+
+```bash
+# Run all performance benchmarks
+npm run test:perf
+
+# Run specific benchmark file
+npm run test:perf -- fileDiff.perf.test.ts
+
+# Generate JSON report
+npm run test:perf:json
+
+# Run both unit and performance tests
+npm run test:all
+```
+
+**Guidelines:**
+
+- Use Vitest's `bench()` API (not `it()` or `test()`)
+- Test realistic scenarios (not synthetic micro-benchmarks)
+- Isolate bottlenecks with dedicated sub-benchmarks
+- Always use `iterations` and `time` options for stable results
+- Pre-generate large test data to avoid measurement overhead
 
 ## Key Design Patterns
 
