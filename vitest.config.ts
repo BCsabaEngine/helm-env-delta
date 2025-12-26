@@ -4,7 +4,21 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/**/*.test.ts'],
+    include: ['test/**/*.test.ts', 'test/perf/**/*.perf.test.ts'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'test/perf/**/*.perf.test.ts' // Skip perf tests in regular test runs
+    ],
+
+    // Benchmark configuration for performance tests
+    benchmark: {
+      include: ['test/perf/**/*.perf.test.ts'],
+      exclude: ['test/perf/fixtures/**'],
+      reporters: ['verbose'],
+      outputFile: './benchmark-results.json'
+    },
+
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov', 'json-summary'],

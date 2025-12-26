@@ -49,7 +49,11 @@ helm-env-delta/
 │       └── jsonReporter.ts           # JSON output (CI/CD integration)
 ├── bin/
 │   └── index.js              # CLI entry point
-├── tests/                    # Mirrors src/ structure, 60%+ coverage enforced
+├── test/                     # Test suites
+│   ├── **/*.test.ts          # Unit tests (84%+ coverage)
+│   └── perf/                 # Performance benchmarks
+│       ├── fixtures/         # Test data generators (small/medium/realistic/large)
+│       └── **/*.perf.test.ts # Performance tests
 ├── examples/                 # Example configs
 ├── README.md                 # Comprehensive user guide
 ├── CLAUDE.md                 # Claude Code implementation guide
@@ -195,10 +199,26 @@ export const isMyModuleError = createErrorTypeGuard(MyModuleError);
 ### Testing
 
 - **Framework:** Vitest
-- **Coverage:** 60%+ minimum (enforced)
+- **Coverage:** 60%+ minimum (enforced), currently at 84%+
 - **Pattern:** Arrange-Act-Assert
 - **Structure:** `describe` / `it`
 - **Mocking:** `vi.mock` at top, `vi.clearAllMocks` in `beforeEach`, `vi.restoreAllMocks` in `afterEach`
+
+### Performance Testing
+
+- **Location:** `test/perf/**/*.perf.test.ts` (separate from unit tests)
+- **Critical Modules:** fileDiff (EXTREME), deepEqual (VERY HIGH), fileLoader (VERY HIGH), yamlFormatter (HIGH), transformer (HIGH), serialization (HIGH), stopRulesValidator (MEDIUM-HIGH), fileUpdater (MEDIUM-HIGH)
+- **Test Data Generator:** `test/perf/fixtures/dataGenerator.ts`
+  - Generates realistic Helm values, ArgoCD apps, and K8s manifests
+  - Size options: `small` (1-5KB), `medium` (10-50KB), `realistic` (100-200KB), `large` (500KB+)
+  - Complexity options: `flat`, `nested` (depth 5), `deep` (depth 10)
+  - Functions: `generateYaml()`, `generateFileMap()`, `generateObjectArray()`
+- **Thresholds:** Defined in `test/perf/thresholds.ts` with 10x safety margin for CI/CD stability
+- **Benchmark Configuration:** Use `{ iterations: 10, time: 1000 }` for stable results
+- **Commands:**
+  - `npm run test:perf` - Run all performance benchmarks
+  - `npm run test:perf:json` - Generate JSON report
+  - `npm run test:all` - Run both unit and performance tests
 
 ## Common Implementation Tasks
 
@@ -257,11 +277,18 @@ export const isMyModuleError = createErrorTypeGuard(MyModuleError);
 ## Development Commands
 
 ```bash
+# Building
 npm run build         # Clean build
 npm run dev           # Run with tsx and example config
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run test:coverage # Coverage report (60% minimum)
+
+# Testing
+npm test              # Run unit tests
+npm run test:coverage # Coverage report (84%+ current)
+npm run test:perf     # Run performance benchmarks
+npm run test:perf:json # Generate JSON benchmark report
+npm run test:all      # Run both unit and performance tests
+
+# Code Quality
 npm run fix           # Format + lint
 npm run all           # Fix + build + test (run before committing)
 ```
@@ -289,7 +316,8 @@ npm run all           # Fix + build + test (run before committing)
 ## Project Status
 
 - Core features complete
-- 60%+ test coverage with 20+ test files
+- 84%+ test coverage with 28 unit test files (763 tests) + 8 performance test files
+- Performance testing infrastructure with realistic workload benchmarks
 - Active development and maintenance
 - Breaking changes in v1.1.0: Transform format changed from array to object
 
