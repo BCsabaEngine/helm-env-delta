@@ -1,7 +1,6 @@
-import { isMatch } from 'picomatch';
-
 import type { TransformConfig, TransformRule } from '../configFile';
 import { createErrorClass, createErrorTypeGuard } from './errors';
+import { globalMatcher } from './patternMatcher';
 
 // ============================================================================
 // Error Handling
@@ -25,7 +24,7 @@ export const getTransformsForFile = (filePath: string, transforms?: TransformCon
   const allRules: TransformRule[] = [];
 
   for (const [pattern, transformRules] of Object.entries(transforms))
-    if (isMatch(filePath, pattern)) allRules.push(...(transformRules.content ?? []));
+    if (globalMatcher.match(filePath, pattern)) allRules.push(...(transformRules.content ?? []));
 
   return allRules;
 };
@@ -79,10 +78,13 @@ export const applyTransforms = (data: unknown, filePath: string, transforms?: Tr
       cause: error instanceof Error ? error : new Error(String(error))
     });
 
-    transformError.message += '\n\n  Hint: Common regex issues:';
-    transformError.message += '\n    - Unescaped special chars: use \\. for dots, \\[ for brackets';
-    transformError.message += '\n    - Invalid capture groups: ensure balanced parentheses';
-    transformError.message += '\n    - Test your pattern: https://regex101.com/';
+    const hints = [
+      '\n\n  Hint: Common regex issues:',
+      '\n    - Unescaped special chars: use \\. for dots, \\[ for brackets',
+      '\n    - Invalid capture groups: ensure balanced parentheses',
+      '\n    - Test your pattern: https://regex101.com/'
+    ].join('');
+    transformError.message += hints;
 
     throw transformError;
   }

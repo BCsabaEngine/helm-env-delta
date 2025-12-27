@@ -39,13 +39,27 @@ const deepEqualStructural = (a: unknown, b: unknown): boolean => {
     const objectA = a as Record<string, unknown>;
     const objectB = b as Record<string, unknown>;
 
-    const keysA = Object.keys(objectA).toSorted();
-    const keysB = Object.keys(objectB).toSorted();
+    const keysA = Object.keys(objectA);
+    const keysB = Object.keys(objectB);
 
     if (keysA.length !== keysB.length) return false;
 
-    for (const [index, key] of keysA.entries()) {
-      if (!key || key !== keysB[index]) return false;
+    // Fast path for small objects (1-2 keys) - skip sorting overhead
+    if (keysA.length <= 2) {
+      const keySetB = new Set(keysB);
+      for (const key of keysA) {
+        if (!keySetB.has(key)) return false;
+        if (!deepEqualStructural(objectA[key], objectB[key])) return false;
+      }
+      return true;
+    }
+
+    // For larger objects, use sorting for correctness
+    const sortedKeysA = keysA.toSorted();
+    const sortedKeysB = keysB.toSorted();
+
+    for (const [index, key] of sortedKeysA.entries()) {
+      if (!key || key !== sortedKeysB[index]) return false;
       if (!deepEqualStructural(objectA[key], objectB[key])) return false;
     }
 

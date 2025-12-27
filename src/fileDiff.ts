@@ -1,4 +1,3 @@
-import { isMatch } from 'picomatch';
 import YAML from 'yaml';
 
 import { Config, TransformConfig } from './configFile';
@@ -7,6 +6,7 @@ import { deepEqual } from './utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
 import { parseJsonPath } from './utils/jsonPath';
+import { globalMatcher } from './utils/patternMatcher';
 import { normalizeForComparison } from './utils/serialization';
 import { applyTransforms } from './utils/transformer';
 
@@ -97,6 +97,7 @@ const deleteJsonPath = (object: Record<string, unknown>, path: string): void => 
 
 const applySkipPaths = (data: unknown, skipPaths: string[]): unknown => {
   if (!data || typeof data !== 'object') return data;
+  if (skipPaths.length === 0) return data; // Early return avoids expensive clone
 
   const cloned = structuredClone(data) as Record<string, unknown>;
 
@@ -110,7 +111,8 @@ export const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, 
 
   const pathsToSkip: string[] = [];
 
-  for (const [pattern, paths] of Object.entries(skipPath)) if (isMatch(filePath, pattern)) pathsToSkip.push(...paths);
+  for (const [pattern, paths] of Object.entries(skipPath))
+    if (globalMatcher.match(filePath, pattern)) pathsToSkip.push(...paths);
 
   return pathsToSkip;
 };
@@ -134,9 +136,12 @@ const processYamlFile = (
       cause: error instanceof Error ? error : undefined
     });
 
-    parseError.message += '\n\n  Hint: YAML syntax error in source file:';
-    parseError.message += '\n    - Validate at: https://www.yamllint.com/';
-    parseError.message += '\n    - Common issues: incorrect indentation, missing quotes, invalid characters';
+    const hints = [
+      '\n\n  Hint: YAML syntax error in source file:',
+      '\n    - Validate at: https://www.yamllint.com/',
+      '\n    - Common issues: incorrect indentation, missing quotes, invalid characters'
+    ].join('');
+    parseError.message += hints;
 
     throw parseError;
   }
@@ -150,9 +155,12 @@ const processYamlFile = (
       cause: error instanceof Error ? error : undefined
     });
 
-    parseError.message += '\n\n  Hint: YAML syntax error in destination file:';
-    parseError.message += '\n    - Validate at: https://www.yamllint.com/';
-    parseError.message += '\n    - Common issues: incorrect indentation, missing quotes, invalid characters';
+    const destinationHints = [
+      '\n\n  Hint: YAML syntax error in destination file:',
+      '\n    - Validate at: https://www.yamllint.com/',
+      '\n    - Common issues: incorrect indentation, missing quotes, invalid characters'
+    ].join('');
+    parseError.message += destinationHints;
 
     throw parseError;
   }
