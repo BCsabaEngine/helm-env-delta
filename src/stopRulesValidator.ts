@@ -1,9 +1,8 @@
-import { isMatch } from 'picomatch';
-
 import { StopRule } from './configFile';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { getValueAtPath, parseJsonPath } from './utils/jsonPath';
+import { globalMatcher } from './utils/patternMatcher';
 
 // ============================================================================
 // Error Handling
@@ -125,7 +124,7 @@ const getApplicableRules = (filePath: string, stopRulesConfig: Record<string, St
   const rules: StopRule[] = [];
 
   for (const [pattern, ruleList] of Object.entries(stopRulesConfig))
-    if (isMatch(filePath, pattern)) rules.push(...ruleList);
+    if (globalMatcher.match(filePath, pattern)) rules.push(...ruleList);
 
   return rules;
 };

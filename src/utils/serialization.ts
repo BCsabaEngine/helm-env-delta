@@ -25,11 +25,13 @@ export const normalizeForComparison = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     const normalized = value.map((item) => normalizeForComparison(item));
 
-    return normalized.toSorted((a, b) => {
-      const stringA = YAML.stringify(a, { sortMapEntries: true });
-      const stringB = YAML.stringify(b, { sortMapEntries: true });
-      return stringA.localeCompare(stringB);
-    });
+    // Cache serialized values to avoid redundant YAML.stringify calls during sort
+    const serializedItems = normalized.map((item) => ({
+      item,
+      serialized: YAML.stringify(item, { sortMapEntries: true }) ?? ''
+    }));
+
+    return serializedItems.toSorted((a, b) => a.serialized.localeCompare(b.serialized)).map(({ item }) => item);
   }
 
   if (typeof value === 'object') {

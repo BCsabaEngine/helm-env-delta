@@ -16,6 +16,9 @@ export { getValueAtPath, parseJsonPath } from './jsonPath';
 // File utilities
 export { isYamlFile } from './fileType';
 
+// Pattern matching utilities
+export { globalMatcher, PatternMatcher } from './patternMatcher';
+
 // Diff utilities
 export { generateUnifiedDiff } from './diffGenerator';
 

@@ -1,12 +1,12 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
-import { isMatch } from 'picomatch';
 import { glob } from 'tinyglobby';
 
 import type { TransformConfig } from './configFile';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { transformFilename, transformFilenameMap } from './utils/filenameTransformer';
+import { globalMatcher } from './utils/patternMatcher';
 
 // Types
 export interface FileLoaderOptions {
@@ -121,10 +121,10 @@ const findMatchingFiles = async (
       const relativePath = path.relative(baseDirectory, absolutePath);
       const transformedPath = transformFilename(relativePath, transforms);
 
-      const included = includePatterns.some((pattern) => isMatch(transformedPath, pattern));
+      const included = includePatterns.some((pattern) => globalMatcher.match(transformedPath, pattern));
       if (!included) continue;
 
-      const excluded = excludePatterns.some((pattern) => isMatch(transformedPath, pattern));
+      const excluded = excludePatterns.some((pattern) => globalMatcher.match(transformedPath, pattern));
       if (excluded) continue;
 
       filtered.push(absolutePath);
@@ -146,7 +146,10 @@ const readFilesIntoMap = async (baseDirectory: string, absoluteFilePaths: string
     try {
       const content = await readFile(absolutePath, 'utf8');
 
-      if (content.includes('\0')) {
+      // Check only first 2KB for null bytes (binary files typically have them early)
+      const sampleSize = Math.min(content.length, 2048);
+      const sample = content.slice(0, sampleSize);
+      if (sample.includes('\0')) {
         const binaryError = new FileLoaderError('Binary file detected', {
           code: 'ENOTSUP',
           path: absolutePath

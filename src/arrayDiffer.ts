@@ -14,15 +14,27 @@ export interface ArrayDiffResult {
 // Array Diffing Functions
 // ============================================================================
 
+// Cache YAML serialization to avoid redundant stringify calls
 const serialize = (item: unknown) => YAML.stringify(item, { sortMapEntries: true });
 
 export const diffArrays = (sourceArray: unknown[], destinationArray: unknown[]): ArrayDiffResult => {
+  // Pre-serialize all items to avoid redundant YAML.stringify calls
+  const sourceSerializedItems = sourceArray.map((item) => ({
+    item,
+    serialized: serialize(item)
+  }));
+
+  const destinationSerializedItems = destinationArray.map((item) => ({
+    item,
+    serialized: serialize(item)
+  }));
+
   const sourceSet = new Map<string, unknown>();
   const destinationSet = new Map<string, unknown>();
 
-  for (const item of sourceArray) sourceSet.set(serialize(item), item);
+  for (const { item, serialized } of sourceSerializedItems) sourceSet.set(serialized, item);
 
-  for (const item of destinationArray) destinationSet.set(serialize(item), item);
+  for (const { item, serialized } of destinationSerializedItems) destinationSet.set(serialized, item);
 
   const added: unknown[] = [];
   const removed: unknown[] = [];

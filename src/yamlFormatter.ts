@@ -1,9 +1,9 @@
-import { isMatch } from 'picomatch';
 import YAML, { Document, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
 
 import { ArraySortRule, OutputFormat } from './configFile';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { parseJsonPath } from './utils/jsonPath';
+import { globalMatcher } from './utils/patternMatcher';
 
 // ============================================================================
 // Error Handling
@@ -23,14 +23,40 @@ export const isYamlFormatterError = createErrorTypeGuard(YamlFormatterError);
 // Helper Functions
 // ============================================================================
 
-const matchPatternConfig = <T>(filePath: string, patternConfig?: Record<string, T>): T[] => {
-  if (!patternConfig) return [];
+// Batch all pattern matching in a single pass for better performance
+const getFormattingRules = (
+  filePath: string,
+  outputFormat: OutputFormat
+): {
+  keyOrders: string[][];
+  arraySort: ArraySortRule[][];
+  quoteValues: string[][];
+} => {
+  const keyOrders: string[][] = [];
+  const arraySort: ArraySortRule[][] = [];
+  const quoteValues: string[][] = [];
 
-  const matched: T[] = [];
+  // Get all unique patterns from all three configs
+  const allPatterns = new Set<string>();
+  if (outputFormat?.keyOrders) for (const pattern of Object.keys(outputFormat.keyOrders)) allPatterns.add(pattern);
+  if (outputFormat?.arraySort) for (const pattern of Object.keys(outputFormat.arraySort)) allPatterns.add(pattern);
+  if (outputFormat?.quoteValues) for (const pattern of Object.keys(outputFormat.quoteValues)) allPatterns.add(pattern);
 
-  for (const [pattern, value] of Object.entries(patternConfig)) if (isMatch(filePath, pattern)) matched.push(value);
+  // Single pass through all patterns
+  for (const pattern of allPatterns) {
+    if (!globalMatcher.match(filePath, pattern)) continue;
 
-  return matched;
+    const keyOrder = outputFormat?.keyOrders?.[pattern];
+    if (keyOrder) keyOrders.push(keyOrder);
+
+    const arrayRule = outputFormat?.arraySort?.[pattern];
+    if (arrayRule) arraySort.push(arrayRule);
+
+    const quoteValue = outputFormat?.quoteValues?.[pattern];
+    if (quoteValue) quoteValues.push(quoteValue);
+  }
+
+  return { keyOrders, arraySort, quoteValues };
 };
 
 const preserveMultilineStrings = (document_: Document): void => {
@@ -75,14 +101,13 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
   try {
     const document_ = YAML.parseDocument(content);
 
-    // Apply key ordering
-    if (outputFormat.keyOrders) applyKeyOrdering(document_, filePath, outputFormat.keyOrders);
+    // Batch all pattern matching in a single pass for better performance
+    const rules = getFormattingRules(filePath, outputFormat);
 
-    // Apply array sorting
-    if (outputFormat.arraySort) applyArraySorting(document_, filePath, outputFormat.arraySort);
-
-    // Apply value quoting
-    if (outputFormat.quoteValues) applyValueQuoting(document_, filePath, outputFormat.quoteValues);
+    // Apply formatting rules (only if they matched)
+    if (rules.keyOrders.length > 0) applyKeyOrdering(document_, rules.keyOrders);
+    if (rules.arraySort.length > 0) applyArraySorting(document_, rules.arraySort);
+    if (rules.quoteValues.length > 0) applyValueQuoting(document_, rules.quoteValues);
 
     // Preserve literal block scalars for multi-line strings
     preserveMultilineStrings(document_);
@@ -118,8 +143,7 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
 // Key Ordering
 // ============================================================================
 
-const applyKeyOrdering = (document_: Document, filePath: string, keyOrdersConfig: Record<string, string[]>): void => {
-  const orderLists = matchPatternConfig(filePath, keyOrdersConfig);
+const applyKeyOrdering = (document_: Document, orderLists: string[][]): void => {
   if (orderLists.length === 0) return;
 
   const allOrders = orderLists.flat();
@@ -198,12 +222,7 @@ const applyOrderingToMap = (map: YAMLMap, currentPath: string[], orderHierarchy:
 // Value Quoting
 // ============================================================================
 
-const applyValueQuoting = (
-  document_: Document,
-  filePath: string,
-  quoteValuesConfig: Record<string, string[]>
-): void => {
-  const quoteLists = matchPatternConfig(filePath, quoteValuesConfig);
+const applyValueQuoting = (document_: Document, quoteLists: string[][]): void => {
   if (quoteLists.length === 0) return;
 
   const allPaths = quoteLists.flat();
@@ -278,12 +297,7 @@ const quoteScalar = (scalar: Scalar): void => {
 // Array Sorting
 // ============================================================================
 
-const applyArraySorting = (
-  document_: Document,
-  filePath: string,
-  arraySortConfig: Record<string, ArraySortRule[]>
-): void => {
-  const sortRules = matchPatternConfig(filePath, arraySortConfig);
+const applyArraySorting = (document_: Document, sortRules: ArraySortRule[][]): void => {
   if (sortRules.length === 0) return;
 
   const allRules = sortRules.flat();
