@@ -8,36 +8,15 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   check:
-    name: Source Revision
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [24.x, 22.x]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Run Format Check
-        run: npm run format:check
-
-      - name: Run Lint Check
-        run: npm run lint:check
-
-      - name: Build
-        run: npm run build
-
-      - name: Run Tests
-        run: npm run test
+    uses: ./.github/workflows/check.yaml
+    with:
+      upload-artifacts: true
 
   tag:
     name: Version tag
@@ -63,17 +42,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-node-22.x
+          path: dist/
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
 
       - name: Publish
         run: npm publish
