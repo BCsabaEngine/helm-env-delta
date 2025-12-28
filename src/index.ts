@@ -1,7 +1,15 @@
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import path from 'node:path';
+
+import chalk from 'chalk';
+import * as YAML from 'yaml';
+
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
 import { loadConfigFile } from './configLoader';
 import { isConfigMergerError } from './configMerger';
+import { validateConfigWarnings } from './configWarnings';
 import { showConsoleDiff } from './consoleDiffReporter';
 import { formatProgressMessage } from './consoleFormatter';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
@@ -24,6 +32,9 @@ const main = async (): Promise<void> => {
   // Parse command-line arguments
   const command = parseCommandLine();
 
+  // Disable colors if --no-color flag is set
+  if (command.noColor) chalk.level = 0;
+
   // Create logger based on verbosity flags
   const verbosityLevel: VerbosityLevel = command.verbose ? 'verbose' : command.quiet ? 'quiet' : 'normal';
   const logger = new Logger({ level: verbosityLevel, isDiffJson: command.diffJson });
@@ -31,12 +42,45 @@ const main = async (): Promise<void> => {
   // Display application header
   logger.log(`Now you run ${packageJson.name} v${packageJson.version}...`);
 
+  // Check for first-run and display tips
+  const configDirectory = path.join(homedir(), '.helm-env-delta');
+  const firstRunMarker = path.join(configDirectory, 'first-run');
+  const isFirstRun = !existsSync(firstRunMarker);
+
+  if (isFirstRun && !command.quiet) {
+    console.log(chalk.cyan('\n👋 First time using helm-env-delta?\n'));
+    console.log(chalk.dim('  Tips:'));
+    console.log(chalk.dim('  • Always use --dry-run first to preview changes'));
+    console.log(chalk.dim('  • Use --diff-html to review diffs in your browser'));
+    console.log(chalk.dim('  • See examples: https://github.com/balazscsaba2006/helm-env-delta/tree/main/example'));
+    console.log(chalk.dim('  • Run with --help to see all options\n'));
+
+    // Create marker directory and file
+    mkdirSync(configDirectory, { recursive: true });
+    writeFileSync(firstRunMarker, new Date().toISOString());
+  }
+
   // Load and validate config
   const config = loadConfigFile(command.config, command.quiet, logger);
+
+  // Early exit for show-config mode
+  if (command.showConfig) {
+    console.log(chalk.cyan('\n⚙️  Resolved Configuration:\n'));
+    console.log(YAML.stringify(config, { indent: 2 }));
+    return;
+  }
 
   // Early exit for validation-only mode
   if (command.validate) {
     logger.log('\n' + formatProgressMessage('Configuration is valid', 'success'));
+
+    // Check for non-fatal warnings
+    const warnings = validateConfigWarnings(config);
+    if (warnings.length > 0) {
+      console.warn(chalk.yellow('\n⚠️  Validation Warnings (non-fatal):\n'));
+      for (const warning of warnings) console.warn(chalk.yellow(`  • ${warning}`));
+    }
+
     return;
   }
 
@@ -80,6 +124,21 @@ const main = async (): Promise<void> => {
   );
   logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
 
+  // Early exit for list-files mode
+  if (command.listFiles) {
+    const sourceFilesList = [...sourceFiles.keys()].toSorted();
+    const destinationFilesList = [...destinationFiles.keys()].toSorted();
+
+    console.log(chalk.cyan('\n📋 Files to be synced:\n'));
+    console.log(chalk.green(`Source files: ${sourceFilesList.length}`));
+    for (const file of sourceFilesList) console.log(`  ${chalk.dim(file)}`);
+
+    console.log(chalk.yellow(`\nDestination files: ${destinationFilesList.length}`));
+    for (const file of destinationFilesList) console.log(`  ${chalk.dim(file)}`);
+
+    return;
+  }
+
   // Compute file differences
   logger.log('\n' + formatProgressMessage('Computing differences...', 'info'));
   const diffResult = computeFileDiff(sourceFiles, destinationFiles, config, logger);
@@ -107,6 +166,27 @@ const main = async (): Promise<void> => {
       logger.error('\nUse --force to override stop rules or --dry-run to preview changes.', 'critical');
       process.exit(1);
     }
+
+  // Show pre-execution summary (only in non-dry-run, non-quiet mode)
+  if (!command.dryRun && !command.quiet) {
+    console.log(chalk.cyan('\n📊 Sync Summary:'));
+    console.log(chalk.dim('─'.repeat(60)));
+    console.log(`  ${chalk.green('Added:')}     ${diffResult.addedFiles.length} files`);
+    console.log(`  ${chalk.yellow('Changed:')}   ${diffResult.changedFiles.length} files`);
+    console.log(
+      `  ${chalk.red('Deleted:')}   ${diffResult.deletedFiles.length} files (${config.prune ? 'prune enabled' : 'prune disabled'})`
+    );
+    console.log(`  ${chalk.blue('Unchanged:')} ${diffResult.unchangedFiles.length} files`);
+    console.log(chalk.dim('─'.repeat(60)));
+
+    if (diffResult.deletedFiles.length > 0 && config.prune)
+      console.warn(chalk.red('⚠️  Warning: Prune is enabled. Files will be permanently deleted!'));
+
+    console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
+
+    // 2-second pause to let user cancel
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
 
   // Update files
   const formattedFiles = await updateFiles(

@@ -17,6 +17,9 @@ export type SyncCommand = {
   validate: boolean;
   verbose: boolean;
   quiet: boolean;
+  listFiles: boolean;
+  showConfig: boolean;
+  noColor: boolean;
 };
 
 // ============================================================================
@@ -38,8 +41,33 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--diff-json', 'Output diff as JSON to stdout', false)
     .option('--skip-format', 'Skip YAML formatting (outputFormat section)', false)
     .option('--validate', 'Validate configuration file and exit', false)
+    .option('--list-files', 'List files that would be synced without processing diffs', false)
+    .option('--show-config', 'Display resolved configuration after inheritance and exit', false)
+    .option('--no-color', 'Disable colored output')
     .option('--verbose', 'Show detailed debug information', false)
-    .option('--quiet', 'Suppress all output except critical errors', false);
+    .option('--quiet', 'Suppress all output except critical errors', false)
+    .addHelpText(
+      'after',
+      `
+Examples:
+  # Preview changes before syncing
+  $ helm-env-delta --config config.yaml --dry-run --diff
+
+  # Sync with HTML diff report
+  $ helm-env-delta --config config.yaml --diff-html
+
+  # Validate stop rules without syncing
+  $ helm-env-delta --config config.yaml --validate
+
+  # CI/CD usage with JSON output
+  $ helm-env-delta --config config.yaml --diff-json | jq '.summary'
+
+Documentation: https://github.com/balazscsaba2006/helm-env-delta
+`
+    );
+
+  // Enable suggestion for typos (built-in commander feature)
+  program.showSuggestionAfterError(true);
 
   program.parse(argv || process.argv);
   const options = program.opts();
@@ -59,6 +87,9 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     diffJson: options['diffJson'],
     skipFormat: options['skipFormat'],
     validate: options['validate'],
+    listFiles: options['listFiles'],
+    showConfig: options['showConfig'],
+    noColor: !options['color'], // Commander's --no-color creates a 'color' property
     verbose: options['verbose'],
     quiet: options['quiet']
   };

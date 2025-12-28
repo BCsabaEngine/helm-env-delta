@@ -48,6 +48,10 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 📊 **Multiple Reports** - Console, HTML (visual), and JSON (CI/CD) output formats.
 
+🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with warnings.
+
+🛡️ **Safety First** - Pre-execution summary, first-run tips, improved error messages with helpful examples.
+
 ⚡ **High Performance** - 45-60% faster than alternatives with intelligent caching and parallel processing.
 
 🔔 **Auto Updates** - Notifies when newer versions are available (skips in CI/CD).
@@ -411,24 +415,33 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag              | Description                                   |
-| ----------------- | --------------------------------------------- |
-| `--config <path>` | **Required** - Configuration file             |
-| `--validate`      | Validate config and exit (no file operations) |
-| `--dry-run`       | Preview changes without writing files         |
-| `--force`         | Override stop rules                           |
-| `--diff`          | Show console diff                             |
-| `--diff-html`     | Generate HTML report (opens in browser)       |
-| `--diff-json`     | Output JSON to stdout (pipe to jq)            |
-| `--skip-format`   | Skip YAML formatting                          |
-| `--verbose`       | Show detailed debug info                      |
-| `--quiet`         | Suppress output except errors                 |
+| Flag              | Description                                      |
+| ----------------- | ------------------------------------------------ |
+| `--config <path>` | **Required** - Configuration file                |
+| `--validate`      | Validate config and exit (shows warnings)        |
+| `--dry-run`       | Preview changes without writing files            |
+| `--force`         | Override stop rules                              |
+| `--diff`          | Show console diff                                |
+| `--diff-html`     | Generate HTML report (opens in browser)          |
+| `--diff-json`     | Output JSON to stdout (pipe to jq)               |
+| `--list-files`    | List source/destination files without processing |
+| `--show-config`   | Display resolved config after inheritance        |
+| `--skip-format`   | Skip YAML formatting                             |
+| `--no-color`      | Disable colored output (CI/accessibility)        |
+| `--verbose`       | Show detailed debug info                         |
+| `--quiet`         | Suppress output except errors                    |
 
 ### Examples
 
 ```bash
-# Validate configuration
+# Validate configuration (shows warnings)
 hed --config config.yaml --validate
+
+# Preview files that will be synced
+hed --config config.yaml --list-files
+
+# Display resolved config (after inheritance)
+hed --config config.yaml --show-config
 
 # Preview with diff
 hed --config config.yaml --dry-run --diff
@@ -436,8 +449,8 @@ hed --config config.yaml --dry-run --diff
 # Visual HTML report
 hed --config config.yaml --diff-html
 
-# CI/CD integration
-hed --config config.yaml --diff-json | jq '.summary'
+# CI/CD integration (no colors)
+hed --config config.yaml --diff-json --no-color | jq '.summary'
 
 # Execute sync
 hed --config config.yaml
@@ -514,7 +527,7 @@ git push origin main
 
 ✅ **Flexibility** - Per-file patterns. Config inheritance. Regex transforms.
 
-✅ **Reliability** - 763 tests, 84% coverage. Battle-tested.
+✅ **Reliability** - 787 tests, 84% coverage. Battle-tested.
 
 ---
 
