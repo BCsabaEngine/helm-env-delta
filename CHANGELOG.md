@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2024-12-28
+
+### Added
+
+- File discovery preview: New `--list-files` flag shows which files will be processed before running sync operations. Perfect for verifying your glob patterns match the right files without processing diffs.
+- Configuration display: New `--show-config` flag displays your complete configuration after all inheritance and merging is applied. Useful for understanding how config files combine and troubleshooting complex setups.
+- Color control: New `--no-color` flag disables colored output for CI/CD environments, accessibility tools, or when piping output to files.
+
+### Changed
+
+- Enhanced validation: The `--validate` flag now shows helpful warnings for common configuration issues like inefficient glob patterns, duplicate entries, conflicting rules, and empty arrays.
+- Improved help text: Command help now includes practical usage examples for common workflows.
+- Better error messages: More helpful suggestions when commands are mistyped (e.g., suggests `--dry-run` when you type `--dryrun`).
+
 ## [1.3.3] - 2024-12-27
 
 ### Changed
