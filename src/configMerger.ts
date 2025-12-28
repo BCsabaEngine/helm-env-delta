@@ -234,8 +234,16 @@ export const resolveConfigWithExtends = (
       const errorCode = (error as NodeJS.ErrnoException).code;
       if (errorCode === 'ENOENT') {
         readError.message += '\n\n  Hint: Config file not found:';
-        readError.message += '\n    - Check the file path is correct';
-        readError.message += '\n    - Use absolute path or path relative to current directory';
+        readError.message += '\n    - Check the file path is correct (use --config path/to/config.yaml)';
+        readError.message +=
+          '\n    - See examples at: https://github.com/balazscsaba2006/helm-env-delta/tree/main/example';
+        readError.message += '\n    - Start with the basic example: example/0-basic/config.yaml';
+        readError.message += '\n    - Or create a minimal config:';
+        readError.message += '\n';
+        readError.message += '\n      source: ./source-dir';
+        readError.message += '\n      destination: ./dest-dir';
+        readError.message += '\n      skipPath:';
+        readError.message += '\n        "**/*": ["$.metadata.labels"]';
       } else if (errorCode === 'EACCES') {
         readError.message += '\n\n  Hint: Permission denied:';
         readError.message += `\n    - Check file permissions: ls -la ${absolutePath}`;
