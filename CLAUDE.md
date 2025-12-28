@@ -17,10 +17,10 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # CLI
-helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--verbose] [--quiet]
+helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--verbose`/`--quiet` (output control)
+**Key Flags:** `--config` (required), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
 
 ## Architecture
 
@@ -28,9 +28,10 @@ helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] 
 
 **Core Modules:**
 
-- `commandLine.ts` - CLI parsing (commander)
+- `commandLine.ts` - CLI parsing (commander), help examples, flag validation
 - `configFile.ts` - Zod validation (BaseConfig/FinalConfig)
 - `configLoader.ts` / `configMerger.ts` - YAML loading, inheritance (max 5 levels)
+- `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts, empty arrays)
 - `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map)
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → skipPath → normalize → deepEqual)
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
@@ -57,7 +58,7 @@ helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] 
 - **ESLint:** unicorn/no-null, prevent-abbreviations, consistent-function-scoping, simple-import-sort
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x, format → lint → build → test
-- **Status:** 28 test files, 763 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Status:** 29 test files, 787 tests, 84%+ coverage, 45-60% faster (v1.3.3)
 
 ## Utilities (`src/utils/`)
 
@@ -125,9 +126,9 @@ Example: Helm charts use `vPrefix: 'forbidden'` (1.2.3), Docker tags use `vPrefi
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**28 test files, 763 tests:**
+**29 test files, 787 tests:**
 
-- Core: commandLine, configFile, configLoader, configMerger, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
+- Core: commandLine, configFile, configLoader, configMerger, configWarnings, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
 - Reporters: consoleDiffReporter, jsonReporter, htmlReporter, consoleFormatter, logger
 - Utils: errors, fileType, diffGenerator, serialization, deepEqual, jsonPath, transformer, filenameTransformer, collisionDetector, versionChecker, index
 - Integration: index, ZodError
@@ -143,6 +144,26 @@ Example: Helm charts use `vPrefix: 'forbidden'` (1.2.3), Docker tags use `vPrefi
 **Data:** `Map<string, string>` for O(1) lookup, sorted keys
 
 **Deep Merge:** Preserves destination structure, replaces arrays entirely, preserves skipped paths
+
+## User Experience Features
+
+**Discovery & Debugging:**
+
+- `--list-files` - Preview source/destination files without processing diffs
+- `--show-config` - Display resolved configuration after inheritance merging
+- `--validate` - Enhanced with non-fatal warnings (inefficient globs, duplicates, conflicts, empty arrays)
+
+**Safety:**
+
+- Pre-execution summary (2s pause before sync, shows added/changed/deleted counts)
+- First-run tips (shown once, saved to ~/.helm-env-delta/first-run)
+- Improved error messages with examples and hints for common issues
+
+**Output Control:**
+
+- `--no-color` - Disable colored output for CI/accessibility
+- Help text includes usage examples (4 common workflows)
+- Commander suggestion for typos (e.g., --dryrun → --dry-run)
 
 ## Key Notes
 

@@ -751,9 +751,115 @@ helm-env-delta --config config.yaml --quiet
 
 ---
 
+### 28. How can I preview which files will be synced without processing them?
+
+**Use `--list-files`** to quickly see which files match your glob patterns:
+
+```bash
+helm-env-delta --config config.yaml --list-files
+```
+
+**Output:**
+
+```
+📋 Files to be synced:
+
+Source files: 12
+  deployments/api.yaml
+  deployments/web.yaml
+  services/api-service.yaml
+  ...
+
+Destination files: 10
+  deployments/api.yaml
+  deployments/web.yaml
+  ...
+```
+
+**When to use:**
+
+- Verify glob patterns are matching the right files
+- Check filename transforms before processing
+- Quick sanity check without running full diff
+
+**Compare to:**
+
+- `--dry-run --diff` - Processes diffs (slower, but shows changes)
+- `--list-files` - Just lists files (faster, no diff processing)
+
+---
+
+### 29. How can I see the final resolved configuration after inheritance?
+
+**Use `--show-config`** to display the merged configuration after all `extends` chains are resolved:
+
+```bash
+helm-env-delta --config config.yaml --show-config
+```
+
+**When to use:**
+
+- Debug config inheritance issues
+- Verify parent configs are being merged correctly
+- Understand what the final effective config looks like
+- Document the actual configuration being used
+
+**Example:**
+
+```yaml
+# base.yaml
+source: ./base-source
+exclude: ['**/test*.yaml']
+
+# config.yaml
+extends: ./base.yaml
+destination: ./prod
+skipPath:
+  '**/*.yaml': ['metadata.namespace']
+```
+
+Running `--show-config` shows the **merged result** (both configs combined).
+
+---
+
+### 30. Does --validate show warnings for potential config issues?
+
+**Yes!** As of recent versions, `--validate` now shows **non-fatal warnings** in addition to errors:
+
+```bash
+helm-env-delta --config config.yaml --validate
+```
+
+**Warnings detect:**
+
+- ✅ Inefficient glob patterns (e.g., `**/**` should be `**/*`)
+- ✅ Duplicate patterns in include/exclude arrays
+- ✅ Conflicting patterns (same pattern in both include and exclude)
+- ✅ Empty skipPath arrays (no effect)
+- ✅ Empty transform arrays (no content or filename transforms)
+
+**Example output:**
+
+```
+✓ Configuration is valid
+
+⚠️  Validation Warnings (non-fatal):
+
+  • Inefficient glob pattern '**/**/*.yaml' detected (use '**/*' instead)
+  • Duplicate patterns found in include array
+  • skipPath pattern 'empty.yaml' has empty array (will have no effect)
+```
+
+**Warnings vs Errors:**
+
+- **Errors** = Config is invalid, tool won't run
+- **Warnings** = Config works but could be improved
+
+---
+
 ## Advanced Topics
 
-### 28. How does the deep merge work and what gets preserved?
+### 31. How does the deep merge work and what gets preserved?
 
 **Deep merge process:**
 
@@ -787,7 +893,7 @@ spec:
 
 ---
 
-### 29. Can I sort arrays or enforce key ordering in output YAML?
+### 32. Can I sort arrays or enforce key ordering in output YAML?
 
 **Yes!** Use `outputFormat`:
 
@@ -817,7 +923,7 @@ outputFormat:
 
 ---
 
-### 30. What's the difference between --diff, --diff-html, and --diff-json?
+### 33. What's the difference between --diff, --diff-html, and --diff-json?
 
 **Different output formats for different needs:**
 
@@ -842,7 +948,7 @@ helm-env-delta --config config.yaml --diff --diff-html --diff-json > report.json
 
 ---
 
-### 31. How can I see field-level changes instead of file-level changes?
+### 34. How can I see field-level changes instead of file-level changes?
 
 Use `--diff-json` with jq:
 
@@ -867,7 +973,7 @@ The JSON output includes JSONPath notation for each changed field (e.g., `$.spec
 
 ---
 
-### 32. Can HelmEnvDelta handle binary files or non-YAML files?
+### 35. Can HelmEnvDelta handle binary files or non-YAML files?
 
 **Yes, with limitations:**
 
