@@ -13,6 +13,9 @@ describe('commandLine', () => {
     vi.restoreAllMocks();
   });
 
+  // Note: Help text with examples is manually tested via `npm run dev -- --help`
+  // Commander's help output is difficult to capture in unit tests as it writes directly to process.stdout
+
   describe('parseCommandLine', () => {
     it('should parse command with --config flag', () => {
       const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
@@ -26,6 +29,9 @@ describe('commandLine', () => {
         diffJson: false,
         skipFormat: false,
         validate: false,
+        listFiles: false,
+        showConfig: false,
+        noColor: false,
         verbose: false,
         quiet: false
       });
@@ -91,6 +97,9 @@ describe('commandLine', () => {
         diffJson: true,
         skipFormat: false,
         validate: false,
+        listFiles: false,
+        showConfig: false,
+        noColor: false,
         verbose: false,
         quiet: false
       });
@@ -112,6 +121,9 @@ describe('commandLine', () => {
       expect(result.diffJson).toBe(false);
       expect(result.skipFormat).toBe(false);
       expect(result.validate).toBe(false);
+      expect(result.listFiles).toBe(false);
+      expect(result.showConfig).toBe(false);
+      expect(result.noColor).toBe(false);
       expect(result.verbose).toBe(false);
       expect(result.quiet).toBe(false);
     });
@@ -146,6 +158,9 @@ describe('commandLine', () => {
         diffJson: false,
         skipFormat: false,
         validate: false,
+        listFiles: false,
+        showConfig: false,
+        noColor: false,
         verbose: false,
         quiet: false
       });
@@ -216,6 +231,9 @@ describe('commandLine', () => {
         diffJson: false,
         skipFormat: true,
         validate: false,
+        listFiles: false,
+        showConfig: false,
+        noColor: false,
         verbose: false,
         quiet: false
       });
@@ -303,6 +321,9 @@ describe('commandLine', () => {
         diffJson: false,
         skipFormat: false,
         validate: false,
+        listFiles: false,
+        showConfig: false,
+        noColor: false,
         verbose: true,
         quiet: false
       });
@@ -320,9 +341,66 @@ describe('commandLine', () => {
         diffJson: true,
         skipFormat: false,
         validate: false,
+        listFiles: false,
+        showConfig: false,
+        noColor: false,
         verbose: false,
         quiet: true
       });
+    });
+
+    it('should parse command with --list-files', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--list-files']);
+
+      expect(result.listFiles).toBe(true);
+      expect(result.showConfig).toBe(false);
+    });
+
+    it('should default listFiles to false when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.listFiles).toBe(false);
+    });
+
+    it('should parse command with --show-config', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--show-config']);
+
+      expect(result.showConfig).toBe(true);
+      expect(result.listFiles).toBe(false);
+    });
+
+    it('should default showConfig to false when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.showConfig).toBe(false);
+    });
+
+    it('should parse command with --no-color', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--no-color']);
+
+      expect(result.noColor).toBe(true);
+    });
+
+    it('should default noColor to false when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.noColor).toBe(false);
+    });
+
+    it('should parse command with all new flags combined', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        '--config',
+        'test.yaml',
+        '--list-files',
+        '--show-config',
+        '--no-color'
+      ]);
+
+      expect(result.listFiles).toBe(true);
+      expect(result.showConfig).toBe(true);
+      expect(result.noColor).toBe(true);
     });
   });
 });
