@@ -35,3 +35,24 @@ stopRules:
     - type: 'regex'
       path: 'version'
       regex: '^v0\.'
+
+  'helm-chart.yaml':
+    # Helm charts: Version must NOT have 'v' prefix (1.2.3 format)
+    # Helm follows strict semver without prefix
+    - type: 'versionFormat'
+      path: 'spec.chart.chartVersion'
+      vPrefix: 'forbidden'
+
+  'docker-tag.yaml':
+    # Docker tags: Version MUST have 'v' prefix (v1.2.3 format)
+    # Common convention for container image tags
+    - type: 'versionFormat'
+      path: 'spec.template.spec.containers.0.imageTag'
+      vPrefix: 'required'
+
+  'hybrid-system.yaml':
+    # Flexible: Both 1.2.3 and v1.2.3 are acceptable
+    # Legacy systems that support mixed version formats
+    - type: 'versionFormat'
+      path: 'spec.service.apiVersion'
+      vPrefix: 'allowed'

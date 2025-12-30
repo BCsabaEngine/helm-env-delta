@@ -1,0 +1,13 @@
+# Docker image tag example (vPrefix: required)
+# Current production image tag
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: my-service-dest
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: myregistry.io/myapp
+          imageTag: v2.0.0

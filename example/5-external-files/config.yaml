@@ -21,12 +21,12 @@ transforms:
     # Load content transform files (processed in order)
     # These perform literal string replacements
     contentFile:
-      - './transforms/content/common.yaml' # Common environment mappings
-      - './transforms/content/services.yaml' # Service-specific transforms
+      - './transforms-content-common.yaml' # Common environment mappings
+      - './transforms-content-services.yaml' # Service-specific transforms
 
     # Load filename transform file
     # Renames paths during sync (e.g., staging/ → production/)
-    filenameFile: './transforms/filename/path-renames.yaml'
+    filenameFile: './transforms-filename-paths.yaml'
 
     # You can still combine with inline regex transforms
     # Inline transforms are applied AFTER file-based transforms
@@ -51,20 +51,20 @@ stopRules:
     # Checks 'image' field against forbidden version patterns
     - type: regexFile
       path: spec.template.spec.containers.0.image
-      file: './patterns/forbidden-versions.yaml'
+      file: './patterns-forbidden-versions.yaml'
 
     # NEW: regexFile - Global mode (without path)
     # Scans ALL values recursively for forbidden patterns
     # Useful for blocking localhost, test prefixes, debug suffixes, etc.
     - type: regexFile
-      file: './patterns/forbidden-global.yaml'
+      file: './patterns-forbidden-global.yaml'
 
     # NEW: regexFileKey - Use transform file keys as patterns (with path)
     # Blocks if 'service.name' matches any key from common.yaml
     # This prevents accidental sync of staging-named services
     - type: regexFileKey
       path: service.name
-      file: './transforms/content/common.yaml'
+      file: './transforms-content-common.yaml'
 
     # Standard regex rule with optional path
     # NEW: Path is now optional - this scans globally for the pattern

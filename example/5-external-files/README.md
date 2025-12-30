@@ -33,15 +33,11 @@ Regex stop rules now support two modes:
 ```
 example/5-external-files/
 ├── config.yaml                              # Main configuration
-├── transforms/
-│   ├── content/
-│   │   ├── common.yaml                      # Common environment mappings
-│   │   └── services.yaml                    # Service-specific transforms
-│   └── filename/
-│       └── path-renames.yaml                # Path transformation rules
-├── patterns/
-│   ├── forbidden-versions.yaml              # Forbidden version patterns
-│   └── forbidden-global.yaml                # Global forbidden values
+├── transforms-content-common.yaml           # Common environment mappings
+├── transforms-content-services.yaml         # Service-specific transforms
+├── transforms-filename-paths.yaml           # Path transformation rules
+├── patterns-forbidden-versions.yaml         # Forbidden version patterns
+├── patterns-forbidden-global.yaml           # Global forbidden values
 ├── source/
 │   ├── envs/staging/app-staging.yaml        # Staging deployment
 │   └── configs/stg/service-config.yaml      # Staging service config
@@ -55,7 +51,7 @@ example/5-external-files/
 Transform files use simple key:value pairs for literal string replacement:
 
 ```yaml
-# transforms/content/common.yaml
+# transforms-content-common.yaml
 staging: production
 stg: prod
 staging.example.com: production.example.com
@@ -74,7 +70,7 @@ staging-db: production-db
 ### Array Format (for `regexFile`)
 
 ```yaml
-# patterns/forbidden-versions.yaml
+# patterns-forbidden-versions.yaml
 - ^0\..* # Block 0.x.x versions
 - .*-alpha.* # Block alpha releases
 - .*-beta.* # Block beta releases
@@ -85,7 +81,7 @@ staging-db: production-db
 Uses keys from transform files as regex patterns:
 
 ```yaml
-# transforms/content/common.yaml keys:
+# transforms-content-common.yaml keys:
 # staging, stg, staging.example.com, etc.
 # These become patterns to block in stop rules
 ```
@@ -99,11 +95,11 @@ transforms:
   '**/*.yaml':
     # Load multiple content transform files
     contentFile:
-      - './transforms/content/common.yaml'
-      - './transforms/content/services.yaml'
+      - './transforms-content-common.yaml'
+      - './transforms-content-services.yaml'
 
     # Load filename transform file
-    filenameFile: './transforms/filename/path-renames.yaml'
+    filenameFile: './transforms-filename-paths.yaml'
 
     # Inline regex transforms (applied AFTER file-based)
     content:
@@ -124,16 +120,16 @@ stopRules:
     # Targeted mode: Check specific field
     - type: regexFile
       path: spec.template.spec.containers.0.image
-      file: './patterns/forbidden-versions.yaml'
+      file: './patterns-forbidden-versions.yaml'
 
     # Global mode: Scan all values recursively
     - type: regexFile
-      file: './patterns/forbidden-global.yaml'
+      file: './patterns-forbidden-global.yaml'
 
     # Use transform file keys as patterns
     - type: regexFileKey
       path: service.name
-      file: './transforms/content/common.yaml'
+      file: './transforms-content-common.yaml'
 
     # Standard regex with optional path (global mode)
     - type: regex
@@ -205,8 +201,8 @@ helm-env-delta --config example/5-external-files/config.yaml
 
 Transformations applied:
 
-1. `envs/staging/` → `envs/production/` (from path-renames.yaml)
-2. `-staging.yaml` → `-production.yaml` (from path-renames.yaml)
+1. `envs/staging/` → `envs/production/` (from transforms-filename-paths.yaml)
+2. `-staging.yaml` → `-production.yaml` (from transforms-filename-paths.yaml)
 
 ### Stop Rule Validations
 
@@ -249,7 +245,7 @@ transforms:
 # After (external)
 transforms:
   '**/*.yaml':
-    contentFile: './transforms/content/common.yaml'
+    contentFile: './transforms-content-common.yaml'
 ```
 
 ### 2. Reusability
@@ -268,7 +264,7 @@ transforms/
 Update transforms in one place:
 
 ```yaml
-# Update common.yaml and all configs using it get the changes
+# Update transforms-content-common.yaml and all configs using it get the changes
 staging-api: production-api # Add new mapping
 staging-worker: production-worker
 ```
@@ -278,7 +274,7 @@ staging-worker: production-worker
 Use the same forbidden patterns across environments:
 
 ```yaml
-# patterns/forbidden-global.yaml applies to all envs
+# patterns-forbidden-global.yaml applies to all envs
 - localhost
 - 127\.0\.0\.1
 - ^test-.*
@@ -344,7 +340,7 @@ transforms:
 # New config (enhanced)
 transforms:
   '**/*.yaml':
-    contentFile: './transforms/common.yaml'  # NEW
+    contentFile: './transforms-content-common.yaml'  # NEW
     content: [{ find: 'stg', replace: 'prod' }]  # OLD
 ```
 

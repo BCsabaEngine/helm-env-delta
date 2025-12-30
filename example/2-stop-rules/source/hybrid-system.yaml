@@ -1,0 +1,11 @@
+# Hybrid system example (vPrefix: allowed)
+# Valid: Both 1.2.3 and v1.2.3 formats are acceptable
+apiVersion: v1
+kind: APIService
+metadata:
+  name: legacy-api-source
+spec:
+  service:
+    name: payment-api
+    apiVersion: 3.0.0
+    compatibility: mixed

@@ -1,0 +1,13 @@
+# Docker image tag example (vPrefix: required)
+# Valid: Docker tags require 'v' prefix
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: my-service-source
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: myregistry.io/myapp
+          imageTag: v2.1.0

@@ -1,0 +1,11 @@
+# Helm chart version example (vPrefix: forbidden)
+# Current production chart version
+apiVersion: v1
+kind: HelmChart
+metadata:
+  name: my-app-dest
+spec:
+  chart:
+    name: my-application
+    chartVersion: 1.0.0
+    repository: https://charts.example.com
