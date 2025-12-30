@@ -17,10 +17,10 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # CLI
-helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
+helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
+**Key Flags:** `--config` (required), `--suggest` (analyze and suggest config), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
 
 ## Architecture
 
@@ -37,6 +37,7 @@ helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] 
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths)
+- `suggestionEngine.ts` - **NEW v1.5+** - Smart config suggestions (analyzes diffs → suggests transforms/stop rules)
 - Reporters: `htmlReporter.ts`, `consoleDiffReporter.ts`, `jsonReporter.ts`
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
 
@@ -240,6 +241,15 @@ stopRules:
 - `--no-color` - Disable colored output for CI/accessibility
 - Help text includes usage examples (4 common workflows)
 - Commander suggestion for typos (e.g., --dryrun → --dry-run)
+
+**Smart Suggestions (v1.5+):**
+
+- `--suggest` - Analyzes file differences and recommends config updates
+- Detects transform patterns (repeated value changes)
+- Suggests stop rules (version bumps, numeric ranges)
+- Provides confidence scores and occurrence counts
+- Outputs copy-paste ready YAML configuration
+- Use case: Bootstrap config from existing files, discover missing patterns
 
 ## Key Notes
 

@@ -266,6 +266,86 @@ Circular dependencies are detected and rejected automatically.
 
 ## Usage & Workflow
 
+### How do I get started if I don't know what transforms or stop rules to use?
+
+**Use the `--suggest` flag!** (New in v1.5)
+
+```bash
+helm-env-delta --config config.yaml --suggest
+```
+
+**What it does:**
+
+- Analyzes differences between source and destination
+- Detects repeated value changes (e.g., `uat-db` → `prod-db`)
+- Suggests transform patterns automatically
+- Recommends stop rules for version changes, numeric values
+- Provides confidence scores and occurrence counts
+- Outputs copy-paste ready YAML configuration
+
+**Example workflow:**
+
+```bash
+# 1. Create minimal config with just source/destination
+cat > config.yaml <<EOF
+source: './uat'
+destination: './prod'
+EOF
+
+# 2. Get suggestions
+helm-env-delta --config config.yaml --suggest > suggestions.yaml
+
+# 3. Review suggestions and copy relevant sections to config.yaml
+
+# 4. Test with dry-run
+helm-env-delta --config config.yaml --dry-run --diff
+
+# 5. Execute sync
+helm-env-delta --config config.yaml
+```
+
+**When to use:**
+
+- First-time setup (bootstrap configuration automatically)
+- Config refinement (discover missing patterns)
+- Learning tool (understand what's changing)
+- Quick start (avoid manual pattern analysis)
+
+---
+
+### How do the suggestion confidence scores work?
+
+The `--suggest` feature provides confidence scores (0-100%) to help you evaluate recommendations:
+
+**Transform suggestions:**
+
+- **High confidence (80-100%)**: Pattern appears frequently across many files
+  - Example: `uat-cluster` → `prod-cluster` (42 occurrences in 12 files)
+  - Action: Likely safe to add to config
+- **Medium confidence (50-79%)**: Pattern appears moderately
+  - Example: `staging` → `production` (8 occurrences in 3 files)
+  - Action: Review carefully, might be environment-specific
+- **Low confidence (<50%)**: Pattern appears infrequently
+  - Example: `test-value` → `prod-value` (2 occurrences in 1 file)
+  - Action: Verify this is truly a pattern, not a one-off change
+
+**Stop rule suggestions:**
+
+- Automatically suggested when detecting:
+  - Version changes (semverMajorUpgrade, semverDowngrade)
+  - Numeric value changes (min/max ranges)
+  - Repeated string patterns (regex rules)
+- Always review stop rules carefully as they block changes
+
+**Best practices:**
+
+- Start with high-confidence suggestions
+- Review medium-confidence suggestions individually
+- Skip low-confidence suggestions unless you recognize the pattern
+- Always test with `--dry-run` after applying suggestions
+
+---
+
 ### What's the recommended workflow for syncing environments?
 
 **Standard workflow:**
@@ -988,6 +1068,64 @@ helm-env-delta --config config.yaml --validate
 
 ## Advanced Topics
 
+### When should I use --suggest vs manually writing my config?
+
+**Use `--suggest` when:**
+
+- 🚀 **Starting from scratch**: You have source/destination files but no config yet
+- 🔍 **Discovering patterns**: You're not sure what's changing between environments
+- ⏰ **Saving time**: Manually analyzing 50+ files would take hours
+- 📚 **Learning**: You want to understand typical patterns for your use case
+- 🔄 **Config audit**: Verify you haven't missed important transforms or stop rules
+
+**Manually write config when:**
+
+- 🎯 **Specific requirements**: You know exactly what needs to change
+- 🏗️ **Complex patterns**: Multi-step transforms or advanced regex
+- 📐 **Custom rules**: Business-specific validation logic
+- 🔒 **Security-sensitive**: Careful control over what gets synced
+- 🧪 **One-off sync**: Simple, temporary synchronization
+
+**Hybrid approach (recommended):**
+
+```bash
+# 1. Start with suggestions
+helm-env-delta --config minimal-config.yaml --suggest > suggestions.yaml
+
+# 2. Review suggestions and pick high-confidence patterns
+
+# 3. Add to your config with refinements
+cat suggestions.yaml >> config.yaml
+
+# 4. Manually add complex/business-specific rules
+
+# 5. Test thoroughly
+helm-env-delta --config config.yaml --dry-run --diff
+```
+
+**Example - When suggestions help:**
+
+```yaml
+# Suggestion detected this pattern automatically:
+transforms:
+  '**/*.yaml':
+    content:
+      - find: 'uat-db\.internal'
+        replace: 'prod-db.internal'
+        # 95% confidence, 42 occurrences
+
+# You refine it with word boundaries:
+transforms:
+  '**/*.yaml':
+    content:
+      - find: '\buat-db\.internal\b'
+        replace: 'prod-db.internal'
+```
+
+**Pro tip:** Use `--suggest` first to get a baseline, then refine manually. The tool finds patterns you might miss, and you add the domain knowledge.
+
+---
+
 ### How does the deep merge work and what gets preserved?
 
 **Deep merge process:**
@@ -1131,4 +1269,4 @@ include:
 
 ---
 
-**Last Updated:** 2025-12-20
+**Last Updated:** 2025-12-30

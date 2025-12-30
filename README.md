@@ -50,6 +50,8 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with warnings.
 
+💡 **Smart Suggestions** - AI-powered analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically.
+
 🛡️ **Safety First** - Pre-execution summary, first-run tips, improved error messages with helpful examples.
 
 ⚡ **High Performance** - 45-60% faster than alternatives with intelligent caching and parallel processing.
@@ -106,6 +108,14 @@ helm-env-delta --config config.yaml
 ```bash
 helm-env-delta --config config.yaml --diff-html
 ```
+
+### 5️⃣ Get Smart Suggestions (Optional)
+
+```bash
+helm-env-delta --config config.yaml --suggest
+```
+
+Analyzes differences and suggests transforms and stop rules automatically.
 
 **Done!** All files synced, production values preserved, changes validated.
 
@@ -238,6 +248,67 @@ helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
 - Transform files (`contentFile`, `filenameFile`)
 - Pattern files (`regexFile`, `regexFileKey`)
 - Global vs targeted regex validation
+
+---
+
+## 💡 Smart Configuration Suggestions
+
+New in v1.5! The `--suggest` flag analyzes differences between environments and automatically recommends configuration updates.
+
+### How It Works
+
+```bash
+helm-env-delta --config config.yaml --suggest
+```
+
+**What it analyzes:**
+
+- 🔍 Detects repeated value changes across files
+- 🎯 Suggests transform patterns (regex find/replace)
+- 🛡️ Recommends stop rules for safety validation
+- 📊 Provides confidence scores and occurrence counts
+- 📝 Outputs copy-paste ready YAML configuration
+
+### Example Output
+
+```yaml
+# Suggested Transforms
+transforms:
+  '**/*.yaml':
+    content:
+      - find: 'uat-cluster'
+        replace: 'prod-cluster'
+        # Confidence: 95% (42 occurrences across 12 files)
+
+# Suggested Stop Rules
+stopRules:
+  '**/*.yaml':
+    - type: 'semverMajorUpgrade'
+      path: 'image.tag'
+      # Detected version changes: v1.2.3 → v2.0.0
+```
+
+### When to Use
+
+- 🚀 **First-time setup**: Discover patterns automatically instead of manual analysis
+- 🔄 **Config refinement**: Find missing transforms or stop rules
+- 📚 **Learning tool**: Understand what's changing between environments
+- ⚡ **Quick start**: Bootstrap configuration from existing files
+
+**Workflow:**
+
+```bash
+# 1. Get suggestions
+helm-env-delta --config config.yaml --suggest > suggestions.yaml
+
+# 2. Review and copy relevant sections to config.yaml
+
+# 3. Test with dry-run
+helm-env-delta --config config.yaml --dry-run --diff
+
+# 4. Execute
+helm-env-delta --config config.yaml
+```
 
 ---
 
@@ -515,6 +586,7 @@ hed --config <file> [options]  # Short alias
 | ----------------- | ------------------------------------------------ |
 | `--config <path>` | **Required** - Configuration file                |
 | `--validate`      | Validate config and exit (shows warnings)        |
+| `--suggest`       | Analyze differences and suggest config updates   |
 | `--dry-run`       | Preview changes without writing files            |
 | `--force`         | Override stop rules                              |
 | `--diff`          | Show console diff                                |
@@ -532,6 +604,9 @@ hed --config <file> [options]  # Short alias
 ```bash
 # Validate configuration (shows warnings)
 hed --config config.yaml --validate
+
+# Get smart configuration suggestions
+hed --config config.yaml --suggest
 
 # Preview files that will be synced
 hed --config config.yaml --list-files
