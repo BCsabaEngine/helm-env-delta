@@ -214,7 +214,10 @@ describe('configLoader', () => {
         const result = loadConfigFile('config.yaml');
 
         expect(result.transforms).toBeDefined();
-        expect(result.transforms?.['*.yaml']).toEqual({ content: [{ find: 'uat-', replace: 'prod-' }] });
+        expect(result.transforms?.['*.yaml']).toEqual({
+          content: [{ find: 'uat-', replace: 'prod-' }],
+          filename: []
+        });
       });
 
       it('should accept multiple transform rules per pattern', () => {
