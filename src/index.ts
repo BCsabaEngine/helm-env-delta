@@ -19,6 +19,7 @@ import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
 import { generateJsonReport, isJsonReporterError } from './jsonReporter';
 import { Logger, VerbosityLevel } from './logger';
 import { validateStopRules } from './stopRulesValidator';
+import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { checkForUpdates } from './utils/versionChecker';
@@ -154,6 +155,34 @@ const main = async (): Promise<void> => {
     logger.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
   }
 
+  // Early exit for suggest mode
+  if (command.suggest) {
+    logger.log('\n' + formatProgressMessage('Analyzing differences for suggestions...', 'info'));
+
+    try {
+      const suggestions = analyzeDifferencesForSuggestions(diffResult, config);
+      const yaml = formatSuggestionsAsYaml(suggestions);
+
+      console.log(chalk.cyan('\n💡 Suggested Configuration:\n'));
+      console.log(yaml);
+
+      if (suggestions.metadata.changedFiles === 0)
+        console.log(chalk.yellow('\nℹ️  No changes detected. Files are already in sync.'));
+      else {
+        console.log(chalk.dim('\n---'));
+        console.log(chalk.dim('💡 Tip: Copy relevant sections to your config.yaml and test with --dry-run'));
+      }
+
+      return;
+    } catch (error) {
+      if (isSuggestionEngineError(error)) {
+        logger.error('\nFailed to generate suggestions: ' + error.message, 'critical');
+        process.exit(1);
+      }
+      throw error;
+    }
+  }
+
   // Validate stop rules
   const configFileDirectory = path.dirname(path.resolve(command.config));
   const validationResult = validateStopRules(diffResult, config.stopRules, configFileDirectory, logger);
@@ -225,6 +254,7 @@ const main = async (): Promise<void> => {
     else if (isFileUpdaterError(error)) console.error(error.message);
     else if (isHtmlReporterError(error)) console.error(error.message);
     else if (isJsonReporterError(error)) console.error(error.message);
+    else if (isSuggestionEngineError(error)) console.error(error.message);
     else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);

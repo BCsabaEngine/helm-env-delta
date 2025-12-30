@@ -20,6 +20,7 @@ export type SyncCommand = {
   listFiles: boolean;
   showConfig: boolean;
   noColor: boolean;
+  suggest: boolean;
 };
 
 // ============================================================================
@@ -43,6 +44,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--validate', 'Validate configuration file and exit', false)
     .option('--list-files', 'List files that would be synced without processing diffs', false)
     .option('--show-config', 'Display resolved configuration after inheritance and exit', false)
+    .option('--suggest', 'Analyze differences and suggest transforms and stop rules', false)
     .option('--no-color', 'Disable colored output')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
@@ -52,6 +54,9 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
 Examples:
   # Preview changes before syncing
   $ helm-env-delta --config config.yaml --dry-run --diff
+
+  # Get configuration suggestions
+  $ helm-env-delta --config config.yaml --suggest
 
   # Sync with HTML diff report
   $ helm-env-delta --config config.yaml --diff-html
@@ -91,6 +96,7 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     showConfig: options['showConfig'],
     noColor: !options['color'], // Commander's --no-color creates a 'color' property
     verbose: options['verbose'],
-    quiet: options['quiet']
+    quiet: options['quiet'],
+    suggest: options['suggest']
   };
 };
