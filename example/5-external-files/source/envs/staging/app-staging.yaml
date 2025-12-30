@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  namespace: staging
+spec:
+  replicas: replicas-2
+  template:
+    spec:
+      containers:
+        - name: app
+          image: myapp:1.5.2
+          env:
+            - name: ENVIRONMENT
+              value: staging
+            - name: DATABASE_URL
+              value: postgres://staging-db:5432/app
+            - name: CACHE_URL
+              value: redis://stg-cache:6379
+            - name: API_ENDPOINT
+              value: https://staging-api.staging.example.com
+            - name: MODE
+              value: debug-mode
+          resources:
+            limits:
+              memory: memory-512Mi
+              cpu: cpu-100m

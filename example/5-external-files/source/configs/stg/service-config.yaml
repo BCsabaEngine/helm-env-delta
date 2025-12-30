@@ -1,0 +1,22 @@
+service:
+  name: staging-worker
+  version: 2.3.1
+  endpoints:
+    internal: stg.internal.local
+    external: staging.example.com
+
+database:
+  host: staging-db
+  port: 5432
+  pool_size: replicas-3
+
+features:
+  enabled:
+    - feature-flag-staging
+    - auto-scaling
+  disabled:
+    - feature-flag-production
+
+logging:
+  level: debug
+  output: stdout

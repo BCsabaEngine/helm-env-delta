@@ -1,0 +1,76 @@
+# Example 5: External Files for Transforms and Stop Rules
+# This example demonstrates the new features:
+# - Transform files (contentFile, filenameFile)
+# - Stop rule files (regexFile, regexFileKey)
+# - Optional path for regex rules (global scanning)
+
+source: './source'
+destination: './destination'
+
+include:
+  - '**/*.yaml'
+  - '**/*.yml'
+
+exclude:
+  - '**/README.md'
+
+# Transform configuration using external files
+transforms:
+  # Apply transforms to all YAML files
+  '**/*.yaml':
+    # Load content transform files (processed in order)
+    # These perform literal string replacements
+    contentFile:
+      - './transforms/content/common.yaml' # Common environment mappings
+      - './transforms/content/services.yaml' # Service-specific transforms
+
+    # Load filename transform file
+    # Renames paths during sync (e.g., staging/ → production/)
+    filenameFile: './transforms/filename/path-renames.yaml'
+
+    # You can still combine with inline regex transforms
+    # Inline transforms are applied AFTER file-based transforms
+    content:
+      # Complex regex replacement (v-prefix versions)
+      - find: 'v(\d+)\.(\d+)\.(\d+)-stg'
+        replace: 'v$1.$2.$3-prod'
+
+    filename:
+      # Regex pattern for additional filename transforms
+      - find: '(\w+)-staging\.(yaml|yml)$'
+        replace: '$1-production.$2'
+
+# Stop rules using external files
+stopRules:
+  '**/*.yaml':
+    # Standard stop rules (inline)
+    - type: semverMajorUpgrade
+      path: service.version
+
+    # NEW: regexFile - Load patterns from array file (with path)
+    # Checks 'image' field against forbidden version patterns
+    - type: regexFile
+      path: spec.template.spec.containers.0.image
+      file: './patterns/forbidden-versions.yaml'
+
+    # NEW: regexFile - Global mode (without path)
+    # Scans ALL values recursively for forbidden patterns
+    # Useful for blocking localhost, test prefixes, debug suffixes, etc.
+    - type: regexFile
+      file: './patterns/forbidden-global.yaml'
+
+    # NEW: regexFileKey - Use transform file keys as patterns (with path)
+    # Blocks if 'service.name' matches any key from common.yaml
+    # This prevents accidental sync of staging-named services
+    - type: regexFileKey
+      path: service.name
+      file: './transforms/content/common.yaml'
+
+    # Standard regex rule with optional path
+    # NEW: Path is now optional - this scans globally for the pattern
+    - type: regex
+      regex: '^127\.' # Block any 127.x.x.x IPs anywhere in the file
+
+outputFormat:
+  indent: 2
+  keySeparator: false

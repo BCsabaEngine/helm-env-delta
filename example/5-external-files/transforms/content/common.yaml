@@ -1,0 +1,18 @@
+# Common transform rules applied across all files
+# These are literal string replacements (case-sensitive)
+
+# Environment replacements
+staging: production
+stg: prod
+
+# DNS/URL replacements
+staging.example.com: production.example.com
+stg.internal.local: prod.internal.local
+
+# Database replacements
+staging-db: production-db
+stg-cache: prod-cache
+
+# Service names
+staging-api: production-api
+staging-worker: production-worker
