@@ -155,7 +155,8 @@ const main = async (): Promise<void> => {
   }
 
   // Validate stop rules
-  const validationResult = validateStopRules(diffResult, config.stopRules, logger);
+  const configFileDirectory = path.dirname(path.resolve(command.config));
+  const validationResult = validateStopRules(diffResult, config.stopRules, configFileDirectory, logger);
 
   if (validationResult.violations.length > 0)
     if (command.force) for (const violation of validationResult.violations) logger.stopRule(violation, 'force');
