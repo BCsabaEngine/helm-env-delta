@@ -58,7 +58,7 @@ export interface StopRuleViolationJson {
   file: string;
   rule: {
     type: string;
-    path: string;
+    path?: string;
   };
   path: string;
   oldValue: unknown;

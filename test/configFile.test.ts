@@ -479,7 +479,9 @@ describe('configFile', () => {
       };
 
       expect(() => parseFinalConfig(config)).toThrow(ZodValidationError);
-      expect(() => parseFinalConfig(config)).toThrow('At least one of content or filename must be specified');
+      expect(() => parseFinalConfig(config)).toThrow(
+        'At least one of content, filename, contentFile, or filenameFile must be specified'
+      );
     });
 
     it('should reject invalid regex in transform find pattern', () => {

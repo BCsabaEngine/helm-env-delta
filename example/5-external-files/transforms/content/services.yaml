@@ -1,0 +1,14 @@
+# Service-specific transforms
+# Applied after common.yaml (files are processed in order)
+
+# Replica counts
+replicas-2: replicas-5
+replicas-3: replicas-8
+
+# Resource limits
+memory-512Mi: memory-2Gi
+cpu-100m: cpu-500m
+
+# Feature flags
+feature-flag-staging: feature-flag-production
+debug-mode: production-mode

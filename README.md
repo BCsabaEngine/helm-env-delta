@@ -38,9 +38,9 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 🎯 **Path Filtering** - Preserve environment-specific values (namespaces, replicas, secrets) that should never sync.
 
-🔄 **Powerful Transforms** - Regex find/replace for both file content and paths. Change `uat-db.internal` → `prod-db.internal` automatically.
+🔄 **Powerful Transforms** - Regex find/replace for both file content and paths. Load transforms from external YAML files for reusability. Change `uat-db.internal` → `prod-db.internal` automatically.
 
-🛡️ **Safety Rules** - Block major version upgrades, scaling violations, and forbidden patterns before they reach production.
+🛡️ **Safety Rules** - Block major version upgrades, scaling violations, and forbidden patterns. Load validation rules from external files. Scan globally or target specific fields.
 
 🎨 **Format Enforcement** - Standardize YAML across all environments: key ordering, indentation, quoting, array sorting.
 
@@ -225,6 +225,20 @@ File deletion behavior with `prune: true` vs `prune: false`.
 helm-env-delta --config example/4-prune-mode/config.with-prune.yaml --dry-run --diff
 ```
 
+### 📦 Example 5: External Files
+
+Load transforms and stop rules from external YAML files for better organization and reusability.
+
+```bash
+helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
+```
+
+**Features shown:**
+
+- Transform files (`contentFile`, `filenameFile`)
+- Pattern files (`regexFile`, `regexFileKey`)
+- Global vs targeted regex validation
+
 ---
 
 ## ⚙️ Configuration Reference
@@ -267,7 +281,9 @@ skipPath:
 
 ### 🔄 Transformations
 
-Regex find/replace for content and file paths.
+Regex find/replace for content and file paths. Load transforms from external files or define inline.
+
+#### Inline Transforms (Regex)
 
 ```yaml
 transforms:
@@ -284,6 +300,41 @@ transforms:
         replace: '-prod.'
 ```
 
+#### File-Based Transforms (Literal)
+
+Load transforms from external YAML files for better organization and reusability:
+
+```yaml
+transforms:
+  '**/*.yaml':
+    # Load content transforms from files (literal string replacement)
+    contentFile:
+      - './transforms/common.yaml' # Single file
+      - './transforms/services.yaml' # Or array of files
+
+    # Load filename transforms from file
+    filenameFile: './transforms/paths.yaml'
+
+    # Can combine with inline transforms (file-based run first)
+    content:
+      - find: 'v(\d+)-uat'
+        replace: 'v$1-prod'
+```
+
+**Transform file format (key:value pairs):**
+
+```yaml
+# transforms/common.yaml - literal string replacements
+staging: production
+stg: prod
+staging-db.internal: production-db.internal
+```
+
+**Execution order:**
+
+1. File-based transforms (literal, case-sensitive)
+2. Inline regex transforms (patterns)
+
 **Content scope:** All string values in matched files
 **Filename scope:** Full relative path (folders + filename)
 **Processing:** Sequential (rule 1 output → rule 2 input)
@@ -294,13 +345,17 @@ transforms:
 
 Block dangerous changes before deployment.
 
-| Icon | Rule Type            | Purpose                   | Example                                    |
-| ---- | -------------------- | ------------------------- | ------------------------------------------ |
-| 🚫   | `semverMajorUpgrade` | Block major version bumps | Prevent `v1.2.3` → `v2.0.0`                |
-| ⬇️   | `semverDowngrade`    | Block any downgrades      | Prevent `v1.3.0` → `v1.2.0`                |
-| 📏   | `versionFormat`      | Enforce strict format     | Reject `1.2`, `v1.2.3-rc`, require `1.2.3` |
-| 🔢   | `numeric`            | Validate ranges           | Keep `replicas` between 2-10               |
-| 🔤   | `regex`              | Block patterns            | Reject `v0.x` pre-release versions         |
+| Icon | Rule Type            | Purpose                    | Example                                    |
+| ---- | -------------------- | -------------------------- | ------------------------------------------ |
+| 🚫   | `semverMajorUpgrade` | Block major version bumps  | Prevent `v1.2.3` → `v2.0.0`                |
+| ⬇️   | `semverDowngrade`    | Block any downgrades       | Prevent `v1.3.0` → `v1.2.0`                |
+| 📏   | `versionFormat`      | Enforce strict format      | Reject `1.2`, `v1.2.3-rc`, require `1.2.3` |
+| 🔢   | `numeric`            | Validate ranges            | Keep `replicas` between 2-10               |
+| 🔤   | `regex`              | Block patterns (inline)    | Reject `v0.x` pre-release versions         |
+| 📄   | `regexFile`          | Block patterns (from file) | Load forbidden patterns from YAML array    |
+| 🔑   | `regexFileKey`       | Block transform file keys  | Use transform keys as forbidden patterns   |
+
+#### Inline Stop Rules
 
 ```yaml
 stopRules:
@@ -317,10 +372,51 @@ stopRules:
       path: 'image.tag'
       vPrefix: 'required' # or 'forbidden', 'allowed'
 
+    # Regex with path (targeted)
     - type: 'regex'
       path: 'image.tag'
       regex: '^v0\.'
+
+    # NEW: Regex without path (global - scans all values)
+    - type: 'regex'
+      regex: '^127\.' # Block localhost IPs anywhere
 ```
+
+#### File-Based Stop Rules
+
+Load validation patterns from external files:
+
+```yaml
+stopRules:
+  '**/*.yaml':
+    # Load patterns from array file (with path - targeted)
+    - type: 'regexFile'
+      path: 'image.tag'
+      file: './patterns/forbidden-versions.yaml'
+
+    # Load patterns from array file (without path - global scan)
+    - type: 'regexFile'
+      file: './patterns/forbidden-global.yaml'
+
+    # Use transform file keys as patterns (targeted)
+    - type: 'regexFileKey'
+      path: 'service.name'
+      file: './transforms/common.yaml'
+```
+
+**Pattern file format (array):**
+
+```yaml
+# patterns/forbidden-versions.yaml
+- ^0\..* # Block 0.x.x versions
+- .*-alpha.* # Block alpha releases
+- .*-beta.* # Block beta releases
+```
+
+**Path modes:**
+
+- **With `path`**: Check specific field only (targeted)
+- **Without `path`**: Scan all values recursively (global)
 
 **Override:** Use `--force` to bypass stop rules when needed.
 

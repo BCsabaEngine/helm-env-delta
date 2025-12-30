@@ -1,0 +1,10 @@
+# Filename transform rules
+# Used to rename file paths during sync
+
+# Directory renames
+envs/staging/: envs/production/
+configs/stg/: configs/prod/
+
+# File suffix renames
+-staging.yaml: -production.yaml
+-stg.yml: -prod.yml

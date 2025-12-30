@@ -1,5 +1,6 @@
-import { StopRule } from './configFile';
-import { ChangedFile, FileDiffResult } from './fileDiff';
+import type { RegexFileKeyRule, RegexFileRule, RegexRule, StopRule } from './configFile';
+import type { ChangedFile, FileDiffResult } from './fileDiff';
+import { loadRegexPatternArray, loadRegexPatternsFromKeys } from './utils';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { getValueAtPath, parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
@@ -52,12 +53,47 @@ export interface ValidationResult {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Recursively extracts all leaf values from a nested YAML structure.
+ * Skips keys and only collects values (strings, numbers, booleans).
+ * Used for pathless regex rules that scan entire file contents.
+ *
+ * @param data - The YAML data structure to scan
+ * @returns Array of all leaf values found
+ *
+ * @example
+ * getAllValuesRecursive({ a: 'foo', b: { c: 'bar', d: 123 } })
+ * // Returns: ['foo', 'bar', 123]
+ */
+const getAllValuesRecursive = (data: unknown): unknown[] => {
+  const values: unknown[] = [];
+
+  const traverse = (node: unknown): void => {
+    if (node === null || node === undefined) return;
+
+    if (typeof node === 'object')
+      if (Array.isArray(node)) for (const item of node) traverse(item);
+      else for (const value of Object.values(node)) traverse(value);
+    else
+      // Leaf value (string, number, boolean)
+      values.push(node);
+  };
+
+  traverse(data);
+  return values;
+};
+
+// ============================================================================
 // Main Validation Function
 // ============================================================================
 
 export const validateStopRules = (
   diffResult: FileDiffResult,
   stopRulesConfig?: Record<string, StopRule[]>,
+  configDirectory?: string,
   logger?: import('./logger').Logger
 ): ValidationResult => {
   if (!stopRulesConfig) return { violations: [], isValid: true };
@@ -74,7 +110,7 @@ export const validateStopRules = (
 
   // Validate changed files
   for (const changedFile of diffResult.changedFiles) {
-    const fileViolations = validateFileAgainstRules(changedFile, stopRulesConfig);
+    const fileViolations = validateFileAgainstRules(changedFile, stopRulesConfig, configDirectory);
     violations.push(...fileViolations);
   }
 
@@ -96,7 +132,8 @@ export const validateStopRules = (
 
 const validateFileAgainstRules = (
   changedFile: ChangedFile,
-  stopRulesConfig: Record<string, StopRule[]>
+  stopRulesConfig: Record<string, StopRule[]>,
+  configDirectory?: string
 ): StopRuleViolation[] => {
   const violations: StopRuleViolation[] = [];
 
@@ -108,7 +145,7 @@ const validateFileAgainstRules = (
   const updatedData = changedFile.processedSourceContent;
 
   for (const rule of applicableRules) {
-    const violation = validateRule(rule, oldData, updatedData, changedFile.path);
+    const violation = validateRule(rule, oldData, updatedData, changedFile.path, configDirectory);
 
     if (violation) violations.push(violation);
   }
@@ -137,10 +174,36 @@ const validateRule = (
   rule: StopRule,
   oldData: unknown,
   updatedData: unknown,
-  filePath: string
+  filePath: string,
+  configDirectory?: string
 ): StopRuleViolation | undefined => {
-  const pathParts = parseJsonPath(rule.path);
+  // For regex rules with optional path, handle differently
+  if (rule.type === 'regex' || rule.type === 'regexFile' || rule.type === 'regexFileKey')
+    if (rule.path) {
+      // Targeted mode: check specific path
+      const pathParts = parseJsonPath(rule.path);
+      const oldValue = oldData ? getValueAtPath(oldData, pathParts) : undefined;
+      const updatedValue = updatedData ? getValueAtPath(updatedData, pathParts) : undefined;
 
+      if (oldValue === undefined && updatedValue === undefined) return undefined;
+
+      if (rule.type === 'regex') return validateRegex(rule, oldValue, updatedValue, filePath);
+      if (rule.type === 'regexFile') return validateRegexFile(rule, oldValue, updatedValue, filePath, configDirectory);
+      if (rule.type === 'regexFileKey')
+        return validateRegexFileKey(rule, oldValue, updatedValue, filePath, configDirectory);
+    } else {
+      // Global mode: scan all values recursively
+      if (rule.type === 'regex') return validateRegexGlobal(rule, oldData, updatedData, filePath);
+      if (rule.type === 'regexFile')
+        return validateRegexFileGlobal(rule, oldData, updatedData, filePath, configDirectory);
+      if (rule.type === 'regexFileKey')
+        return validateRegexFileKeyGlobal(rule, oldData, updatedData, filePath, configDirectory);
+    }
+
+  // For non-regex rules, path is required
+  if (!rule.path) return undefined;
+
+  const pathParts = parseJsonPath(rule.path);
   const oldValue = oldData ? getValueAtPath(oldData, pathParts) : undefined;
   const updatedValue = updatedData ? getValueAtPath(updatedData, pathParts) : undefined;
 
@@ -153,8 +216,6 @@ const validateRule = (
       return validateSemverDowngrade(rule, oldValue, updatedValue, filePath);
     case 'numeric':
       return validateNumeric(rule, oldValue, updatedValue, filePath);
-    case 'regex':
-      return validateRegex(rule, oldValue, updatedValue, filePath);
     case 'versionFormat':
       return validateVersionFormat(rule, oldValue, updatedValue, filePath);
     default:
@@ -182,7 +243,7 @@ const validateSemverMajorUpgrade = (
     return {
       file: filePath,
       rule,
-      path: rule.path,
+      path: rule.path ?? '(unknown)',
       oldValue,
       updatedValue,
       message: `Major version upgrade detected: ${oldVersion} → ${updatedVersion}`
@@ -218,7 +279,7 @@ const validateSemverDowngrade = (
     return {
       file: filePath,
       rule,
-      path: rule.path,
+      path: rule.path ?? '(unknown)',
       oldValue,
       updatedValue,
       message: `Version downgrade detected: ${oldVersion} → ${updatedVersion}`
@@ -245,7 +306,7 @@ const validateNumeric = (
     return {
       file: filePath,
       rule,
-      path: rule.path,
+      path: rule.path ?? '(unknown)',
       oldValue,
       updatedValue,
       message: `Value ${numberValue} is below minimum ${rule.min}`
@@ -255,7 +316,7 @@ const validateNumeric = (
     return {
       file: filePath,
       rule,
-      path: rule.path,
+      path: rule.path ?? '(unknown)',
       oldValue,
       updatedValue,
       message: `Value ${numberValue} exceeds maximum ${rule.max}`
@@ -281,7 +342,7 @@ const validateRegex = (
     return {
       file: filePath,
       rule,
-      path: rule.path,
+      path: rule.path ?? '(unknown)',
       oldValue,
       updatedValue,
       message: `Value "${stringValue}" matches forbidden pattern ${rule.regex}`
@@ -308,11 +369,189 @@ const validateVersionFormat = (
     return {
       file: filePath,
       rule,
-      path: rule.path,
+      path: rule.path ?? '(unknown)',
       oldValue,
       updatedValue,
       message: validationResult.message
     };
+
+  return undefined;
+};
+
+/**
+ * Validates pathless regex rule (global mode).
+ * Scans all values recursively in the YAML file.
+ */
+const validateRegexGlobal = (
+  rule: RegexRule,
+  oldData: unknown,
+  updatedData: unknown,
+  filePath: string
+): StopRuleViolation | undefined => {
+  const dataToCheck = updatedData === undefined ? oldData : updatedData;
+  if (dataToCheck === undefined) return undefined;
+
+  const allValues = getAllValuesRecursive(dataToCheck);
+  const pattern = new RegExp(rule.regex);
+
+  for (const value of allValues) {
+    const stringValue = String(value);
+    if (pattern.test(stringValue))
+      return {
+        file: filePath,
+        rule,
+        path: '(global scan)',
+        oldValue: oldData,
+        updatedValue: updatedData,
+        message: `Value "${stringValue}" matches forbidden pattern ${rule.regex} (found during global scan)`
+      };
+  }
+
+  return undefined;
+};
+
+/**
+ * Validates regexFile rule (targeted mode with path).
+ * Loads patterns from array file and checks value at specific path.
+ */
+const validateRegexFile = (
+  rule: RegexFileRule,
+  oldValue: unknown,
+  updatedValue: unknown,
+  filePath: string,
+  configDirectory?: string
+): StopRuleViolation | undefined => {
+  if (!configDirectory) return undefined;
+
+  const valueToCheck = updatedValue === undefined ? oldValue : updatedValue;
+  if (valueToCheck === undefined) return undefined;
+
+  const patterns = loadRegexPatternArray(rule.file, configDirectory);
+  const stringValue = String(valueToCheck);
+
+  for (const patternString of patterns) {
+    const pattern = new RegExp(patternString);
+    if (pattern.test(stringValue))
+      return {
+        file: filePath,
+        rule,
+        path: rule.path ?? '(unknown)',
+        oldValue,
+        updatedValue,
+        message: `Value "${stringValue}" matches forbidden pattern ${patternString} from ${rule.file}`
+      };
+  }
+
+  return undefined;
+};
+
+/**
+ * Validates regexFile rule (global mode without path).
+ * Loads patterns from array file and scans all values recursively.
+ */
+const validateRegexFileGlobal = (
+  rule: RegexFileRule,
+  oldData: unknown,
+  updatedData: unknown,
+  filePath: string,
+  configDirectory?: string
+): StopRuleViolation | undefined => {
+  if (!configDirectory) return undefined;
+
+  const dataToCheck = updatedData === undefined ? oldData : updatedData;
+  if (dataToCheck === undefined) return undefined;
+
+  const patterns = loadRegexPatternArray(rule.file, configDirectory);
+  const allValues = getAllValuesRecursive(dataToCheck);
+
+  for (const value of allValues) {
+    const stringValue = String(value);
+    for (const patternString of patterns) {
+      const pattern = new RegExp(patternString);
+      if (pattern.test(stringValue))
+        return {
+          file: filePath,
+          rule,
+          path: '(global scan)',
+          oldValue: oldData,
+          updatedValue: updatedData,
+          message: `Value "${stringValue}" matches forbidden pattern ${patternString} from ${rule.file} (found during global scan)`
+        };
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Validates regexFileKey rule (targeted mode with path).
+ * Loads transform file keys as patterns and checks value at specific path.
+ */
+const validateRegexFileKey = (
+  rule: RegexFileKeyRule,
+  oldValue: unknown,
+  updatedValue: unknown,
+  filePath: string,
+  configDirectory?: string
+): StopRuleViolation | undefined => {
+  if (!configDirectory) return undefined;
+
+  const valueToCheck = updatedValue === undefined ? oldValue : updatedValue;
+  if (valueToCheck === undefined) return undefined;
+
+  const patterns = loadRegexPatternsFromKeys(rule.file, configDirectory);
+  const stringValue = String(valueToCheck);
+
+  for (const patternString of patterns) {
+    const pattern = new RegExp(patternString);
+    if (pattern.test(stringValue))
+      return {
+        file: filePath,
+        rule,
+        path: rule.path ?? '(unknown)',
+        oldValue,
+        updatedValue,
+        message: `Value "${stringValue}" matches transform key pattern ${patternString} from ${rule.file}`
+      };
+  }
+
+  return undefined;
+};
+
+/**
+ * Validates regexFileKey rule (global mode without path).
+ * Loads transform file keys as patterns and scans all values recursively.
+ */
+const validateRegexFileKeyGlobal = (
+  rule: RegexFileKeyRule,
+  oldData: unknown,
+  updatedData: unknown,
+  filePath: string,
+  configDirectory?: string
+): StopRuleViolation | undefined => {
+  if (!configDirectory) return undefined;
+
+  const dataToCheck = updatedData === undefined ? oldData : updatedData;
+  if (dataToCheck === undefined) return undefined;
+
+  const patterns = loadRegexPatternsFromKeys(rule.file, configDirectory);
+  const allValues = getAllValuesRecursive(dataToCheck);
+
+  for (const value of allValues) {
+    const stringValue = String(value);
+    for (const patternString of patterns) {
+      const pattern = new RegExp(patternString);
+      if (pattern.test(stringValue))
+        return {
+          file: filePath,
+          rule,
+          path: '(global scan)',
+          oldValue: oldData,
+          updatedValue: updatedData,
+          message: `Value "${stringValue}" matches transform key pattern ${patternString} from ${rule.file} (found during global scan)`
+        };
+    }
+  }
 
   return undefined;
 };

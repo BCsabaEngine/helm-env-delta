@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-12-30
+
+### Added
+
+- External transform files: Load text replacements from separate YAML files using `contentFile` and `filenameFile` in your transforms. Perfect for managing common replacements across multiple configs (e.g., environment names, service URLs, cluster names) in a single shared file. Use a single file or an array of files to organize your replacements by category.
+- External pattern files for stop rules: Load validation patterns from external YAML files using `regexFile` (for pattern arrays) or `regexFileKey` (to use transform file keys as patterns). Keep your forbidden patterns organized in separate files and share them across multiple configurations.
+- Global value scanning for regex stop rules: Regex stop rules can now scan all values in a file when you omit the `path` field. Great for catching forbidden patterns anywhere in your YAML files, not just in specific fields.
+
+### Changed
+
+- Dependency updates: Updated development and runtime dependencies to latest versions.
+
 ## [1.4.0] - 2024-12-28
 
 ### Added

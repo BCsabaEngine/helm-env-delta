@@ -46,7 +46,13 @@ helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] 
 - Inheritance: Single parent via `extends`, max 5 levels, circular detection
 - `skipPath`: JSONPath patterns per-file (glob patterns)
 - `transforms`: **BREAKING v1.1+** - Object with `content`/`filename` arrays (regex find/replace, sequential)
+  - **NEW v1.4+**: `contentFile`/`filenameFile` - Load transforms from external YAML files (single string or array)
+  - File-based transforms: Literal string replacement (keys escaped for regex safety)
+  - Execution order: File-based (literal) → Inline (regex)
 - `stopRules`: semverMajorUpgrade, semverDowngrade, versionFormat (vPrefix modes), numeric (min/max), regex
+  - **NEW v1.4+**: `regexFile` - Load patterns from YAML array file
+  - **NEW v1.4+**: `regexFileKey` - Use transform file keys as patterns
+  - **NEW v1.4+**: Optional `path` for regex rules - Omit for global value scanning
 - `outputFormat`: indent, keySeparator, quoteValues, keyOrders, arraySort
 
 **Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk
@@ -73,6 +79,9 @@ Barrel exports via `index.ts`:
 - `transformer.ts` - applyTransforms (regex on values, sequential)
 - `patternMatcher.ts` - PatternMatcher, globalMatcher (picomatch cache)
 - `versionChecker.ts` - checkForUpdates (npm registry, CI detection)
+- **NEW v1.4+**:
+  - `transformFileLoader.ts` - loadTransformFile, loadTransformFiles, escapeRegex (literal string replacements from YAML)
+  - `regexPatternFileLoader.ts` - loadRegexPatternArray, loadRegexPatternsFromKeys (pattern loading for stop rules)
 
 **Error Pattern:** All modules use `errors.ts` factory for custom error classes with type guards, error codes, hints.
 
@@ -118,9 +127,76 @@ transforms:
 3. **versionFormat** - Enforce `major.minor.patch`, vPrefix: required/allowed/forbidden
    - Rejects: incomplete, pre-release, build metadata, leading zeros
 4. **numeric** - min/max constraints
-5. **regex** - Block forbidden patterns
+5. **regex** - Block forbidden patterns (path optional: targeted or global)
+6. **NEW v1.4+: regexFile** - Load patterns from YAML array file (path optional)
+7. **NEW v1.4+: regexFileKey** - Use transform file keys as patterns (path optional)
+
+**Path Modes (regex, regexFile, regexFileKey):**
+
+- **With `path`**: Check specific JSONPath field (targeted mode)
+- **Without `path`**: Recursively scan ALL values in file (global mode)
 
 Example: Helm charts use `vPrefix: 'forbidden'` (1.2.3), Docker tags use `vPrefix: 'required'` (v1.2.3)
+
+## External Files (v1.4+)
+
+### Transform Files
+
+Load literal string replacements from external YAML files:
+
+```yaml
+transforms:
+  '**/*.yaml':
+    contentFile: './transforms/common.yaml' # Single file
+    # Or array: ['./common.yaml', './services.yaml']
+    filenameFile: './transforms/paths.yaml'
+```
+
+**File Format:** Simple key:value pairs (Record<string, string>)
+
+```yaml
+staging: production
+stg-db.internal: prod-db.internal
+```
+
+**Features:**
+
+- Keys escaped for regex safety (literal matching, case-sensitive)
+- Multiple files processed in order (last wins for duplicates)
+- Applied BEFORE inline regex transforms
+- Errors: file not found, parse error, invalid format (nested objects/arrays)
+
+### Pattern Files for Stop Rules
+
+**regexFile** - Array of regex patterns:
+
+```yaml
+# patterns/forbidden.yaml
+- ^0\..* # Block 0.x versions
+- .*-alpha.* # Block alphas
+```
+
+**regexFileKey** - Uses transform file keys as patterns:
+
+```yaml
+stopRules:
+  '**/*.yaml':
+    - type: regexFileKey
+      path: service.name
+      file: './transforms/common.yaml' # Keys become patterns
+```
+
+**File Format Validation:**
+
+- regexFile MUST be YAML array (error if not)
+- regexFileKey MUST be YAML object with keys (error if not)
+- Invalid regex patterns cause immediate error
+
+**Usage:**
+
+- Files loaded on-demand during validation (not during config merge)
+- Paths resolved relative to config file directory
+- Empty files return empty array (no error)
 
 ## Testing
 

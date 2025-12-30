@@ -17,7 +17,7 @@ Common questions and answers about HelmEnvDelta.
 
 ## General Questions
 
-### 1. What is HelmEnvDelta and what problem does it solve?
+### What is HelmEnvDelta and what problem does it solve?
 
 HelmEnvDelta is a CLI tool that automates the synchronization of YAML configuration files between different environments (like UAT → Production) in GitOps workflows. It solves the problem of manual, error-prone file copying by:
 
@@ -30,7 +30,7 @@ HelmEnvDelta is a CLI tool that automates the synchronization of YAML configurat
 
 ---
 
-### 2. How is HelmEnvDelta different from git diff or other diff tools?
+### How is HelmEnvDelta different from git diff or other diff tools?
 
 HelmEnvDelta performs **structural YAML comparison** rather than line-by-line text comparison:
 
@@ -46,7 +46,7 @@ Additionally, HelmEnvDelta:
 
 ---
 
-### 3. Is HelmEnvDelta specific to Helm, or can I use it for other YAML files?
+### Is HelmEnvDelta specific to Helm, or can I use it for other YAML files?
 
 Despite the name, HelmEnvDelta works with **any YAML files**, not just Helm:
 
@@ -60,7 +60,7 @@ The tool focuses on YAML structure and environment synchronization, regardless o
 
 ---
 
-### 4. Can I use HelmEnvDelta with ArgoCD, Flux, or other GitOps tools?
+### Can I use HelmEnvDelta with ArgoCD, Flux, or other GitOps tools?
 
 **Yes!** HelmEnvDelta is designed to complement GitOps workflows:
 
@@ -74,7 +74,7 @@ HelmEnvDelta handles the file synchronization, while your GitOps tool handles th
 
 ## Installation & Setup
 
-### 5. Does HelmEnvDelta automatically check for updates?
+### Does HelmEnvDelta automatically check for updates?
 
 **Yes!** HelmEnvDelta automatically checks for newer versions on npm every time it runs.
 
@@ -103,7 +103,7 @@ The check runs in the background and never blocks your main operation. If you se
 
 ---
 
-### 6. What are the system requirements?
+### What are the system requirements?
 
 **Minimum requirements:**
 
@@ -119,7 +119,7 @@ npm install -g helm-env-delta
 
 ---
 
-### 7. How do I get started with a minimal configuration?
+### How do I get started with a minimal configuration?
 
 Create a `config.yaml` file with the bare minimum:
 
@@ -144,7 +144,7 @@ This shows what would change without modifying any files.
 
 ---
 
-### 8. Can I test HelmEnvDelta without modifying my files?
+### Can I test HelmEnvDelta without modifying my files?
 
 **Yes!** Always use `--dry-run` to preview changes:
 
@@ -165,7 +165,7 @@ Dry-run shows exactly what would change without writing any files.
 
 ## Configuration
 
-### 9. What's the difference between skipPath and transforms?
+### What's the difference between skipPath and transforms?
 
 **skipPath**: Fields to **completely ignore** during sync
 
@@ -193,7 +193,7 @@ transforms:
 
 ---
 
-### 10. How do I handle environment-specific values like namespaces or replica counts?
+### How do I handle environment-specific values like namespaces or replica counts?
 
 Use `skipPath` to preserve these values:
 
@@ -211,7 +211,7 @@ These fields will never be overwritten during sync, keeping production-specific 
 
 ---
 
-### 11. Can I use a base configuration and override it per environment?
+### Can I use a base configuration and override it per environment?
 
 **Yes!** Use config inheritance with `extends`:
 
@@ -246,7 +246,7 @@ Run with: `helm-env-delta --config config.prod.yaml`
 
 ---
 
-### 12. How deep can config inheritance go?
+### How deep can config inheritance go?
 
 Maximum **5 levels** of inheritance to prevent excessive nesting.
 
@@ -266,7 +266,7 @@ Circular dependencies are detected and rejected automatically.
 
 ## Usage & Workflow
 
-### 13. What's the recommended workflow for syncing environments?
+### What's the recommended workflow for syncing environments?
 
 **Standard workflow:**
 
@@ -293,7 +293,7 @@ git push
 
 ---
 
-### 14. Can I sync multiple environment pairs with one config?
+### Can I sync multiple environment pairs with one config?
 
 Not directly, but you can create multiple configs:
 
@@ -319,7 +319,7 @@ done
 
 ---
 
-### 15. How do I integrate HelmEnvDelta into my CI/CD pipeline?
+### How do I integrate HelmEnvDelta into my CI/CD pipeline?
 
 **Example GitHub Actions workflow:**
 
@@ -353,7 +353,7 @@ Use `--diff-json` for programmatic analysis with jq.
 
 ---
 
-### 16. What does the prune option do and when should I use it?
+### What does the prune option do and when should I use it?
 
 `prune: true` **deletes files in destination that don't exist in source**:
 
@@ -381,7 +381,7 @@ helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files.deleted'
 
 ## Transforms & Path Filtering
 
-### 17. How do transforms work and in what order are they applied?
+### How do transforms work and in what order are they applied?
 
 **Transforms apply sequentially:**
 
@@ -405,7 +405,7 @@ transforms:
 
 ---
 
-### 18. Can I transform file paths, not just content?
+### Can I transform file paths, not just content?
 
 **Yes!** Use `filename` transforms:
 
@@ -429,7 +429,7 @@ Filename transforms apply **before** include/exclude filtering.
 
 ---
 
-### 19. How do I use regex capture groups in transforms?
+### How do I use regex capture groups in transforms?
 
 Use `$1`, `$2`, etc. to reference captured groups:
 
@@ -463,7 +463,54 @@ transforms:
 
 ---
 
-### 20. What JSONPath syntax should I use for skipPath and stopRules?
+### Can I load transforms from external files instead of defining them inline?
+
+**Yes! (v1.4+)** Use `contentFile` and `filenameFile` to load transforms from external YAML files:
+
+```yaml
+transforms:
+  '**/*.yaml':
+    # Load from single file
+    contentFile: './transforms/common.yaml'
+
+    # Or load from multiple files (processed in order)
+    contentFile:
+      - './transforms/common.yaml'
+      - './transforms/services.yaml'
+
+    # Filename transforms from file
+    filenameFile: './transforms/paths.yaml'
+
+    # Can still combine with inline transforms (file-based run first)
+    content:
+      - find: 'v(\d+)-uat'
+        replace: 'v$1-prod'
+```
+
+**Transform file format (simple key:value pairs):**
+
+```yaml
+# transforms/common.yaml
+staging: production
+stg: prod
+staging-db.internal: production-db.internal
+```
+
+**Benefits:**
+
+- Cleaner config files
+- Reusable transform files across projects
+- Easier maintenance (update in one place)
+- Literal string matching (case-sensitive)
+
+**Execution order:**
+
+1. File-based transforms (literal)
+2. Inline regex transforms (patterns)
+
+---
+
+### What JSONPath syntax should I use for skipPath and stopRules?
 
 **JSONPath syntax (without `$.` prefix):**
 
@@ -489,16 +536,18 @@ skipPath:
 
 ## Stop Rules & Safety
 
-### 21. What are stop rules and when should I use them?
+### What are stop rules and when should I use them?
 
 **Stop rules prevent dangerous changes** from being applied:
 
-| Rule Type            | Purpose                       | Example                 |
-| -------------------- | ----------------------------- | ----------------------- |
-| `semverMajorUpgrade` | Block major version increases | Prevent v1.x → v2.0     |
-| `semverDowngrade`    | Block any version downgrades  | Prevent v1.3.2 → v1.2.4 |
-| `numeric`            | Validate number ranges        | Ensure replicas 2-10    |
-| `regex`              | Block pattern matches         | Reject pre-release tags |
+| Rule Type             | Purpose                       | Example                      |
+| --------------------- | ----------------------------- | ---------------------------- |
+| `semverMajorUpgrade`  | Block major version increases | Prevent v1.x → v2.0          |
+| `semverDowngrade`     | Block any version downgrades  | Prevent v1.3.2 → v1.2.4      |
+| `numeric`             | Validate number ranges        | Ensure replicas 2-10         |
+| `regex`               | Block pattern matches         | Reject pre-release tags      |
+| `regexFile` (v1.4+)   | Block patterns from file      | Load forbidden patterns      |
+| `regexFileKey`(v1.4+) | Block transform file keys     | Use transform keys as blocks |
 
 **Example:**
 
@@ -523,7 +572,87 @@ stopRules:
 
 ---
 
-### 22. How do I override stop rules when I actually want to make a blocked change?
+### Can I load stop rule patterns from external files? (v1.4+)
+
+**Yes!** Use `regexFile` and `regexFileKey` to load validation patterns from external files:
+
+```yaml
+stopRules:
+  '**/*.yaml':
+    # Load patterns from array file (with path - targeted)
+    - type: 'regexFile'
+      path: 'image.tag'
+      file: './patterns/forbidden-versions.yaml'
+
+    # Load patterns from array file (without path - global scan)
+    - type: 'regexFile'
+      file: './patterns/forbidden-global.yaml'
+
+    # Use transform file keys as patterns
+    - type: 'regexFileKey'
+      path: 'service.name'
+      file: './transforms/common.yaml'
+```
+
+**Pattern file format (array):**
+
+```yaml
+# patterns/forbidden-versions.yaml
+- ^0\..* # Block 0.x.x versions
+- .*-alpha.* # Block alpha releases
+- .*-beta.* # Block beta releases
+```
+
+**Benefits:**
+
+- Share validation rules across projects
+- Easier maintenance
+- Cleaner config files
+- Reuse transform files for validation
+
+---
+
+### What's the difference between targeted and global regex stop rules? (v1.4+)
+
+**Path modes determine where regex rules check:**
+
+**Targeted mode (with `path`):**
+
+- Checks specific field only
+- Efficient for known fields
+- Example: Check only `image.tag`
+
+```yaml
+stopRules:
+  '**/*.yaml':
+    - type: 'regex'
+      path: 'image.tag'
+      regex: '^0\.' # Only checks image.tag field
+```
+
+**Global mode (without `path`):**
+
+- Recursively scans ALL values in file
+- Finds forbidden values anywhere
+- Example: Block localhost references anywhere
+
+```yaml
+stopRules:
+  '**/*.yaml':
+    - type: 'regex'
+      regex: '^127\.' # Scans entire file for this pattern
+```
+
+**Use global mode to block:**
+
+- Localhost references (`localhost`, `127.0.0.1`)
+- Test prefixes (`test-*`)
+- Debug suffixes (`*-debug`)
+- Exposed secrets patterns
+
+---
+
+### How do I override stop rules when I actually want to make a blocked change?
 
 Use the `--force` flag:
 
@@ -545,7 +674,7 @@ helm-env-delta --config config.yaml --force --dry-run --diff
 
 ---
 
-### 23. Can I validate changes without actually syncing files?
+### Can I validate changes without actually syncing files?
 
 **Yes!** Use dry-run with JSON output:
 
@@ -569,7 +698,7 @@ cat report.json | jq '.files.changed[].changes[] | select(.path == "$.image.tag"
 
 ## Troubleshooting
 
-### 24. Why are my glob patterns not matching files?
+### Why are my glob patterns not matching files?
 
 **Common issues:**
 
@@ -605,7 +734,7 @@ helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files | keys'
 
 ---
 
-### 25. Why are some fields still being synced when I have them in skipPath?
+### Why are some fields still being synced when I have them in skipPath?
 
 **Common causes:**
 
@@ -643,7 +772,7 @@ helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files.changed[]
 
 ---
 
-### 26. What should I do if I get file collision errors?
+### What should I do if I get file collision errors?
 
 **Error:** Multiple source files transform to the same destination filename.
 
@@ -691,7 +820,7 @@ Both transform to: envs/prod/app.yaml
 
 ---
 
-### 27. How do I control output verbosity with --verbose and --quiet?
+### How do I control output verbosity with --verbose and --quiet?
 
 **Three verbosity levels:**
 
@@ -751,7 +880,7 @@ helm-env-delta --config config.yaml --quiet
 
 ---
 
-### 28. How can I preview which files will be synced without processing them?
+### How can I preview which files will be synced without processing them?
 
 **Use `--list-files`** to quickly see which files match your glob patterns:
 
@@ -789,7 +918,7 @@ Destination files: 10
 
 ---
 
-### 29. How can I see the final resolved configuration after inheritance?
+### How can I see the final resolved configuration after inheritance?
 
 **Use `--show-config`** to display the merged configuration after all `extends` chains are resolved:
 
@@ -822,7 +951,7 @@ Running `--show-config` shows the **merged result** (both configs combined).
 
 ---
 
-### 30. Does --validate show warnings for potential config issues?
+### Does --validate show warnings for potential config issues?
 
 **Yes!** As of recent versions, `--validate` now shows **non-fatal warnings** in addition to errors:
 
@@ -859,7 +988,7 @@ helm-env-delta --config config.yaml --validate
 
 ## Advanced Topics
 
-### 31. How does the deep merge work and what gets preserved?
+### How does the deep merge work and what gets preserved?
 
 **Deep merge process:**
 
@@ -893,7 +1022,7 @@ spec:
 
 ---
 
-### 32. Can I sort arrays or enforce key ordering in output YAML?
+### Can I sort arrays or enforce key ordering in output YAML?
 
 **Yes!** Use `outputFormat`:
 
@@ -923,7 +1052,7 @@ outputFormat:
 
 ---
 
-### 33. What's the difference between --diff, --diff-html, and --diff-json?
+### What's the difference between --diff, --diff-html, and --diff-json?
 
 **Different output formats for different needs:**
 
@@ -948,7 +1077,7 @@ helm-env-delta --config config.yaml --diff --diff-html --diff-json > report.json
 
 ---
 
-### 34. How can I see field-level changes instead of file-level changes?
+### How can I see field-level changes instead of file-level changes?
 
 Use `--diff-json` with jq:
 
@@ -973,7 +1102,7 @@ The JSON output includes JSONPath notation for each changed field (e.g., `$.spec
 
 ---
 
-### 35. Can HelmEnvDelta handle binary files or non-YAML files?
+### Can HelmEnvDelta handle binary files or non-YAML files?
 
 **Yes, with limitations:**
 

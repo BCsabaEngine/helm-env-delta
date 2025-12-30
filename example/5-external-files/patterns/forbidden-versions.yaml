@@ -1,0 +1,8 @@
+# Array of forbidden version patterns
+# Used with regexFile stop rule to block dangerous versions
+
+- ^0\..* # Block all 0.x.x pre-release versions
+- .*-alpha.* # Block alpha releases
+- .*-beta.* # Block beta releases
+- .*-rc.* # Block release candidates
+- .*-dev.* # Block dev builds

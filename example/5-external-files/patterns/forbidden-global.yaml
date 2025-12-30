@@ -1,0 +1,9 @@
+# Global forbidden patterns (scans all values)
+# Used with regexFile stop rule without path (global mode)
+
+- localhost # Block localhost references
+- 127\.0\.0\.1 # Block loopback IPs
+- ^test-.* # Block test prefixes
+- .*-debug$ # Block debug suffixes
+- password.*=.* # Block exposed passwords
+- secret.*=.* # Block exposed secrets

@@ -24,3 +24,20 @@ export { generateUnifiedDiff } from './diffGenerator';
 
 // Version checking utilities
 export { checkForUpdates, isVersionCheckerError, VersionCheckerError } from './versionChecker';
+
+// Transform file loading utilities
+export {
+  escapeRegex,
+  isTransformFileLoaderError,
+  loadTransformFile,
+  loadTransformFiles,
+  TransformFileLoaderError
+} from './transformFileLoader';
+
+// Regex pattern file loading utilities
+export {
+  isRegexPatternFileLoaderError,
+  loadRegexPatternArray,
+  loadRegexPatternsFromKeys,
+  RegexPatternFileLoaderError
+} from './regexPatternFileLoader';

@@ -104,13 +104,28 @@ export const mergeConfigs = (parent: BaseConfig, child: BaseConfig): BaseConfig 
 };
 
 /**
+ * Normalizes string | string[] | undefined to string[].
+ * Helper for merging file path arrays.
+ */
+const normalizeToArray = (value: string | string[] | undefined): string[] => {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+/**
  * Merges transform rules from parent and child configs.
- * Concatenates both content and filename arrays.
+ * Concatenates content, filename, contentFile, and filenameFile arrays.
+ * Note: contentFile and filenameFile are merged into arrays even if inputs were strings.
  */
 const mergeTransformRules = (parent?: TransformRules, child?: TransformRules): TransformRules => {
+  const contentFile = [...normalizeToArray(parent?.contentFile), ...normalizeToArray(child?.contentFile)];
+  const filenameFile = [...normalizeToArray(parent?.filenameFile), ...normalizeToArray(child?.filenameFile)];
+
   return {
     content: [...(parent?.content ?? []), ...(child?.content ?? [])],
-    filename: [...(parent?.filename ?? []), ...(child?.filename ?? [])]
+    filename: [...(parent?.filename ?? []), ...(child?.filename ?? [])],
+    ...(contentFile.length > 0 && { contentFile }),
+    ...(filenameFile.length > 0 && { filenameFile })
   };
 };
 

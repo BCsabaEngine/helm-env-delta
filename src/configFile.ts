@@ -47,11 +47,12 @@ const numericRuleSchema = z
 /**
  * Validates field values against regex patterns.
  * Blocks changes that match dangerous patterns (e.g., production database URLs).
+ * Path is optional: if set, checks specific field; if not set, scans all values recursively.
  */
 const regexRuleSchema = z
   .object({
     type: z.literal('regex'),
-    path: z.string().min(1),
+    path: z.string().min(1).optional(),
     regex: z.string().min(1)
   })
   .refine(
@@ -68,6 +69,28 @@ const regexRuleSchema = z
       path: ['regex']
     }
   );
+
+/**
+ * Validates field values against regex patterns loaded from a YAML array file.
+ * Works exactly like regex rule but loads patterns from an external file.
+ * Path is optional: if set, checks specific field; if not set, scans all values recursively.
+ */
+const regexFileRuleSchema = z.object({
+  type: z.literal('regexFile'),
+  path: z.string().min(1).optional(),
+  file: z.string().min(1)
+});
+
+/**
+ * Validates field values against regex patterns derived from transform file keys.
+ * Uses the keys from a transform file as regex patterns to block.
+ * Path is optional: if set, checks specific field; if not set, scans all values recursively.
+ */
+const regexFileKeyRuleSchema = z.object({
+  type: z.literal('regexFileKey'),
+  path: z.string().min(1).optional(),
+  file: z.string().min(1)
+});
 
 /**
  * Validates version string format.
@@ -87,6 +110,8 @@ const stopRuleSchema = z.discriminatedUnion('type', [
   semverDowngradeRuleSchema,
   numericRuleSchema,
   regexRuleSchema,
+  regexFileRuleSchema,
+  regexFileKeyRuleSchema,
   versionFormatRuleSchema
 ]);
 
@@ -127,18 +152,29 @@ const transformRuleSchema = z
 
 /**
  * Transform rules configuration for a file pattern.
- * - content: Transforms applied to YAML values (not keys)
- * - filename: Transforms applied to file paths (full relative path including folders)
- * At least one of content or filename must be specified.
+ * - content: Inline regex transforms applied to YAML values (not keys)
+ * - filename: Inline regex transforms applied to file paths (full relative path including folders)
+ * - contentFile: File(s) with key:value pairs for literal content replacement (applied before inline)
+ * - filenameFile: File(s) with key:value pairs for literal filename replacement (applied before inline)
+ * At least one transform type must be specified.
  */
 const transformRulesSchema = z
   .object({
     content: z.array(transformRuleSchema).optional(),
-    filename: z.array(transformRuleSchema).optional()
+    filename: z.array(transformRuleSchema).optional(),
+    contentFile: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    filenameFile: z.union([z.string().min(1), z.array(z.string().min(1))]).optional()
   })
-  .refine((data) => data.content !== undefined || data.filename !== undefined, {
-    message: 'At least one of content or filename must be specified'
-  });
+  .refine(
+    (data) =>
+      data.content !== undefined ||
+      data.filename !== undefined ||
+      data.contentFile !== undefined ||
+      data.filenameFile !== undefined,
+    {
+      message: 'At least one of content, filename, contentFile, or filenameFile must be specified'
+    }
+  );
 
 // Base Configuration Schema (allows partial configs for inheritance, no defaults)
 const baseConfigSchema = z.object({
@@ -200,6 +236,8 @@ export type SemverMajorUpgradeRule = z.infer<typeof semverMajorUpgradeRuleSchema
 export type SemverDowngradeRule = z.infer<typeof semverDowngradeRuleSchema>;
 export type NumericRule = z.infer<typeof numericRuleSchema>;
 export type RegexRule = z.infer<typeof regexRuleSchema>;
+export type RegexFileRule = z.infer<typeof regexFileRuleSchema>;
+export type RegexFileKeyRule = z.infer<typeof regexFileKeyRuleSchema>;
 export type VersionFormatRule = z.infer<typeof versionFormatRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
 export type TransformRule = z.infer<typeof transformRuleSchema>;
