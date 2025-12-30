@@ -1,0 +1,15 @@
+# Minimal configuration for testing --suggest feature
+# This config lacks transforms and stop rules, which the suggestion engine should detect
+
+source: './source'
+destination: './destination'
+
+# Sync all YAML files
+include:
+  - '**/*.yaml'
+
+# Skip environment-specific paths
+skipPath:
+  '**/*.yaml':
+    - 'environment'
+    - 'cluster.name'
