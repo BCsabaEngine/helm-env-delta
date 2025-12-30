@@ -1,0 +1,11 @@
+# Hybrid system example (vPrefix: allowed)
+# Current API version (with v prefix - both formats OK)
+apiVersion: v1
+kind: APIService
+metadata:
+  name: legacy-api-dest
+spec:
+  service:
+    name: payment-api
+    apiVersion: v2.5.0
+    compatibility: mixed

@@ -1,0 +1,11 @@
+# Helm chart version example (vPrefix: forbidden)
+# Valid: Helm charts use plain semver without 'v' prefix
+apiVersion: v1
+kind: HelmChart
+metadata:
+  name: my-app-source
+spec:
+  chart:
+    name: my-application
+    chartVersion: 1.2.3
+    repository: https://charts.example.com
