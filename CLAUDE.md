@@ -20,7 +20,7 @@ npm run all           # Fix + build + test
 helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--suggest` (heuristic analysis and config suggestions), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
+**Key Flags:** `--config` (required), `--suggest` (heuristic analysis and config suggestions), `--suggest-threshold` (min confidence 0-1, default: 0.3), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
 
 ## Architecture
 
@@ -245,11 +245,19 @@ stopRules:
 **Smart Suggestions (v1.5+) - Heuristic Operation:**
 
 - `--suggest` - Uses heuristic analysis to examine diffs and recommend config updates
+- `--suggest-threshold` - Control suggestion sensitivity (0-1, default: 0.3)
+  - Lower threshold (e.g., 0.2): More suggestions, less strict
+  - Higher threshold (e.g., 0.7): Fewer suggestions, higher confidence only
 - Intelligently detects transform patterns using semantic matching (uat→prod, staging→production)
 - Suggests stop rules based on pattern recognition (version bumps, numeric ranges)
 - Provides confidence scores (0-100%) and occurrence counts for each suggestion
 - Outputs copy-paste ready YAML configuration
-- Smart noise filtering (ignores UUIDs, timestamps, single-char changes, version numbers)
+- **Enhanced Noise Filtering:**
+  - Ignores UUIDs, timestamps, single-char changes
+  - Filters antonym pairs (enable/disable, true/false, on/off, etc.)
+  - Filters regex special characters (unless semantic keywords present)
+  - Filters version-number-only changes (service-v1 → service-v2)
+  - Allows semantic patterns even with special chars (db.uat.com → db.prod.com)
 - Use case: Bootstrap config from existing files, discover missing patterns through intelligent analysis
 - **Note:** Suggestions are heuristic-based and should be reviewed before applying
 

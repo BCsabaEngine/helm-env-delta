@@ -80,15 +80,20 @@ export const isSuggestionEngineError = createErrorTypeGuard(SuggestionEngineErro
  *
  * @param diffResult - Result from computeFileDiff
  * @param config - Current configuration (to avoid duplicating existing rules)
+ * @param confidenceThreshold - Minimum confidence score for suggestions (default: 0.3)
  * @returns Structured suggestions with confidence scores
  */
-export const analyzeDifferencesForSuggestions = (diffResult: FileDiffResult, config: Config): SuggestionResult => {
+export const analyzeDifferencesForSuggestions = (
+  diffResult: FileDiffResult,
+  config: Config,
+  confidenceThreshold: number = 0.3
+): SuggestionResult => {
   if (diffResult.changedFiles.length === 0) return createEmptySuggestionResult(diffResult);
 
   try {
     const allDifferences = extractAllDifferences(diffResult.changedFiles);
-    const transformSuggestions = analyzeTransformPatterns(allDifferences, config);
-    const stopRuleSuggestions = analyzeStopRulePatterns(diffResult.changedFiles, config);
+    const transformSuggestions = analyzeTransformPatterns(allDifferences, config, confidenceThreshold);
+    const stopRuleSuggestions = analyzeStopRulePatterns(diffResult.changedFiles, config, confidenceThreshold);
 
     return {
       transforms: new Map([['**/*.yaml', transformSuggestions]]),
@@ -354,8 +359,13 @@ const extractAllPathValues = (data: unknown, currentPath: string[]): Map<string,
 /**
  * Detects transform patterns by comparing raw source/dest values.
  * Uses rawParsedSource and rawParsedDest (before any transforms applied).
+ * @param confidenceThreshold - Minimum confidence score to include suggestion
  */
-const analyzeTransformPatterns = (differences: ValueDifference[], config: Config): TransformSuggestion[] => {
+const analyzeTransformPatterns = (
+  differences: ValueDifference[],
+  config: Config,
+  confidenceThreshold: number
+): TransformSuggestion[] => {
   const patternMap = new Map<string, PatternOccurrence>();
 
   for (const diff of differences) {
@@ -409,7 +419,7 @@ const analyzeTransformPatterns = (differences: ValueDifference[], config: Config
 
     const confidence = calculateTransformConfidence(occurrence);
 
-    if (confidence < 0.3) continue;
+    if (confidence < confidenceThreshold) continue;
 
     if (isTransformInConfig(occurrence.find, occurrence.replace, config)) continue;
 
@@ -470,6 +480,54 @@ const findSubstringPatterns = (oldString: string, targetString: string): Array<{
 };
 
 /**
+ * Common antonym pairs that should not be suggested as patterns.
+ */
+const ANTONYM_PAIRS = [
+  ['enable', 'disable'],
+  ['enabled', 'disabled'],
+  ['true', 'false'],
+  ['on', 'off'],
+  ['yes', 'no'],
+  ['active', 'inactive'],
+  ['start', 'stop']
+];
+
+/**
+ * Checks if two values are antonyms (intentional opposites).
+ */
+const isAntonymPair = (oldValue: string, targetValue: string): boolean => {
+  const oldLower = oldValue.toLowerCase();
+  const targetLower = targetValue.toLowerCase();
+
+  for (const [term1, term2] of ANTONYM_PAIRS)
+    if ((oldLower === term1 && targetLower === term2) || (oldLower === term2 && targetLower === term1)) return true;
+
+  return false;
+};
+
+/**
+ * Checks if a value contains regex special characters that would cause issues.
+ */
+const hasProblematicRegexChars = (value: string): boolean => {
+  // Special chars that need escaping and might indicate non-pattern values
+  const problematicChars = /[$()*+.?[\\\]^{|}]/;
+  return problematicChars.test(value);
+};
+
+/**
+ * Checks if two values differ only in numeric portions.
+ * Example: "service-v1" vs "service-v2" - likely version, not pattern
+ */
+const differsOnlyInNumbers = (oldValue: string, targetValue: string): boolean => {
+  // Strip all digits and compare
+  const oldStripped = oldValue.replaceAll(/\d+/g, '');
+  const targetStripped = targetValue.replaceAll(/\d+/g, '');
+
+  // If non-numeric parts are identical, it's just a number change
+  return oldStripped === targetStripped && oldStripped.length > 0;
+};
+
+/**
  * Filters out noise patterns that shouldn't be suggested.
  */
 const shouldIgnoreValue = (oldValue: string, targetValue: string): boolean => {
@@ -485,6 +543,23 @@ const shouldIgnoreValue = (oldValue: string, targetValue: string): boolean => {
     const editDistance = calculateLevenshteinDistance(oldValue, targetValue);
     if (editDistance <= 1) return true;
   }
+
+  // NEW: Filter antonym pairs
+  if (isAntonymPair(oldValue, targetValue)) return true;
+
+  // NEW: Filter values with problematic regex characters
+  // (unless they match semantic patterns, handled elsewhere)
+  if (hasProblematicRegexChars(oldValue) || hasProblematicRegexChars(targetValue)) {
+    // Allow if contains semantic keywords
+    const semanticKeywords = ['uat', 'prod', 'staging', 'production', 'dev', 'test', 'stg', 'prd'];
+    const hasSemanticKeyword = semanticKeywords.some(
+      (kw) => oldValue.toLowerCase().includes(kw) || targetValue.toLowerCase().includes(kw)
+    );
+    if (!hasSemanticKeyword) return true;
+  }
+
+  // NEW: Filter compound values differing only in numbers
+  if (differsOnlyInNumbers(oldValue, targetValue)) return true;
 
   return false;
 };
@@ -533,7 +608,11 @@ const isTransformInConfig = (find: string, replace: string, config: Config): boo
  * Analyzes processed content to suggest stop rules.
  * Uses processedSourceContent (after transforms) to detect patterns.
  */
-const analyzeStopRulePatterns = (changedFiles: ChangedFile[], config: Config): StopRuleSuggestion[] => {
+const analyzeStopRulePatterns = (
+  changedFiles: ChangedFile[],
+  config: Config,
+  confidenceThreshold: number
+): StopRuleSuggestion[] => {
   const valuesByPath = collectValuesByPath(changedFiles);
 
   const suggestions = [
@@ -542,7 +621,10 @@ const analyzeStopRulePatterns = (changedFiles: ChangedFile[], config: Config): S
     ...detectNumericStopRules(valuesByPath, config)
   ];
 
-  return suggestions.toSorted((a, b) => b.confidence - a.confidence);
+  // Filter by confidence threshold
+  const filtered = suggestions.filter((s) => s.confidence >= confidenceThreshold);
+
+  return filtered.toSorted((a, b) => b.confidence - a.confidence);
 };
 
 /**

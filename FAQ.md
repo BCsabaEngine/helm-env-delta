@@ -272,6 +272,9 @@ Circular dependencies are detected and rejected automatically.
 
 ```bash
 helm-env-delta --config config.yaml --suggest
+
+# Control suggestion sensitivity (0-1, default: 0.3)
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
 ```
 
 **What heuristic analysis does:**
@@ -281,7 +284,13 @@ helm-env-delta --config config.yaml --suggest
 - Suggests transform patterns automatically based on smart algorithms
 - Recommends stop rules for version changes, numeric values using heuristics
 - Provides confidence scores (0-100%) and occurrence counts for each suggestion
-- Filters out noise (UUIDs, timestamps, single-character edits, version numbers)
+- **NEW:** Configurable threshold allows you to control suggestion sensitivity (0-1)
+- **Enhanced noise filtering:**
+  - Filters out UUIDs, timestamps, single-character edits
+  - Filters antonym pairs (enable/disable, true/false, on/off, yes/no, active/inactive)
+  - Filters regex special characters (unless semantic keywords like uat/prod present)
+  - Filters version-number-only changes (service-v1 → service-v2, node1 → node2)
+  - Allows semantic patterns even with special chars (db.uat.com → db.prod.com)
 - Outputs copy-paste ready YAML configuration
 
 **Note:** Suggestions are heuristic-based (intelligent pattern detection) and should always be reviewed before applying.
@@ -329,23 +338,39 @@ The `--suggest` feature uses heuristic algorithms to calculate confidence scores
 - **Medium confidence (50-79%)**: Pattern appears moderately
   - Example: `staging` → `production` (8 occurrences in 3 files)
   - Action: Review carefully, might be environment-specific
-- **Low confidence (<50%)**: Pattern appears infrequently
+- **Low confidence (30-49%)**: Pattern appears infrequently
   - Example: `test-value` → `prod-value` (2 occurrences in 1 file)
   - Action: Verify this is truly a pattern, not a one-off change
+  - Note: Below 30% are filtered out by default
 
 **Stop rule suggestions:**
 
-- Automatically suggested when detecting:
-  - Version changes (semverMajorUpgrade, semverDowngrade)
-  - Numeric value changes (min/max ranges)
-  - Repeated string patterns (regex rules)
-- Always review stop rules carefully as they block changes
+- **High confidence (90-95%)**: Multiple files OR consistent version format
+  - Example: Version format rules with unanimous v-prefix usage
+- **Medium confidence (60-70%)**: Single file OR mixed patterns
+  - Example: Semver rules for single-file version changes
+- **Low confidence (50%)**: Single file numeric constraints
+  - Example: Replica count ranges detected in one file
+- Confidence threshold applies to both transforms AND stop rules
+
+**Controlling which suggestions appear:**
+
+```bash
+# Show all suggestions (including low confidence)
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.3
+
+# Show only medium-high confidence
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.6
+
+# Show only high confidence
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.8
+```
 
 **Best practices:**
 
-- Start with high-confidence suggestions
-- Review medium-confidence suggestions individually
-- Skip low-confidence suggestions unless you recognize the pattern
+- Start with default threshold (0.3) to see all reasonable suggestions
+- Use higher threshold (0.7-0.8) when you only want very confident patterns
+- Use lower threshold (0.2) when exploring all possible patterns
 - Always test with `--dry-run` after applying suggestions
 
 ---
@@ -1082,6 +1107,7 @@ helm-env-delta --config config.yaml --validate
 - 📚 **Learning**: Understand typical patterns detected by intelligent algorithms
 - 🔄 **Config audit**: Verify you haven't missed patterns through automated analysis
 - 🧠 **Pattern discovery**: Leverage semantic matching and smart filtering
+- 🎯 **Confidence tuning**: Adjust threshold to find the right balance for your use case
 
 **Manually write config when:**
 
@@ -1095,8 +1121,8 @@ helm-env-delta --config config.yaml --validate
 **Hybrid approach (recommended):**
 
 ```bash
-# 1. Start with heuristic suggestions
-helm-env-delta --config minimal-config.yaml --suggest > suggestions.yaml
+# 1. Start with heuristic suggestions (tune threshold as needed)
+helm-env-delta --config minimal-config.yaml --suggest --suggest-threshold 0.5 > suggestions.yaml
 
 # 2. Review suggestions and pick high-confidence patterns from heuristic analysis
 

@@ -1333,4 +1333,303 @@ describe('suggestionEngine', () => {
       expect(yaml).toContain('Found in 2 files');
     });
   });
+
+  describe('Confidence threshold', () => {
+    it('should filter suggestions below custom threshold', () => {
+      const config = createMinimalConfig();
+      // Need multiple occurrences for pattern to be suggested
+      const changedFile = createChangedFile(
+        'app.yaml',
+        { cluster: 'prod-cluster', region: 'prod-east' },
+        { cluster: 'uat-cluster', region: 'uat-east' }
+      );
+
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [changedFile],
+        unchangedFiles: []
+      };
+
+      // With default threshold (0.3), suggestion should be included
+      const resultDefault = analyzeDifferencesForSuggestions(diffResult, config, 0.3);
+      expect(resultDefault.transforms.get('**/*.yaml')?.length).toBeGreaterThan(0);
+
+      // With high threshold (0.7), suggestion should be filtered
+      const resultHigh = analyzeDifferencesForSuggestions(diffResult, config, 0.7);
+      expect(resultHigh.transforms.get('**/*.yaml')?.length).toBe(0);
+    });
+
+    it('should use default threshold 0.3 when not specified', () => {
+      const config = createMinimalConfig();
+      const changedFile = createChangedFile(
+        'app.yaml',
+        { cluster: 'prod-cluster', region: 'prod-east' },
+        { cluster: 'uat-cluster', region: 'uat-east' }
+      );
+
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [changedFile],
+        unchangedFiles: []
+      };
+
+      // Call without threshold parameter (should use default 0.3)
+      const resultDefault = analyzeDifferencesForSuggestions(diffResult, config);
+      expect(resultDefault.transforms.get('**/*.yaml')?.length).toBeGreaterThan(0);
+
+      // Should be same as explicitly passing 0.3
+      const resultExplicit = analyzeDifferencesForSuggestions(diffResult, config, 0.3);
+      expect(resultDefault.transforms.get('**/*.yaml')).toEqual(resultExplicit.transforms.get('**/*.yaml'));
+    });
+
+    it('should accept threshold at boundaries (0.0, 1.0)', () => {
+      const config = createMinimalConfig();
+      const changedFile = createChangedFile(
+        'app.yaml',
+        { cluster: 'prod-cluster', region: 'prod-east' },
+        { cluster: 'uat-cluster', region: 'uat-east' }
+      );
+
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [changedFile],
+        unchangedFiles: []
+      };
+
+      // Threshold 0.0 should accept all suggestions
+      const resultZero = analyzeDifferencesForSuggestions(diffResult, config, 0);
+      expect(resultZero.transforms.get('**/*.yaml')?.length).toBeGreaterThan(0);
+
+      // Threshold 1.0 should filter all suggestions (confidence is always < 1.0)
+      const resultOne = analyzeDifferencesForSuggestions(diffResult, config, 1);
+      expect(resultOne.transforms.get('**/*.yaml')?.length).toBe(0);
+    });
+  });
+
+  describe('Enhanced noise filtering', () => {
+    it('should filter antonym pairs', () => {
+      const config = createMinimalConfig();
+      const antonymCases = [
+        ['enable', 'disable'],
+        ['enabled', 'disabled'],
+        ['true', 'false'],
+        ['on', 'off'],
+        ['yes', 'no'],
+        ['active', 'inactive'],
+        ['start', 'stop']
+      ];
+
+      for (const [oldValue, targetValue] of antonymCases) {
+        const changedFile = createChangedFile('app.yaml', { setting: oldValue }, { setting: targetValue });
+        const diffResult: FileDiffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [changedFile],
+          unchangedFiles: []
+        };
+
+        const result = analyzeDifferencesForSuggestions(diffResult, config);
+        expect(result.transforms.get('**/*.yaml')?.length).toBe(0);
+      }
+    });
+
+    it('should filter values with regex special chars', () => {
+      const config = createMinimalConfig();
+      const testCases = [
+        ['server.test.com', 'server.other.com'], // dots
+        ['config[0]', 'config[1]'], // brackets
+        ['app(test)', 'app(prod)'] // parentheses
+      ];
+
+      for (const [oldValue, targetValue] of testCases) {
+        const changedFile = createChangedFile('app.yaml', { host: oldValue }, { host: targetValue });
+        const diffResult: FileDiffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [changedFile],
+          unchangedFiles: []
+        };
+
+        const result = analyzeDifferencesForSuggestions(diffResult, config);
+        // Should be filtered unless semantic keywords present
+        expect(result.transforms.get('**/*.yaml')?.length).toBe(0);
+      }
+    });
+
+    it('should allow regex chars with semantic keywords', () => {
+      const config = createMinimalConfig();
+      // 'db.uat.com' → 'db.prod.com' should pass (has 'uat', 'prod')
+      const changedFile = createChangedFile(
+        'app.yaml',
+        { database: 'db.prod.com', cache: 'cache.prod.io' },
+        { database: 'db.uat.com', cache: 'cache.uat.io' }
+      );
+
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [changedFile],
+        unchangedFiles: []
+      };
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+      expect(result.transforms.get('**/*.yaml')?.length).toBeGreaterThan(0);
+      const suggestion = result.transforms.get('**/*.yaml')?.[0];
+      expect(suggestion?.find).toBe('uat');
+      expect(suggestion?.replace).toBe('prod');
+    });
+
+    it('should filter compound values differing only in numbers', () => {
+      const config = createMinimalConfig();
+      const testCases = [
+        ['service-v1', 'service-v2'],
+        ['app-10', 'app-20'],
+        ['node1', 'node2']
+      ];
+
+      for (const [oldValue, targetValue] of testCases) {
+        const changedFile = createChangedFile('app.yaml', { name: oldValue }, { name: targetValue });
+        const diffResult: FileDiffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [changedFile],
+          unchangedFiles: []
+        };
+
+        const result = analyzeDifferencesForSuggestions(diffResult, config);
+        expect(result.transforms.get('**/*.yaml')?.length).toBe(0);
+      }
+    });
+
+    it('should not filter semantic patterns even with numbers', () => {
+      const config = createMinimalConfig();
+      // 'uat-v1' → 'prod-v1' should suggest 'uat' → 'prod' (semantic pattern)
+      const changedFile = createChangedFile(
+        'app.yaml',
+        { env: 'prod-v1', cluster: 'prod-v2' },
+        { env: 'uat-v1', cluster: 'uat-v2' }
+      );
+
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [changedFile],
+        unchangedFiles: []
+      };
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+      expect(result.transforms.get('**/*.yaml')?.length).toBeGreaterThan(0);
+      const suggestion = result.transforms.get('**/*.yaml')?.[0];
+      expect(suggestion?.find).toBe('uat');
+      expect(suggestion?.replace).toBe('prod');
+    });
+  });
+
+  describe('Confidence threshold for stop rules', () => {
+    it('should filter stop rule suggestions below threshold', () => {
+      const config = createMinimalConfig();
+      // Use numeric fields to test numeric stop rules (confidence: 0.5 for single file)
+      // Need different replica values in source to establish a range
+      const changedFile = createChangedFile(
+        'app.yaml',
+        {
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        },
+        {
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        },
+        {
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        },
+        {
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        }
+      );
+
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [changedFile],
+        unchangedFiles: []
+      };
+
+      // With default threshold (0.3), numeric stop rules should be suggested (confidence: 0.5 for single file)
+      const resultDefault = analyzeDifferencesForSuggestions(diffResult, config, 0.3);
+      expect(resultDefault.stopRules.get('**/*.yaml')?.length).toBeGreaterThan(0);
+
+      // With threshold 0.6, should filter out single-file numeric rules (confidence: 0.5)
+      const resultHigh = analyzeDifferencesForSuggestions(diffResult, config, 0.6);
+      expect(resultHigh.stopRules.get('**/*.yaml')?.length).toBe(0);
+    });
+
+    it('should apply threshold consistently to both transforms and stop rules', () => {
+      const config = createMinimalConfig();
+      const changedFile = createChangedFile(
+        'app.yaml',
+        {
+          cluster: 'prod-cluster',
+          region: 'prod-east',
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        },
+        {
+          cluster: 'uat-cluster',
+          region: 'uat-east',
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        },
+        {
+          cluster: 'prod-cluster',
+          region: 'prod-east',
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        },
+        {
+          cluster: 'uat-cluster',
+          region: 'uat-east',
+          services: [
+            { name: 'api', replicas: 3 },
+            { name: 'worker', replicas: 5 }
+          ]
+        }
+      );
+
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [changedFile],
+        unchangedFiles: []
+      };
+
+      // Threshold 0.6 should filter both transforms and stop rules with confidence < 0.6
+      const result = analyzeDifferencesForSuggestions(diffResult, config, 0.6);
+
+      // Transforms with confidence 0.5 should be filtered
+      expect(result.transforms.get('**/*.yaml')?.length).toBe(0);
+
+      // Numeric stop rules with confidence 0.5 should be filtered
+      expect(result.stopRules.get('**/*.yaml')?.length).toBe(0);
+    });
+  });
 });

@@ -160,7 +160,7 @@ const main = async (): Promise<void> => {
     logger.log('\n' + formatProgressMessage('Analyzing differences for suggestions...', 'info'));
 
     try {
-      const suggestions = analyzeDifferencesForSuggestions(diffResult, config);
+      const suggestions = analyzeDifferencesForSuggestions(diffResult, config, command.suggestThreshold);
       const yaml = formatSuggestionsAsYaml(suggestions);
 
       console.log(chalk.cyan('\n💡 Suggested Configuration:\n'));
