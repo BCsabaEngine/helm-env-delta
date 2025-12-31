@@ -1,18 +1,11 @@
-import fs from 'node:fs';
-import path from 'node:path';
-
-import * as YAML from 'yaml';
-
 import { createErrorClass, createErrorTypeGuard } from './errors';
+import { isYamlFileLoaderError, loadYamlFile } from './yamlFileLoader';
 
 // ============================================================================
 // Error Handling
 // ============================================================================
 
 export const RegexPatternFileLoaderError = createErrorClass('RegexPatternFileLoaderError', {
-  FILE_NOT_FOUND: 'Pattern file not found',
-  ENOENT: 'Pattern file does not exist',
-  PARSE_ERROR: 'Failed to parse YAML pattern file',
   INVALID_FORMAT_NOT_ARRAY: 'Pattern file must contain a YAML array of regex patterns',
   INVALID_FORMAT_NOT_OBJECT: 'Pattern file must contain a YAML object with keys',
   INVALID_REGEX: 'File contains invalid regular expression pattern'
@@ -104,31 +97,18 @@ const validateRegexPattern = (pattern: string, source: string): void => {
  * // Returns: ['^v0\\.', 'localhost', '.*-debug$']
  */
 export const loadRegexPatternArray = (filePath: string, configDirectory: string): string[] => {
-  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(configDirectory, filePath);
-
-  // Read file
-  let fileContent: string;
-  try {
-    fileContent = fs.readFileSync(resolvedPath, 'utf8');
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'ENOENT' : 'FILE_NOT_FOUND';
-    throw new RegexPatternFileLoaderError(`Cannot read pattern file`, {
-      code,
-      path: `${filePath} (resolved: ${resolvedPath})`,
-      cause: error as Error
-    });
-  }
-
-  // Parse YAML
   let parsedData: unknown;
+
   try {
-    parsedData = YAML.parse(fileContent);
+    parsedData = loadYamlFile(filePath, configDirectory, 'pattern');
   } catch (error) {
-    throw new RegexPatternFileLoaderError('Invalid YAML syntax', {
-      code: 'PARSE_ERROR',
-      path: resolvedPath,
-      cause: error as Error
-    });
+    // Re-throw with RegexPatternFileLoaderError for backward compatibility
+    if (isYamlFileLoaderError(error))
+      throw new RegexPatternFileLoaderError(error.message, {
+        code: 'INVALID_FORMAT_NOT_ARRAY',
+        cause: error
+      });
+    throw error;
   }
 
   // Handle empty file
@@ -162,31 +142,18 @@ export const loadRegexPatternArray = (filePath: string, configDirectory: string)
  * // Returns: ['uat-cluster', 'uat.internal.example.com']
  */
 export const loadRegexPatternsFromKeys = (filePath: string, configDirectory: string): string[] => {
-  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(configDirectory, filePath);
-
-  // Read file
-  let fileContent: string;
-  try {
-    fileContent = fs.readFileSync(resolvedPath, 'utf8');
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'ENOENT' : 'FILE_NOT_FOUND';
-    throw new RegexPatternFileLoaderError(`Cannot read pattern file`, {
-      code,
-      path: `${filePath} (resolved: ${resolvedPath})`,
-      cause: error as Error
-    });
-  }
-
-  // Parse YAML
   let parsedData: unknown;
+
   try {
-    parsedData = YAML.parse(fileContent);
+    parsedData = loadYamlFile(filePath, configDirectory, 'pattern');
   } catch (error) {
-    throw new RegexPatternFileLoaderError('Invalid YAML syntax', {
-      code: 'PARSE_ERROR',
-      path: resolvedPath,
-      cause: error as Error
-    });
+    // Re-throw with RegexPatternFileLoaderError for backward compatibility
+    if (isYamlFileLoaderError(error))
+      throw new RegexPatternFileLoaderError(error.message, {
+        code: 'INVALID_FORMAT_NOT_OBJECT',
+        cause: error
+      });
+    throw error;
   }
 
   // Handle empty file

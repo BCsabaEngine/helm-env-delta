@@ -2,6 +2,22 @@ import { Config, StopRule } from './configFile';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { parseJsonPath } from './utils/jsonPath';
+import {
+  ANTONYM_PAIRS,
+  ARRAY_KEY_FIELDS,
+  CONFIDENCE_DEFAULTS,
+  CONSTRAINT_FIELD_NAMES,
+  FILTER_THRESHOLDS,
+  ISO_TIMESTAMP_PATTERN,
+  MAX_EXAMPLES_PER_SUGGESTION,
+  NUMERIC_MIN_FLOOR,
+  NUMERIC_MIN_MULTIPLIER,
+  PROBLEMATIC_REGEX_CHARS,
+  SEMANTIC_KEYWORDS,
+  SEMANTIC_PATTERNS,
+  SEMVER_PATTERN,
+  UUID_PATTERN
+} from './utils/suggestionConstants';
 
 // ============================================================================
 // Types
@@ -86,7 +102,7 @@ export const isSuggestionEngineError = createErrorTypeGuard(SuggestionEngineErro
 export const analyzeDifferencesForSuggestions = (
   diffResult: FileDiffResult,
   config: Config,
-  confidenceThreshold: number = 0.3
+  confidenceThreshold: number = CONFIDENCE_DEFAULTS.DEFAULT_THRESHOLD
 ): SuggestionResult => {
   if (diffResult.changedFiles.length === 0) return createEmptySuggestionResult(diffResult);
 
@@ -253,7 +269,7 @@ const detectArrayKeyField = (array: unknown[]): string | undefined => {
   if (!isObject(array[0])) return undefined;
 
   const firstItem = array[0] as Record<string, unknown>;
-  const candidateFields = ['name', 'id', 'key', 'identifier', 'uid', 'ref'];
+  const candidateFields = ARRAY_KEY_FIELDS;
 
   for (const field of candidateFields) {
     if (!(field in firstItem)) continue;
@@ -400,7 +416,7 @@ const analyzeTransformPatterns = (
 
   for (const occurrence of patternMap.values()) {
     // Skip patterns that occur only once
-    if (occurrence.examples.length < 2) continue;
+    if (occurrence.examples.length < FILTER_THRESHOLDS.MIN_OCCURRENCES) continue;
 
     // Skip numeric-only replacements (e.g., "100" → "30")
     const isNumericOnly = /^\d+$/.test(occurrence.find) && /^\d+$/.test(occurrence.replace);
@@ -429,7 +445,7 @@ const analyzeTransformPatterns = (
       confidence,
       occurrences: occurrence.examples.length,
       affectedFiles: [...occurrence.files],
-      examples: occurrence.examples.slice(0, 3)
+      examples: occurrence.examples.slice(0, MAX_EXAMPLES_PER_SUGGESTION)
     });
   }
 
@@ -445,17 +461,8 @@ const findSubstringPatterns = (oldString: string, targetString: string): Array<{
   const patterns: Array<{ find: string; replace: string }> = [];
   const seen = new Set<string>();
 
-  const semanticPatterns = [
-    { old: 'uat', target: 'prod' },
-    { old: 'UAT', target: 'PROD' },
-    { old: 'staging', target: 'production' },
-    { old: 'stg', target: 'prd' },
-    { old: 'dev', target: 'prod' },
-    { old: 'test', target: 'prod' }
-  ];
-
   // Always accept semantic patterns (uat→prod, staging→production, etc.)
-  for (const semantic of semanticPatterns)
+  for (const semantic of SEMANTIC_PATTERNS)
     if (oldString.includes(semantic.old) && targetString.includes(semantic.target)) {
       const key = `${semantic.old}→${semantic.target}`;
       if (!seen.has(key)) {
@@ -480,19 +487,6 @@ const findSubstringPatterns = (oldString: string, targetString: string): Array<{
 };
 
 /**
- * Common antonym pairs that should not be suggested as patterns.
- */
-const ANTONYM_PAIRS = [
-  ['enable', 'disable'],
-  ['enabled', 'disabled'],
-  ['true', 'false'],
-  ['on', 'off'],
-  ['yes', 'no'],
-  ['active', 'inactive'],
-  ['start', 'stop']
-];
-
-/**
  * Checks if two values are antonyms (intentional opposites).
  */
 const isAntonymPair = (oldValue: string, targetValue: string): boolean => {
@@ -509,9 +503,7 @@ const isAntonymPair = (oldValue: string, targetValue: string): boolean => {
  * Checks if a value contains regex special characters that would cause issues.
  */
 const hasProblematicRegexChars = (value: string): boolean => {
-  // Special chars that need escaping and might indicate non-pattern values
-  const problematicChars = /[$()*+.?[\\\]^{|}]/;
-  return problematicChars.test(value);
+  return PROBLEMATIC_REGEX_CHARS.test(value);
 };
 
 /**
@@ -531,17 +523,16 @@ const differsOnlyInNumbers = (oldValue: string, targetValue: string): boolean =>
  * Filters out noise patterns that shouldn't be suggested.
  */
 const shouldIgnoreValue = (oldValue: string, targetValue: string): boolean => {
-  if (oldValue.length > 100 || targetValue.length > 100) return true;
+  if (oldValue.length > FILTER_THRESHOLDS.MAX_STRING_LENGTH || targetValue.length > FILTER_THRESHOLDS.MAX_STRING_LENGTH)
+    return true;
 
-  const uuidPattern = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i;
-  if (uuidPattern.test(oldValue) || uuidPattern.test(targetValue)) return true;
+  if (UUID_PATTERN.test(oldValue) || UUID_PATTERN.test(targetValue)) return true;
 
-  const isoPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-  if (isoPattern.test(oldValue) || isoPattern.test(targetValue)) return true;
+  if (ISO_TIMESTAMP_PATTERN.test(oldValue) || ISO_TIMESTAMP_PATTERN.test(targetValue)) return true;
 
-  if (Math.abs(oldValue.length - targetValue.length) <= 1) {
+  if (Math.abs(oldValue.length - targetValue.length) <= FILTER_THRESHOLDS.MAX_EDIT_DISTANCE) {
     const editDistance = calculateLevenshteinDistance(oldValue, targetValue);
-    if (editDistance <= 1) return true;
+    if (editDistance <= FILTER_THRESHOLDS.MAX_EDIT_DISTANCE) return true;
   }
 
   // NEW: Filter antonym pairs
@@ -551,8 +542,7 @@ const shouldIgnoreValue = (oldValue: string, targetValue: string): boolean => {
   // (unless they match semantic patterns, handled elsewhere)
   if (hasProblematicRegexChars(oldValue) || hasProblematicRegexChars(targetValue)) {
     // Allow if contains semantic keywords
-    const semanticKeywords = ['uat', 'prod', 'staging', 'production', 'dev', 'test', 'stg', 'prd'];
-    const hasSemanticKeyword = semanticKeywords.some(
+    const hasSemanticKeyword = SEMANTIC_KEYWORDS.some(
       (kw) => oldValue.toLowerCase().includes(kw) || targetValue.toLowerCase().includes(kw)
     );
     if (!hasSemanticKeyword) return true;
@@ -573,16 +563,20 @@ const calculateTransformConfidence = (occurrence: PatternOccurrence): number => 
 
   let confidence = 0;
 
-  if (fileCount === 1) confidence = occurrenceCount >= 3 ? 0.5 : 0.3;
-  else if (fileCount <= 3) confidence = 0.6;
-  else confidence = 0.85;
+  if (fileCount === 1)
+    confidence =
+      occurrenceCount >= FILTER_THRESHOLDS.MIN_SINGLE_FILE_OCCURRENCES
+        ? CONFIDENCE_DEFAULTS.SINGLE_FILE_HIGH
+        : CONFIDENCE_DEFAULTS.SINGLE_FILE_LOW;
+  else if (fileCount <= 3) confidence = CONFIDENCE_DEFAULTS.MULTI_FILE_LOW;
+  else confidence = CONFIDENCE_DEFAULTS.MULTI_FILE_HIGH;
 
-  const semanticKeywords = ['uat', 'prod', 'staging', 'production', 'dev', 'test'];
-  const isSemantic = semanticKeywords.some(
+  const isSemantic = SEMANTIC_KEYWORDS.some(
     (keyword) => occurrence.find.toLowerCase().includes(keyword) || occurrence.replace.toLowerCase().includes(keyword)
   );
 
-  if (isSemantic) confidence = Math.min(0.95, confidence + 0.05);
+  if (isSemantic)
+    confidence = Math.min(CONFIDENCE_DEFAULTS.MAX_CONFIDENCE, confidence + CONFIDENCE_DEFAULTS.SEMANTIC_BOOST);
 
   return confidence;
 };
@@ -635,15 +629,14 @@ const detectSemverStopRules = (
   config: Config
 ): StopRuleSuggestion[] => {
   const suggestions: StopRuleSuggestion[] = [];
-  const semverPattern = /^v?\d+\.\d+\.\d+/;
 
   for (const [jsonPath, collection] of valuesByPath) {
-    const hasSemver = collection.values.some((v) => typeof v === 'string' && semverPattern.test(v));
+    const hasSemver = collection.values.some((v) => typeof v === 'string' && SEMVER_PATTERN.test(v));
 
     if (!hasSemver) continue;
 
     const fileCount = collection.files.size;
-    const confidence = fileCount === 1 ? 0.7 : 0.95;
+    const confidence = fileCount === 1 ? CONFIDENCE_DEFAULTS.SEMVER_SINGLE_FILE : CONFIDENCE_DEFAULTS.SEMVER_MULTI_FILE;
 
     if (!isStopRuleInConfig('semverDowngrade', jsonPath, config))
       suggestions.push({
@@ -681,10 +674,9 @@ const detectVersionFormatRules = (
   config: Config
 ): StopRuleSuggestion[] => {
   const suggestions: StopRuleSuggestion[] = [];
-  const semverPattern = /^v?\d+\.\d+\.\d+/;
 
   for (const [jsonPath, collection] of valuesByPath) {
-    const semverValues = collection.values.filter((v) => typeof v === 'string' && semverPattern.test(v)) as string[];
+    const semverValues = collection.values.filter((v) => typeof v === 'string' && SEMVER_PATTERN.test(v)) as string[];
 
     if (semverValues.length === 0) continue;
 
@@ -696,19 +688,19 @@ const detectVersionFormatRules = (
 
     if (withV === semverValues.length) {
       vPrefix = 'required';
-      confidence = 0.95;
+      confidence = CONFIDENCE_DEFAULTS.VERSION_FORMAT_HIGH;
     } else if (withoutV === semverValues.length) {
       vPrefix = 'forbidden';
-      confidence = 0.95;
+      confidence = CONFIDENCE_DEFAULTS.VERSION_FORMAT_HIGH;
     } else if (withV > withoutV * 2) {
       vPrefix = 'required';
-      confidence = 0.6;
+      confidence = CONFIDENCE_DEFAULTS.VERSION_FORMAT_MEDIUM;
     } else if (withoutV > withV * 2) {
       vPrefix = 'forbidden';
-      confidence = 0.6;
+      confidence = CONFIDENCE_DEFAULTS.VERSION_FORMAT_MEDIUM;
     }
 
-    if (vPrefix && confidence >= 0.6) {
+    if (vPrefix && confidence >= CONFIDENCE_DEFAULTS.VERSION_FORMAT_MEDIUM) {
       if (isStopRuleInConfig('versionFormat', jsonPath, config)) continue;
 
       suggestions.push({
@@ -749,16 +741,16 @@ const detectNumericStopRules = (
 
     if (min === max) continue;
 
-    const constraintFields = ['replicas', 'replica', 'count', 'port', 'timeout', 'limit'];
-    const isConstraintField = constraintFields.some((field) => jsonPath.toLowerCase().includes(field));
+    const isConstraintField = CONSTRAINT_FIELD_NAMES.some((field) => jsonPath.toLowerCase().includes(field));
 
     if (!isConstraintField) continue;
 
     if (isStopRuleInConfig('numeric', jsonPath, config)) continue;
 
     const fileCount = collection.files.size;
-    const confidence = fileCount === 1 ? 0.5 : 0.7;
-    const suggestedMin = Math.max(1, Math.floor(min * 0.5));
+    const confidence =
+      fileCount === 1 ? CONFIDENCE_DEFAULTS.NUMERIC_SINGLE_FILE : CONFIDENCE_DEFAULTS.NUMERIC_MULTI_FILE;
+    const suggestedMin = Math.max(NUMERIC_MIN_FLOOR, Math.floor(min * NUMERIC_MIN_MULTIPLIER));
 
     suggestions.push({
       rule: {
@@ -877,7 +869,7 @@ export const formatSuggestionsAsYaml = (result: SuggestionResult): string => {
   return lines.join('\n');
 };
 
-const escapeYamlString = (string_: string): string => string_.replaceAll("'", "''");
+const escapeYamlString = (value: string): string => value.replaceAll("'", "''");
 
 // ============================================================================
 // Utility Functions
@@ -889,19 +881,18 @@ const escapeYamlString = (string_: string): string => string_.replaceAll("'", "'
 const calculateLevenshteinDistance = (string1: string, string2: string): number => {
   const matrix: number[][] = [];
 
-  for (let index = 0; index <= string2.length; index++) matrix[index] = [index];
+  for (let row = 0; row <= string2.length; row++) matrix[row] = [row];
 
-  for (let index = 0; index <= string1.length; index++) matrix[0]![index] = index;
+  for (let col = 0; col <= string1.length; col++) matrix[0]![col] = col;
 
-  for (let index = 1; index <= string2.length; index++)
-    for (let index_ = 1; index_ <= string1.length; index_++)
-      if (string2.charAt(index - 1) === string1.charAt(index_ - 1))
-        matrix[index]![index_] = matrix[index - 1]![index_ - 1]!;
+  for (let row = 1; row <= string2.length; row++)
+    for (let col = 1; col <= string1.length; col++)
+      if (string2.charAt(row - 1) === string1.charAt(col - 1)) matrix[row]![col] = matrix[row - 1]![col - 1]!;
       else
-        matrix[index]![index_] = Math.min(
-          matrix[index - 1]![index_ - 1]! + 1,
-          matrix[index]![index_ - 1]! + 1,
-          matrix[index - 1]![index_]! + 1
+        matrix[row]![col] = Math.min(
+          matrix[row - 1]![col - 1]! + 1,
+          matrix[row]![col - 1]! + 1,
+          matrix[row - 1]![col]! + 1
         );
 
   return matrix[string2.length]![string1.length]!;
