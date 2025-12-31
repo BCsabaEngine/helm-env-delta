@@ -18,7 +18,8 @@ const createChangedFile = (
   rawSource: unknown,
   rawDestination: unknown,
   processedSource?: unknown,
-  processedDestination?: unknown
+  processedDestination?: unknown,
+  skipPaths: string[] = []
 ): ChangedFile => ({
   path,
   sourceContent: JSON.stringify(rawSource),
@@ -26,7 +27,8 @@ const createChangedFile = (
   rawParsedSource: rawSource,
   rawParsedDest: rawDestination,
   processedSourceContent: processedSource || rawSource,
-  processedDestContent: processedDestination || rawDestination
+  processedDestContent: processedDestination || rawDestination,
+  skipPaths
 });
 
 describe('suggestionEngine', () => {
@@ -49,7 +51,11 @@ describe('suggestionEngine', () => {
 
     it('should detect simple transform patterns', () => {
       const changedFiles: ChangedFile[] = [
-        createChangedFile('app.yaml', { cluster: 'prod-cluster' }, { cluster: 'uat-cluster' })
+        createChangedFile(
+          'app.yaml',
+          { cluster: 'prod-cluster', region: 'prod-east' },
+          { cluster: 'uat-cluster', region: 'uat-east' }
+        )
       ];
       const diffResult: FileDiffResult = {
         addedFiles: [],
@@ -68,7 +74,9 @@ describe('suggestionEngine', () => {
     });
 
     it('should detect semantic environment patterns', () => {
-      const changedFiles: ChangedFile[] = [createChangedFile('app.yaml', { env: 'production' }, { env: 'staging' })];
+      const changedFiles: ChangedFile[] = [
+        createChangedFile('app.yaml', { env: 'production', mode: 'production' }, { env: 'staging', mode: 'staging' })
+      ];
       const diffResult: FileDiffResult = {
         addedFiles: [],
         deletedFiles: [],
@@ -219,7 +227,8 @@ describe('suggestionEngine', () => {
           rawParsedSource: { replicas: 5 },
           rawParsedDest: { replicas: 2 },
           processedSourceContent: { replicas: 5 },
-          processedDestContent: { replicas: 2 }
+          processedDestContent: { replicas: 2 },
+          skipPaths: []
         },
         {
           path: 'app2.yaml',
@@ -228,7 +237,8 @@ describe('suggestionEngine', () => {
           rawParsedSource: { replicas: 10 },
           rawParsedDest: { replicas: 8 },
           processedSourceContent: { replicas: 10 },
-          processedDestContent: { replicas: 8 }
+          processedDestContent: { replicas: 8 },
+          skipPaths: []
         }
       ];
       const diffResult: FileDiffResult = {
@@ -423,7 +433,11 @@ describe('suggestionEngine', () => {
 
     it('should calculate lower confidence for single file patterns', () => {
       const changedFiles: ChangedFile[] = [
-        createChangedFile('app.yaml', { cluster: 'prod-cluster' }, { cluster: 'uat-cluster' })
+        createChangedFile(
+          'app.yaml',
+          { cluster: 'prod-cluster', server: 'prod-server' },
+          { cluster: 'uat-cluster', server: 'uat-server' }
+        )
       ];
       const diffResult: FileDiffResult = {
         addedFiles: [],
@@ -442,7 +456,9 @@ describe('suggestionEngine', () => {
     });
 
     it('should boost confidence for semantic keywords', () => {
-      const changedFiles: ChangedFile[] = [createChangedFile('app.yaml', { env: 'production' }, { env: 'staging' })];
+      const changedFiles: ChangedFile[] = [
+        createChangedFile('app.yaml', { env: 'production', mode: 'production' }, { env: 'staging', mode: 'staging' })
+      ];
       const diffResult: FileDiffResult = {
         addedFiles: [],
         deletedFiles: [],
@@ -463,8 +479,8 @@ describe('suggestionEngine', () => {
       const changedFiles: ChangedFile[] = [
         createChangedFile(
           'app.yaml',
-          { config: { database: { host: 'db.prod.com' } } },
-          { config: { database: { host: 'db.uat.com' } } }
+          { config: { database: { host: 'db.prod.com', backup: 'backup.prod.com' } } },
+          { config: { database: { host: 'db.uat.com', backup: 'backup.uat.com' } } }
         )
       ];
       const diffResult: FileDiffResult = {
@@ -540,8 +556,20 @@ describe('suggestionEngine', () => {
       const changedFiles: ChangedFile[] = [
         createChangedFile(
           'app.yaml',
-          { cluster: 'prod-cluster', env: 'production', region: 'prod-us-east' },
-          { cluster: 'uat-cluster', env: 'staging', region: 'uat-us-east' }
+          {
+            cluster: 'prod-cluster',
+            env: 'prod-env',
+            region: 'prod-us-east',
+            db: 'db.production.com',
+            cache: 'cache.production.com'
+          },
+          {
+            cluster: 'uat-cluster',
+            env: 'uat-env',
+            region: 'uat-us-east',
+            db: 'db.staging.com',
+            cache: 'cache.staging.com'
+          }
         )
       ];
       const diffResult: FileDiffResult = {
@@ -568,7 +596,8 @@ describe('suggestionEngine', () => {
           rawParsedSource: { replicas: 10 },
           rawParsedDest: { replicas: 5 },
           processedSourceContent: { replicas: 10 },
-          processedDestContent: { replicas: 5 }
+          processedDestContent: { replicas: 5 },
+          skipPaths: []
         },
         {
           path: 'app2.yaml',
@@ -577,7 +606,8 @@ describe('suggestionEngine', () => {
           rawParsedSource: { replicas: 2 },
           rawParsedDest: { replicas: 1 },
           processedSourceContent: { replicas: 2 },
-          processedDestContent: { replicas: 1 }
+          processedDestContent: { replicas: 1 },
+          skipPaths: []
         }
       ];
       const diffResult: FileDiffResult = {
@@ -612,6 +642,375 @@ describe('suggestionEngine', () => {
 
       const stopRules = result.stopRules.get('**/*.yaml');
       expect(stopRules?.some((r) => r.rule.type === 'numeric')).toBe(false);
+    });
+
+    it('should not suggest transforms for skipPath patterns', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          { namespace: 'prod', cluster: 'prod-cluster', region: 'prod-east' },
+          { namespace: 'uat', cluster: 'uat-cluster', region: 'uat-east' },
+          undefined,
+          undefined,
+          ['namespace']
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      expect(transforms?.some((t) => t.find === 'uat' && t.replace === 'prod')).toBe(true);
+      expect(transforms?.some((t) => t.examples.some((example) => example.path === 'namespace'))).toBe(false);
+    });
+
+    it('should not suggest stop rules for skipPath patterns', () => {
+      const changedFiles: ChangedFile[] = [
+        {
+          path: 'app.yaml',
+          sourceContent: 'version: 2.0.0\nreplicas: 5',
+          destinationContent: 'version: 1.0.0\nreplicas: 3',
+          rawParsedSource: { version: '2.0.0', replicas: 5 },
+          rawParsedDest: { version: '1.0.0', replicas: 3 },
+          processedSourceContent: { version: '2.0.0', replicas: 5 },
+          processedDestContent: { version: '1.0.0', replicas: 3 },
+          skipPaths: ['replicas']
+        }
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const stopRules = result.stopRules.get('**/*.yaml');
+      expect(stopRules?.some((r) => r.rule.path === 'version')).toBe(true);
+      expect(stopRules?.some((r) => r.rule.path === 'replicas')).toBe(false);
+    });
+
+    it('should use wildcards for array element paths', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          {
+            env: [
+              { name: 'DB_HOST', value: 'prod.db' },
+              { name: 'API_URL', value: 'prod.api' }
+            ]
+          },
+          {
+            env: [
+              { name: 'DB_HOST', value: 'uat.db' },
+              { name: 'API_URL', value: 'uat.api' }
+            ]
+          }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      expect(transforms?.some((t) => t.examples.some((example) => example.path === 'env.*.value'))).toBe(true);
+      expect(transforms?.some((t) => t.examples.some((example) => example.path.match(/env\.\d+\.value/)))).toBe(false);
+    });
+
+    it('should handle skipPath patterns with wildcards', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          { env: [{ name: 'KEY', value: 'prod-val' }] },
+          { env: [{ name: 'KEY', value: 'uat-val' }] },
+          undefined,
+          undefined,
+          ['env[*].value']
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      expect(transforms?.some((t) => t.examples.some((example) => example.path === 'env.*.value'))).toBe(false);
+    });
+
+    it('should deduplicate array element suggestions', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile('app.yaml', { items: ['prod-1', 'prod-2', 'prod-3'] }, { items: ['uat-1', 'uat-2', 'uat-3'] })
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      const itemsTransforms = transforms?.filter((t) => t.examples.some((example) => example.path === 'items.*'));
+      expect(itemsTransforms?.length).toBeGreaterThan(0);
+      expect(itemsTransforms?.[0]?.occurrences).toBe(3);
+    });
+
+    it('should handle nested arrays with wildcards', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          { matrix: [[{ val: 'prod' }, { val: 'prod' }]] },
+          { matrix: [[{ val: 'uat' }, { val: 'uat' }]] }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      expect(transforms?.some((t) => t.examples.some((example) => example.path === 'matrix.*.*.val'))).toBe(true);
+    });
+
+    it('should match array elements by name field instead of index', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          {
+            env: [
+              { name: 'VAR_A', value: 'prod_value_a' },
+              { name: 'VAR_B', value: 'prod_value_b' },
+              { name: 'VAR_D', value: 'prod_value_d' }
+            ]
+          },
+          {
+            env: [
+              { name: 'VAR_B', value: 'uat_value_b' },
+              { name: 'VAR_C', value: 'uat_value_c' },
+              { name: 'VAR_D', value: 'uat_value_d' }
+            ]
+          }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      // Should suggest: uat → prod (semantic keywords, 2 occurrences: VAR_B and VAR_D matched by name)
+      const uatToProduction = transforms?.find((t) => t.find === 'uat' && t.replace === 'prod');
+      expect(uatToProduction).toBeDefined();
+      expect(uatToProduction?.occurrences).toBe(2);
+      // Verify it's matching by key field, not by index
+      expect(uatToProduction?.examples.some((example) => example.path === 'env.*.value')).toBe(true);
+    });
+
+    it('should handle reordered arrays with key fields', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          {
+            env: [
+              { name: 'VAR_B', value: 'production_b' },
+              { name: 'VAR_A', value: 'production_a' }
+            ]
+          },
+          {
+            env: [
+              { name: 'VAR_A', value: 'staging_a' },
+              { name: 'VAR_B', value: 'staging_b' }
+            ]
+          }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      // Should suggest: staging → production (semantic pattern)
+      expect(transforms?.some((t) => t.find === 'staging' && t.replace === 'production')).toBe(true);
+      // Verify suggestions use wildcard paths
+      const stagingToProductionTransform = transforms?.find((t) => t.find === 'staging' && t.replace === 'production');
+      expect(stagingToProductionTransform?.examples.some((example) => example.path === 'env.*.value')).toBe(true);
+      // Should have 2 occurrences (VAR_A and VAR_B)
+      expect(stagingToProductionTransform?.occurrences).toBe(2);
+    });
+
+    it('should use index-based comparison for primitive arrays', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile('app.yaml', { items: ['prod-1', 'prod-2', 'prod-3'] }, { items: ['uat-1', 'uat-2', 'uat-3'] })
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      // Should still work with existing index-based logic
+      expect(transforms?.some((t) => t.find === 'uat' && t.replace === 'prod')).toBe(true);
+    });
+
+    it('should fallback to index-based when no key field detected', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          {
+            items: [{ value: 'prod_1' }, { value: 'prod_2' }]
+          },
+          {
+            items: [{ value: 'uat_1' }, { value: 'uat_2' }]
+          }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      // No 'name' or 'id' field, should use index-based and suggest the pattern
+      expect(transforms?.some((t) => t.find === 'uat' && t.replace === 'prod')).toBe(true);
+    });
+
+    it('should suggest whole value replacements for non-semantic patterns', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          { field1: 'allowed', field2: 'allowed' },
+          { field1: 'forbidden', field2: 'forbidden' }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      // Should suggest whole value: "forbidden" → "allowed" (entire values, 2 occurrences)
+      expect(transforms?.some((t) => t.find === 'forbidden' && t.replace === 'allowed')).toBe(true);
+      expect(transforms?.find((t) => t.find === 'forbidden')?.occurrences).toBe(2);
+    });
+
+    it('should prefer semantic keywords over whole value patterns', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          {
+            url1: 'https://production-service.example.com',
+            url2: 'https://production-api.example.com'
+          },
+          {
+            url1: 'https://staging-service.example.com',
+            url2: 'https://staging-api.example.com'
+          }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      // Should suggest semantic pattern: "staging" → "production" (semantic keyword takes priority)
+      expect(transforms?.some((t) => t.find === 'staging' && t.replace === 'production')).toBe(true);
+      // Should NOT suggest the full URLs because semantic match exists
+      expect(transforms?.some((t) => t.find === 'https://staging-service.example.com')).toBe(false);
+    });
+
+    it('should skip patterns that occur only once', () => {
+      const changedFiles: ChangedFile[] = [
+        createChangedFile(
+          'app.yaml',
+          {
+            repeated1: 'production',
+            repeated2: 'production',
+            single: 'unique_prod_value'
+          },
+          {
+            repeated1: 'staging',
+            repeated2: 'staging',
+            single: 'unique_stg_value'
+          }
+        )
+      ];
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles,
+        unchangedFiles: []
+      };
+      const config = createMinimalConfig();
+
+      const result = analyzeDifferencesForSuggestions(diffResult, config);
+
+      const transforms = result.transforms.get('**/*.yaml');
+      // Should suggest "staging" → "production" (occurs 2 times)
+      expect(transforms?.some((t) => t.find === 'staging' && t.replace === 'production')).toBe(true);
+      const stagingToProduction = transforms?.find((t) => t.find === 'staging' && t.replace === 'production');
+      expect(stagingToProduction?.occurrences).toBe(2);
+
+      // Should NOT suggest patterns that only occur once
+      expect(transforms?.some((t) => t.find === 'unique_stg_value')).toBe(false);
+      expect(transforms?.some((t) => t.find === 'unique_prod_value')).toBe(false);
     });
   });
 

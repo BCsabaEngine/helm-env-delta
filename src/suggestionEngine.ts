@@ -1,6 +1,7 @@
 import { Config, StopRule } from './configFile';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { parseJsonPath } from './utils/jsonPath';
 
 // ============================================================================
 // Types
@@ -127,7 +128,7 @@ const extractAllDifferences = (changedFiles: ChangedFile[]): ValueDifference[] =
   const differences: ValueDifference[] = [];
 
   for (const file of changedFiles) {
-    const fileDiffs = walkAndCompare(file.rawParsedSource, file.rawParsedDest, [], file.path);
+    const fileDiffs = walkAndCompare(file.rawParsedSource, file.rawParsedDest, [], file.path, file.skipPaths);
     differences.push(...fileDiffs);
   }
 
@@ -141,31 +142,68 @@ const walkAndCompare = (
   source: unknown,
   destination: unknown,
   currentPath: string[],
-  filePath: string
+  filePath: string,
+  skipPaths: string[]
 ): ValueDifference[] => {
   const differences: ValueDifference[] = [];
 
   if (!isObject(source) || !isObject(destination)) {
-    if (source !== destination)
-      differences.push({
-        filePath,
-        jsonPath: currentPath.join('.'),
-        oldValue: destination,
-        targetValue: source
-      });
+    if (source !== destination) {
+      const jsonPath = currentPath.join('.');
+
+      // Filter out skipped paths
+      if (!isPathSkipped(jsonPath, skipPaths))
+        differences.push({
+          filePath,
+          jsonPath,
+          oldValue: destination,
+          targetValue: source
+        });
+    }
 
     return differences;
   }
 
+  // Special handling for arrays with key fields
+  if (Array.isArray(source) && Array.isArray(destination)) {
+    const keyField = detectArrayKeyField(source) || detectArrayKeyField(destination);
+
+    if (keyField) {
+      // Key-based comparison
+      const sourceMap = buildKeyMap(source, keyField);
+      const destinationMap = buildKeyMap(destination, keyField);
+
+      // Compare items that exist in both
+      for (const [key, sourceItem] of sourceMap)
+        if (destinationMap.has(key)) {
+          const destinationItem = destinationMap.get(key);
+          const nextPath = [...currentPath, '*'];
+          const childDiffs = walkAndCompare(sourceItem, destinationItem, nextPath, filePath, skipPaths);
+          differences.push(...childDiffs);
+        }
+      // Note: Items only in source (added) are ignored for suggestions
+
+      // Note: Items only in dest (removed) are ignored for suggestions
+
+      return differences;
+    }
+  }
+
+  // Fallback: Index-based comparison for arrays without key fields
   const sourceObject = source as Record<string, unknown>;
   const destinationObject = destination as Record<string, unknown>;
   const allKeys = new Set([...Object.keys(sourceObject), ...Object.keys(destinationObject)]);
 
+  // Check if both are arrays to use wildcard for indices
+  const bothArrays = Array.isArray(source) && Array.isArray(destination);
+
   for (const key of allKeys) {
-    const nextPath = [...currentPath, key];
+    // Use wildcard for numeric array indices
+    const pathKey = bothArrays && /^\d+$/.test(key) ? '*' : key;
+    const nextPath = [...currentPath, pathKey];
     const sourceValue = sourceObject[key];
     const destinationValue = destinationObject[key];
-    const childDiffs = walkAndCompare(sourceValue, destinationValue, nextPath, filePath);
+    const childDiffs = walkAndCompare(sourceValue, destinationValue, nextPath, filePath, skipPaths);
     differences.push(...childDiffs);
   }
 
@@ -175,19 +213,90 @@ const walkAndCompare = (
 const isObject = (value: unknown): boolean => value !== null && typeof value === 'object';
 
 /**
+ * Checks if a suggested path matches a skipPath pattern.
+ * Supports wildcards in skipPath (e.g., "env[*].value" matches "env.*.value").
+ */
+const matchesSkipPath = (suggestedPath: string, skipPathPattern: string): boolean => {
+  const suggestedParts = parseJsonPath(suggestedPath);
+  const skipParts = parseJsonPath(skipPathPattern);
+
+  if (suggestedParts.length !== skipParts.length) return false;
+
+  for (const [index, suggestedPart] of suggestedParts.entries()) {
+    if (skipParts[index] === '*') continue;
+    if (suggestedPart !== skipParts[index]) return false;
+  }
+
+  return true;
+};
+
+/**
+ * Checks if a path should be filtered out based on skipPaths.
+ */
+const isPathSkipped = (path: string, skipPaths: string[]): boolean => {
+  for (const skipPath of skipPaths) if (matchesSkipPath(path, skipPath)) return true;
+
+  return false;
+};
+
+/**
+ * Detects the key field in an array of objects.
+ * Returns the field name if found, otherwise undefined.
+ */
+const detectArrayKeyField = (array: unknown[]): string | undefined => {
+  if (array.length === 0) return undefined;
+  if (!isObject(array[0])) return undefined;
+
+  const firstItem = array[0] as Record<string, unknown>;
+  const candidateFields = ['name', 'id', 'key', 'identifier', 'uid', 'ref'];
+
+  for (const field of candidateFields) {
+    if (!(field in firstItem)) continue;
+
+    // Check if all items have this field
+    const allHaveField = array.every((item) => isObject(item) && field in (item as Record<string, unknown>));
+    if (!allHaveField) continue;
+
+    // Check if values are unique
+    const values = array.map((item) => (item as Record<string, unknown>)[field]);
+    const uniqueValues = new Set(values);
+    if (uniqueValues.size === values.length) return field;
+  }
+
+  return undefined;
+};
+
+/**
+ * Builds a map of array items by their key field value.
+ */
+const buildKeyMap = (array: unknown[], keyField: string): Map<unknown, unknown> => {
+  const map = new Map();
+  for (const item of array)
+    if (isObject(item)) {
+      const key = (item as Record<string, unknown>)[keyField];
+      map.set(key, item);
+    }
+
+  return map;
+};
+
+/**
  * Collects all values grouped by JSONPath across files.
  */
 const collectValuesByPath = (changedFiles: ChangedFile[]): Map<string, PathValueCollection> => {
   const map = new Map<string, PathValueCollection>();
 
   for (const file of changedFiles) {
-    const values = extractAllPathValues(file.processedSourceContent, []);
+    const valuesMap = extractAllPathValues(file.processedSourceContent, []);
 
-    for (const { path, value } of values) {
+    for (const [path, values] of valuesMap) {
+      // Skip paths that match skipPath patterns
+      if (isPathSkipped(path, file.skipPaths)) continue;
+
       if (!map.has(path)) map.set(path, { values: [], files: new Set() });
 
       const collection = map.get(path)!;
-      collection.values.push(value);
+      collection.values.push(...values);
       collection.files.add(file.path);
     }
   }
@@ -197,30 +306,41 @@ const collectValuesByPath = (changedFiles: ChangedFile[]): Map<string, PathValue
 
 /**
  * Extracts all leaf values with their JSONPaths.
+ * Uses wildcards (*) for array indices to generate generic patterns.
  */
-const extractAllPathValues = (data: unknown, currentPath: string[]): Array<{ path: string; value: unknown }> => {
-  const results: Array<{ path: string; value: unknown }> = [];
+const extractAllPathValues = (data: unknown, currentPath: string[]): Map<string, unknown[]> => {
+  const results = new Map<string, unknown[]>();
 
   if (!isObject(data)) {
-    if (currentPath.length > 0)
-      results.push({
-        path: currentPath.join('.'),
-        value: data
-      });
-
+    if (currentPath.length > 0) {
+      const pathKey = currentPath.join('.');
+      if (!results.has(pathKey)) results.set(pathKey, []);
+      results.get(pathKey)!.push(data);
+    }
     return results;
   }
 
   if (Array.isArray(data))
-    for (const [index, datum] of data.entries()) {
-      const childResults = extractAllPathValues(datum, [...currentPath, String(index)]);
-      results.push(...childResults);
+    for (const datum of data) {
+      // Use '*' instead of numeric index for generic patterns
+      const childResults = extractAllPathValues(datum, [...currentPath, '*']);
+
+      // Merge results
+      for (const [path, values] of childResults) {
+        if (!results.has(path)) results.set(path, []);
+        results.get(path)!.push(...values);
+      }
     }
   else {
     const object = data as Record<string, unknown>;
     for (const [key, value] of Object.entries(object)) {
       const childResults = extractAllPathValues(value, [...currentPath, key]);
-      results.push(...childResults);
+
+      // Merge results
+      for (const [path, values] of childResults) {
+        if (!results.has(path)) results.set(path, []);
+        results.get(path)!.push(...values);
+      }
     }
   }
 
@@ -269,6 +389,24 @@ const analyzeTransformPatterns = (differences: ValueDifference[], config: Config
   const suggestions: TransformSuggestion[] = [];
 
   for (const occurrence of patternMap.values()) {
+    // Skip patterns that occur only once
+    if (occurrence.examples.length < 2) continue;
+
+    // Skip numeric-only replacements (e.g., "100" → "30")
+    const isNumericOnly = /^\d+$/.test(occurrence.find) && /^\d+$/.test(occurrence.replace);
+    if (isNumericOnly) continue;
+
+    // Skip boolean-only replacements (e.g., "true" → "false")
+    const isBooleanOnly =
+      (occurrence.find === 'true' || occurrence.find === 'false') &&
+      (occurrence.replace === 'true' || occurrence.replace === 'false');
+    if (isBooleanOnly) continue;
+
+    // Skip version-like values (e.g., "v1.2.3" → "v1.3.0", "1.33.2-patch-250805")
+    const versionPattern = /^v?\d+\.\d+/;
+    const isVersionLike = versionPattern.test(occurrence.find) && versionPattern.test(occurrence.replace);
+    if (isVersionLike) continue;
+
     const confidence = calculateTransformConfidence(occurrence);
 
     if (confidence < 0.3) continue;
@@ -291,9 +429,11 @@ const analyzeTransformPatterns = (differences: ValueDifference[], config: Config
 /**
  * Finds substring replacement patterns between two strings.
  * Returns patterns sorted by specificity (longer patterns first).
+ * Only accepts semantic patterns or full value replacements to avoid suggesting partial replacements.
  */
 const findSubstringPatterns = (oldString: string, targetString: string): Array<{ find: string; replace: string }> => {
   const patterns: Array<{ find: string; replace: string }> = [];
+  const seen = new Set<string>();
 
   const semanticPatterns = [
     { old: 'uat', target: 'prod' },
@@ -304,12 +444,27 @@ const findSubstringPatterns = (oldString: string, targetString: string): Array<{
     { old: 'test', target: 'prod' }
   ];
 
+  // Always accept semantic patterns (uat→prod, staging→production, etc.)
   for (const semantic of semanticPatterns)
-    if (oldString.includes(semantic.old) && targetString.includes(semantic.target))
-      patterns.push({ find: semantic.old, replace: semantic.target });
+    if (oldString.includes(semantic.old) && targetString.includes(semantic.target)) {
+      const key = `${semantic.old}→${semantic.target}`;
+      if (!seen.has(key)) {
+        patterns.push({ find: semantic.old, replace: semantic.target });
+        seen.add(key);
+      }
+    }
 
-  const diffs = computeStringDiff(oldString, targetString);
-  for (const diff of diffs) if (diff.find.length >= 2) patterns.push(diff);
+  // Only accept WHOLE VALUE replacements (not fragments after prefix/suffix stripping)
+  // This prevents suggesting "od-bms-aurora..." fragments from hostnames
+  const hasSemanticMatch = patterns.length > 0;
+  if (!hasSemanticMatch && oldString !== targetString) {
+    // Only suggest if this is the entire value (whole words), not a fragment
+    const key = `${oldString}→${targetString}`;
+    if (!seen.has(key)) {
+      patterns.push({ find: oldString, replace: targetString });
+      seen.add(key);
+    }
+  }
 
   return patterns;
 };
@@ -668,33 +823,4 @@ const calculateLevenshteinDistance = (string1: string, string2: string): number 
         );
 
   return matrix[string2.length]![string1.length]!;
-};
-
-/**
- * Helper: Compute string diff segments
- */
-const computeStringDiff = (oldString: string, targetString: string): Array<{ find: string; replace: string }> => {
-  const patterns: Array<{ find: string; replace: string }> = [];
-
-  let prefixLength = 0;
-  while (
-    prefixLength < Math.min(oldString.length, targetString.length) &&
-    oldString[prefixLength] === targetString[prefixLength]
-  )
-    prefixLength++;
-
-  let suffixLength = 0;
-  while (
-    suffixLength < Math.min(oldString.length - prefixLength, targetString.length - prefixLength) &&
-    oldString[oldString.length - 1 - suffixLength] === targetString[targetString.length - 1 - suffixLength]
-  )
-    suffixLength++;
-
-  const oldMiddle = oldString.slice(prefixLength, oldString.length - suffixLength);
-  const targetMiddle = targetString.slice(prefixLength, targetString.length - suffixLength);
-
-  if (oldMiddle && targetMiddle && oldMiddle !== targetMiddle)
-    patterns.push({ find: oldMiddle, replace: targetMiddle });
-
-  return patterns;
 };
