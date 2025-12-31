@@ -268,20 +268,23 @@ Circular dependencies are detected and rejected automatically.
 
 ### How do I get started if I don't know what transforms or stop rules to use?
 
-**Use the `--suggest` flag!** (New in v1.5)
+**Use the `--suggest` flag for heuristic analysis!**
 
 ```bash
 helm-env-delta --config config.yaml --suggest
 ```
 
-**What it does:**
+**What heuristic analysis does:**
 
-- Analyzes differences between source and destination
-- Detects repeated value changes (e.g., `uat-db` → `prod-db`)
-- Suggests transform patterns automatically
-- Recommends stop rules for version changes, numeric values
-- Provides confidence scores and occurrence counts
+- Intelligently analyzes differences between source and destination using pattern recognition
+- Detects repeated value changes using semantic matching (e.g., `uat-db` → `prod-db`)
+- Suggests transform patterns automatically based on smart algorithms
+- Recommends stop rules for version changes, numeric values using heuristics
+- Provides confidence scores (0-100%) and occurrence counts for each suggestion
+- Filters out noise (UUIDs, timestamps, single-character edits, version numbers)
 - Outputs copy-paste ready YAML configuration
+
+**Note:** Suggestions are heuristic-based (intelligent pattern detection) and should always be reviewed before applying.
 
 **Example workflow:**
 
@@ -315,13 +318,14 @@ helm-env-delta --config config.yaml
 
 ### How do the suggestion confidence scores work?
 
-The `--suggest` feature provides confidence scores (0-100%) to help you evaluate recommendations:
+The `--suggest` feature uses heuristic algorithms to calculate confidence scores (0-100%) that help you evaluate recommendations:
 
-**Transform suggestions:**
+**Transform suggestions (heuristic scoring):**
 
-- **High confidence (80-100%)**: Pattern appears frequently across many files
+- **High confidence (80-100%)**: Heuristics detected pattern frequently across many files
   - Example: `uat-cluster` → `prod-cluster` (42 occurrences in 12 files)
   - Action: Likely safe to add to config
+  - Heuristic boost: Semantic keywords (uat/prod/staging) increase confidence
 - **Medium confidence (50-79%)**: Pattern appears moderately
   - Example: `staging` → `production` (8 occurrences in 3 files)
   - Action: Review carefully, might be environment-specific
@@ -545,7 +549,7 @@ transforms:
 
 ### Can I load transforms from external files instead of defining them inline?
 
-**Yes! (v1.4+)** Use `contentFile` and `filenameFile` to load transforms from external YAML files:
+**Yes!** Use `contentFile` and `filenameFile` to load transforms from external YAML files:
 
 ```yaml
 transforms:
@@ -620,14 +624,14 @@ skipPath:
 
 **Stop rules prevent dangerous changes** from being applied:
 
-| Rule Type             | Purpose                       | Example                      |
-| --------------------- | ----------------------------- | ---------------------------- |
-| `semverMajorUpgrade`  | Block major version increases | Prevent v1.x → v2.0          |
-| `semverDowngrade`     | Block any version downgrades  | Prevent v1.3.2 → v1.2.4      |
-| `numeric`             | Validate number ranges        | Ensure replicas 2-10         |
-| `regex`               | Block pattern matches         | Reject pre-release tags      |
-| `regexFile` (v1.4+)   | Block patterns from file      | Load forbidden patterns      |
-| `regexFileKey`(v1.4+) | Block transform file keys     | Use transform keys as blocks |
+| Rule Type            | Purpose                       | Example                      |
+| -------------------- | ----------------------------- | ---------------------------- |
+| `semverMajorUpgrade` | Block major version increases | Prevent v1.x → v2.0          |
+| `semverDowngrade`    | Block any version downgrades  | Prevent v1.3.2 → v1.2.4      |
+| `numeric`            | Validate number ranges        | Ensure replicas 2-10         |
+| `regex`              | Block pattern matches         | Reject pre-release tags      |
+| `regexFile`          | Block patterns from file      | Load forbidden patterns      |
+| `regexFileKey`       | Block transform file keys     | Use transform keys as blocks |
 
 **Example:**
 
@@ -652,7 +656,7 @@ stopRules:
 
 ---
 
-### Can I load stop rule patterns from external files? (v1.4+)
+### Can I load stop rule patterns from external files?
 
 **Yes!** Use `regexFile` and `regexFileKey` to load validation patterns from external files:
 
@@ -692,7 +696,7 @@ stopRules:
 
 ---
 
-### What's the difference between targeted and global regex stop rules? (v1.4+)
+### What's the difference between targeted and global regex stop rules?
 
 **Path modes determine where regex rules check:**
 
@@ -1070,49 +1074,51 @@ helm-env-delta --config config.yaml --validate
 
 ### When should I use --suggest vs manually writing my config?
 
-**Use `--suggest` when:**
+**Use `--suggest` (heuristic analysis) when:**
 
-- 🚀 **Starting from scratch**: You have source/destination files but no config yet
-- 🔍 **Discovering patterns**: You're not sure what's changing between environments
-- ⏰ **Saving time**: Manually analyzing 50+ files would take hours
-- 📚 **Learning**: You want to understand typical patterns for your use case
-- 🔄 **Config audit**: Verify you haven't missed important transforms or stop rules
+- 🚀 **Starting from scratch**: Let heuristics discover patterns automatically from your files
+- 🔍 **Discovering patterns**: You're not sure what's changing; let pattern recognition help
+- ⏰ **Saving time**: Manually analyzing 50+ files would take hours; heuristics work in seconds
+- 📚 **Learning**: Understand typical patterns detected by intelligent algorithms
+- 🔄 **Config audit**: Verify you haven't missed patterns through automated analysis
+- 🧠 **Pattern discovery**: Leverage semantic matching and smart filtering
 
 **Manually write config when:**
 
 - 🎯 **Specific requirements**: You know exactly what needs to change
-- 🏗️ **Complex patterns**: Multi-step transforms or advanced regex
-- 📐 **Custom rules**: Business-specific validation logic
-- 🔒 **Security-sensitive**: Careful control over what gets synced
+- 🏗️ **Complex patterns**: Multi-step transforms or advanced regex beyond heuristic detection
+- 📐 **Custom rules**: Business-specific validation logic not covered by heuristics
+- 🔒 **Security-sensitive**: Careful manual control over what gets synced
 - 🧪 **One-off sync**: Simple, temporary synchronization
+- 🎨 **Edge cases**: Patterns too specific or nuanced for automated detection
 
 **Hybrid approach (recommended):**
 
 ```bash
-# 1. Start with suggestions
+# 1. Start with heuristic suggestions
 helm-env-delta --config minimal-config.yaml --suggest > suggestions.yaml
 
-# 2. Review suggestions and pick high-confidence patterns
+# 2. Review suggestions and pick high-confidence patterns from heuristic analysis
 
 # 3. Add to your config with refinements
 cat suggestions.yaml >> config.yaml
 
-# 4. Manually add complex/business-specific rules
+# 4. Manually add complex/business-specific rules that heuristics can't detect
 
 # 5. Test thoroughly
 helm-env-delta --config config.yaml --dry-run --diff
 ```
 
-**Example - When suggestions help:**
+**Example - When heuristic suggestions help:**
 
 ```yaml
-# Suggestion detected this pattern automatically:
+# Heuristics detected this pattern automatically (semantic matching):
 transforms:
   '**/*.yaml':
     content:
       - find: 'uat-db\.internal'
         replace: 'prod-db.internal'
-        # 95% confidence, 42 occurrences
+        # 95% confidence, 42 occurrences (boosted by 'uat/prod' semantic pattern)
 
 # You refine it with word boundaries:
 transforms:
@@ -1122,7 +1128,7 @@ transforms:
         replace: 'prod-db.internal'
 ```
 
-**Pro tip:** Use `--suggest` first to get a baseline, then refine manually. The tool finds patterns you might miss, and you add the domain knowledge.
+**Pro tip:** Use `--suggest` first to leverage heuristic analysis for a baseline, then refine manually. The intelligent pattern detection finds patterns you might miss, and you add the domain knowledge.
 
 ---
 

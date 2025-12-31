@@ -50,7 +50,7 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with warnings.
 
-💡 **Smart Suggestions** - AI-powered analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically.
+💡 **Smart Suggestions** - Heuristic analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically.
 
 🛡️ **Safety First** - Pre-execution summary, first-run tips, improved error messages with helpful examples.
 
@@ -251,9 +251,9 @@ helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
 
 ---
 
-## 💡 Smart Configuration Suggestions
+## 💡 Smart Configuration Suggestions (Heuristic)
 
-New in v1.5! The `--suggest` flag analyzes differences between environments and automatically recommends configuration updates.
+The `--suggest` flag uses heuristic analysis to examine differences between environments and automatically recommend configuration updates. This intelligent pattern detection helps bootstrap your config by discovering repeated changes and potential safety rules.
 
 ### How It Works
 
@@ -261,13 +261,14 @@ New in v1.5! The `--suggest` flag analyzes differences between environments and 
 helm-env-delta --config config.yaml --suggest
 ```
 
-**What it analyzes:**
+**How heuristic analysis works:**
 
-- 🔍 Detects repeated value changes across files
-- 🎯 Suggests transform patterns (regex find/replace)
-- 🛡️ Recommends stop rules for safety validation
-- 📊 Provides confidence scores and occurrence counts
+- 🔍 Intelligently detects repeated value changes across files
+- 🎯 Suggests transform patterns (regex find/replace) based on semantic patterns
+- 🛡️ Recommends stop rules for safety validation using pattern recognition
+- 📊 Provides confidence scores and occurrence counts for each suggestion
 - 📝 Outputs copy-paste ready YAML configuration
+- ✨ Uses smart filtering to ignore noise (UUIDs, timestamps, single-character changes)
 
 ### Example Output
 
@@ -290,10 +291,11 @@ stopRules:
 
 ### When to Use
 
-- 🚀 **First-time setup**: Discover patterns automatically instead of manual analysis
-- 🔄 **Config refinement**: Find missing transforms or stop rules
+- 🚀 **First-time setup**: Let heuristics discover patterns automatically instead of manual analysis
+- 🔄 **Config refinement**: Find missing transforms or stop rules through smart detection
 - 📚 **Learning tool**: Understand what's changing between environments
-- ⚡ **Quick start**: Bootstrap configuration from existing files
+- ⚡ **Quick start**: Bootstrap configuration from existing files using intelligent pattern matching
+- 🧠 **Pattern discovery**: Leverage heuristic algorithms to identify semantic transformations (uat→prod, staging→production)
 
 **Workflow:**
 
