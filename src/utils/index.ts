@@ -22,6 +22,9 @@ export { globalMatcher, PatternMatcher } from './patternMatcher';
 // Diff utilities
 export { generateUnifiedDiff } from './diffGenerator';
 
+// Array diff processing utilities
+export { type ArrayChange, type ArrayChangeInfo, detectArrayChanges } from './arrayDiffProcessor';
+
 // Version checking utilities
 export { checkForUpdates, isVersionCheckerError, VersionCheckerError } from './versionChecker';
 

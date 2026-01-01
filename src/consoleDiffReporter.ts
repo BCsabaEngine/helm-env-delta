@@ -1,14 +1,12 @@
 import chalk from 'chalk';
 import YAML from 'yaml';
 
-import { diffArrays, findArrayPaths, hasArrays } from './arrayDiffer';
 import { Config } from './configFile';
 import { ChangedFile, FileDiffResult, getSkipPathsForFile } from './fileDiff';
-import { deepEqual } from './utils/deepEqual';
+import { ArrayChange, detectArrayChanges } from './utils/arrayDiffProcessor';
 import { generateUnifiedDiff } from './utils/diffGenerator';
 import { isYamlFile } from './utils/fileType';
-import { getValueAtPath } from './utils/jsonPath';
-import { normalizeForComparison, serializeForDiff } from './utils/serialization';
+import { serializeForDiff } from './utils/serialization';
 
 // ============================================================================
 // Helper Functions
@@ -44,14 +42,12 @@ const formatDeletedFiles = (files: string[]): string => {
   return `${header}\n${fileList}\n`;
 };
 
-const formatArrayDiff = (sourceArray: unknown[], destinationArray: unknown[]): string => {
-  const diff = diffArrays(sourceArray, destinationArray);
-
+const formatArrayDiff = (change: ArrayChange): string => {
   let output = '';
 
-  if (diff.removed.length > 0) {
-    output += chalk.red.bold(`\n  Removed (${diff.removed.length}):\n`);
-    for (const item of diff.removed) {
+  if (change.removed.length > 0) {
+    output += chalk.red.bold(`\n  Removed (${change.removed.length}):\n`);
+    for (const item of change.removed) {
       const yaml = YAML.stringify(item, { indent: 4 });
       const lines = yaml.split('\n').filter((l) => l.trim());
       output += lines.map((l) => chalk.red(`    - ${l}`)).join('\n');
@@ -59,9 +55,9 @@ const formatArrayDiff = (sourceArray: unknown[], destinationArray: unknown[]): s
     }
   }
 
-  if (diff.added.length > 0) {
-    output += chalk.green.bold(`\n  Added (${diff.added.length}):\n`);
-    for (const item of diff.added) {
+  if (change.added.length > 0) {
+    output += chalk.green.bold(`\n  Added (${change.added.length}):\n`);
+    for (const item of change.added) {
       const yaml = YAML.stringify(item, { indent: 4 });
       const lines = yaml.split('\n').filter((l) => l.trim());
       output += lines.map((l) => chalk.green(`    + ${l}`)).join('\n');
@@ -69,7 +65,7 @@ const formatArrayDiff = (sourceArray: unknown[], destinationArray: unknown[]): s
     }
   }
 
-  if (diff.unchanged.length > 0) output += chalk.gray(`\n  Unchanged: ${diff.unchanged.length} items\n`);
+  if (change.unchanged.length > 0) output += chalk.gray(`\n  Unchanged: ${change.unchanged.length} items\n`);
 
   return output;
 };
@@ -98,9 +94,9 @@ ${colorizedDiff}
 `;
   }
 
-  const hasArraysInFile = hasArrays(file.rawParsedSource) || hasArrays(file.rawParsedDest);
+  const arrayInfo = detectArrayChanges(file);
 
-  if (!hasArraysInFile) {
+  if (!arrayInfo.hasArrays) {
     const destinationContent = serializeForDiff(file.processedDestContent, true);
     const sourceContent = serializeForDiff(file.processedSourceContent, true);
     const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
@@ -124,32 +120,13 @@ ${colorizedDiff}
 
   output += `\n${colorizedDiff}\n`;
 
-  const arrayPaths = findArrayPaths(file.rawParsedSource);
-  const hasArrayChanges = arrayPaths.some((path) => {
-    const sourceArray = getValueAtPath(file.rawParsedSource, path);
-    const destinationArray = getValueAtPath(file.rawParsedDest, path);
-    if (!Array.isArray(sourceArray) || !Array.isArray(destinationArray)) return false;
-    return !deepEqual(normalizeForComparison(sourceArray), normalizeForComparison(destinationArray));
-  });
-
-  if (hasArrayChanges) {
+  if (arrayInfo.hasChanges) {
     output += chalk.cyan.bold('\nArray-specific details:\n');
 
-    for (const path of arrayPaths) {
-      const pathString = path.join('.');
-      const sourceArray = getValueAtPath(file.rawParsedSource, path);
-      const destinationArray = getValueAtPath(file.rawParsedDest, path);
-
-      if (!Array.isArray(sourceArray)) continue;
-      if (!Array.isArray(destinationArray)) continue;
-
-      const normalizedSource = normalizeForComparison(sourceArray);
-      const normalizedDestination = normalizeForComparison(destinationArray);
-
-      if (deepEqual(normalizedSource, normalizedDestination)) continue;
-
+    for (const change of arrayInfo.changes) {
+      const pathString = change.path.join('.');
       output += chalk.cyan(`\n  ${pathString}:\n`);
-      output += formatArrayDiff(normalizedSource as unknown[], normalizedDestination as unknown[]);
+      output += formatArrayDiff(change);
     }
   }
 
