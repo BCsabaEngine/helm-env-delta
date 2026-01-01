@@ -1,6 +1,12 @@
 import type { RegexFileKeyRule, RegexFileRule, RegexRule, StopRule } from './configFile';
 import type { ChangedFile, FileDiffResult } from './fileDiff';
-import { loadRegexPatternArray, loadRegexPatternsFromKeys } from './utils';
+import {
+  loadRegexPatternArray,
+  loadRegexPatternsFromKeys,
+  validatePathlessRegex,
+  validateTargetedRegex,
+  validateVersionString
+} from './utils';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { getValueAtPath, parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
@@ -51,40 +57,6 @@ export interface ValidationResult {
   violations: StopRuleViolation[];
   isValid: boolean;
 }
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Recursively extracts all leaf values from a nested YAML structure.
- * Skips keys and only collects values (strings, numbers, booleans).
- * Used for pathless regex rules that scan entire file contents.
- *
- * @param data - The YAML data structure to scan
- * @returns Array of all leaf values found
- *
- * @example
- * getAllValuesRecursive({ a: 'foo', b: { c: 'bar', d: 123 } })
- * // Returns: ['foo', 'bar', 123]
- */
-const getAllValuesRecursive = (data: unknown): unknown[] => {
-  const values: unknown[] = [];
-
-  const traverse = (node: unknown): void => {
-    if (node === null || node === undefined) return;
-
-    if (typeof node === 'object')
-      if (Array.isArray(node)) for (const item of node) traverse(item);
-      else for (const value of Object.values(node)) traverse(value);
-    else
-      // Leaf value (string, number, boolean)
-      values.push(node);
-  };
-
-  traverse(data);
-  return values;
-};
 
 // ============================================================================
 // Main Validation Function
@@ -331,24 +303,13 @@ const validateRegex = (
   updatedValue: unknown,
   filePath: string
 ): StopRuleViolation | undefined => {
-  const valueToCheck = updatedValue === undefined ? oldValue : updatedValue;
-
-  if (valueToCheck === undefined) return undefined;
-
-  const stringValue = String(valueToCheck);
-  const pattern = new RegExp(rule.regex);
-
-  if (pattern.test(stringValue))
-    return {
-      file: filePath,
-      rule,
-      path: rule.path ?? '(unknown)',
-      oldValue,
-      updatedValue,
-      message: `Value "${stringValue}" matches forbidden pattern ${rule.regex}`
-    };
-
-  return undefined;
+  return validateTargetedRegex({
+    patterns: [rule.regex],
+    filePath,
+    rule,
+    oldValue,
+    updatedValue
+  });
 };
 
 const validateVersionFormat = (
@@ -388,26 +349,15 @@ const validateRegexGlobal = (
   updatedData: unknown,
   filePath: string
 ): StopRuleViolation | undefined => {
-  const dataToCheck = updatedData === undefined ? oldData : updatedData;
-  if (dataToCheck === undefined) return undefined;
-
-  const allValues = getAllValuesRecursive(dataToCheck);
-  const pattern = new RegExp(rule.regex);
-
-  for (const value of allValues) {
-    const stringValue = String(value);
-    if (pattern.test(stringValue))
-      return {
-        file: filePath,
-        rule,
-        path: '(global scan)',
-        oldValue: oldData,
-        updatedValue: updatedData,
-        message: `Value "${stringValue}" matches forbidden pattern ${rule.regex} (found during global scan)`
-      };
-  }
-
-  return undefined;
+  return validatePathlessRegex({
+    patterns: [rule.regex],
+    filePath,
+    rule,
+    oldValue: undefined,
+    updatedValue: undefined,
+    oldData,
+    updatedData
+  });
 };
 
 /**
@@ -423,26 +373,15 @@ const validateRegexFile = (
 ): StopRuleViolation | undefined => {
   if (!configDirectory) return undefined;
 
-  const valueToCheck = updatedValue === undefined ? oldValue : updatedValue;
-  if (valueToCheck === undefined) return undefined;
-
   const patterns = loadRegexPatternArray(rule.file, configDirectory);
-  const stringValue = String(valueToCheck);
-
-  for (const patternString of patterns) {
-    const pattern = new RegExp(patternString);
-    if (pattern.test(stringValue))
-      return {
-        file: filePath,
-        rule,
-        path: rule.path ?? '(unknown)',
-        oldValue,
-        updatedValue,
-        message: `Value "${stringValue}" matches forbidden pattern ${patternString} from ${rule.file}`
-      };
-  }
-
-  return undefined;
+  return validateTargetedRegex({
+    patterns,
+    patternSource: rule.file,
+    filePath,
+    rule,
+    oldValue,
+    updatedValue
+  });
 };
 
 /**
@@ -458,29 +397,17 @@ const validateRegexFileGlobal = (
 ): StopRuleViolation | undefined => {
   if (!configDirectory) return undefined;
 
-  const dataToCheck = updatedData === undefined ? oldData : updatedData;
-  if (dataToCheck === undefined) return undefined;
-
   const patterns = loadRegexPatternArray(rule.file, configDirectory);
-  const allValues = getAllValuesRecursive(dataToCheck);
-
-  for (const value of allValues) {
-    const stringValue = String(value);
-    for (const patternString of patterns) {
-      const pattern = new RegExp(patternString);
-      if (pattern.test(stringValue))
-        return {
-          file: filePath,
-          rule,
-          path: '(global scan)',
-          oldValue: oldData,
-          updatedValue: updatedData,
-          message: `Value "${stringValue}" matches forbidden pattern ${patternString} from ${rule.file} (found during global scan)`
-        };
-    }
-  }
-
-  return undefined;
+  return validatePathlessRegex({
+    patterns,
+    patternSource: rule.file,
+    filePath,
+    rule,
+    oldValue: undefined,
+    updatedValue: undefined,
+    oldData,
+    updatedData
+  });
 };
 
 /**
@@ -496,26 +423,24 @@ const validateRegexFileKey = (
 ): StopRuleViolation | undefined => {
   if (!configDirectory) return undefined;
 
-  const valueToCheck = updatedValue === undefined ? oldValue : updatedValue;
-  if (valueToCheck === undefined) return undefined;
-
   const patterns = loadRegexPatternsFromKeys(rule.file, configDirectory);
-  const stringValue = String(valueToCheck);
+  // Use custom message for transform key patterns
+  const result = validateTargetedRegex({
+    patterns,
+    patternSource: rule.file,
+    filePath,
+    rule,
+    oldValue,
+    updatedValue
+  });
 
-  for (const patternString of patterns) {
-    const pattern = new RegExp(patternString);
-    if (pattern.test(stringValue))
-      return {
-        file: filePath,
-        rule,
-        path: rule.path ?? '(unknown)',
-        oldValue,
-        updatedValue,
-        message: `Value "${stringValue}" matches transform key pattern ${patternString} from ${rule.file}`
-      };
+  // Override message to indicate transform key pattern
+  if (result) {
+    const match = result.message.match(/pattern (.+?) from/);
+    if (match) result.message = result.message.replace('forbidden pattern', 'transform key pattern');
   }
 
-  return undefined;
+  return result;
 };
 
 /**
@@ -531,123 +456,31 @@ const validateRegexFileKeyGlobal = (
 ): StopRuleViolation | undefined => {
   if (!configDirectory) return undefined;
 
-  const dataToCheck = updatedData === undefined ? oldData : updatedData;
-  if (dataToCheck === undefined) return undefined;
-
   const patterns = loadRegexPatternsFromKeys(rule.file, configDirectory);
-  const allValues = getAllValuesRecursive(dataToCheck);
+  // Use custom message for transform key patterns
+  const result = validatePathlessRegex({
+    patterns,
+    patternSource: rule.file,
+    filePath,
+    rule,
+    oldValue: undefined,
+    updatedValue: undefined,
+    oldData,
+    updatedData
+  });
 
-  for (const value of allValues) {
-    const stringValue = String(value);
-    for (const patternString of patterns) {
-      const pattern = new RegExp(patternString);
-      if (pattern.test(stringValue))
-        return {
-          file: filePath,
-          rule,
-          path: '(global scan)',
-          oldValue: oldData,
-          updatedValue: updatedData,
-          message: `Value "${stringValue}" matches transform key pattern ${patternString} from ${rule.file} (found during global scan)`
-        };
-    }
+  // Override message to indicate transform key pattern
+  if (result) {
+    const match = result.message.match(/pattern (.+?) from/);
+    if (match) result.message = result.message.replace('forbidden pattern', 'transform key pattern');
   }
 
-  return undefined;
+  return result;
 };
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-interface VersionValidationResult {
-  isValid: boolean;
-  message: string;
-}
-
-const validateVersionString = (
-  version: string,
-  vPrefixMode: 'required' | 'allowed' | 'forbidden'
-): VersionValidationResult => {
-  const hasVPrefix = version.startsWith('v');
-  const versionWithoutPrefix = hasVPrefix ? version.slice(1) : version;
-
-  // Check v-prefix requirements
-  if (vPrefixMode === 'required' && !hasVPrefix)
-    return {
-      isValid: false,
-      message: `Version "${version}" must start with "v" prefix (e.g., "v1.2.3")`
-    };
-
-  if (vPrefixMode === 'forbidden' && hasVPrefix)
-    return {
-      isValid: false,
-      message: `Version "${version}" must not have "v" prefix (use "1.2.3" instead of "v1.2.3")`
-    };
-
-  // Validate exact major.minor.patch format
-  // Reject leading zeros: use [1-9]\d* for first digit, \d+ for rest
-  // Pattern breakdown:
-  // - (0|[1-9]\d*) = major: 0 OR (1-9 followed by any digits)
-  // - Same for minor and patch
-  const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-  const match = versionPattern.exec(versionWithoutPrefix);
-
-  if (!match) {
-    // Determine specific error message
-    const parts = versionWithoutPrefix.split('.');
-    const partsCount = parts.length;
-
-    if (partsCount < 3)
-      return {
-        isValid: false,
-        message: `Version "${version}" is incomplete. Expected format: major.minor.patch (e.g., "1.2.3"), got only ${partsCount} part(s)`
-      };
-
-    if (partsCount > 3)
-      return {
-        isValid: false,
-        message: `Version "${version}" has too many parts. Expected format: major.minor.patch (e.g., "1.2.3"), got ${partsCount} parts`
-      };
-
-    // Check for leading zeros
-    const hasLeadingZeros = parts.some((part) => part.length > 1 && part.startsWith('0'));
-
-    if (hasLeadingZeros)
-      return {
-        isValid: false,
-        message: `Version "${version}" has leading zeros. Use canonical format (e.g., "1.2.3" instead of "1.02.3")`
-      };
-
-    // Check for pre-release suffix or build metadata
-    const hasPreReleaseSuffix = /\d+\.\d+\.\d+[+-]/.test(versionWithoutPrefix);
-
-    if (hasPreReleaseSuffix)
-      return {
-        isValid: false,
-        message: `Version "${version}" contains pre-release identifier or build metadata. Only major.minor.patch format is allowed (e.g., "1.2.3")`
-      };
-
-    // Check for non-numeric parts
-    const hasNonNumeric = parts.some((part) => !/^\d+$/.test(part));
-
-    if (hasNonNumeric)
-      return {
-        isValid: false,
-        message: `Version "${version}" has non-numeric parts. Expected format: major.minor.patch (e.g., "1.2.3")`
-      };
-
-    return {
-      isValid: false,
-      message: `Version "${version}" has invalid format. Expected: major.minor.patch (e.g., "1.2.3")`
-    };
-  }
-
-  return {
-    isValid: true,
-    message: ''
-  };
-};
 
 const parseMajorVersion = (version: string): number | undefined => {
   const cleaned = version.startsWith('v') ? version.slice(1) : version;

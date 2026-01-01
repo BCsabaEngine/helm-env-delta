@@ -1,10 +1,18 @@
 import type { FinalConfig } from './configFile';
 
 /**
+ * Result of config warnings validation.
+ */
+export interface WarningResult {
+  warnings: string[];
+  hasWarnings: boolean;
+}
+
+/**
  * Validates configuration and returns non-fatal warnings.
  * Checks for common configuration issues that won't cause failures but may indicate problems.
  */
-export const validateConfigWarnings = (config: FinalConfig): string[] => {
+export const validateConfigWarnings = (config: FinalConfig): WarningResult => {
   const warnings: string[] = [];
 
   // Check for inefficient glob patterns
@@ -35,5 +43,8 @@ export const validateConfigWarnings = (config: FinalConfig): string[] => {
       if ((rules.content?.length ?? 0) === 0 && (rules.filename?.length ?? 0) === 0)
         warnings.push(`Transform pattern '${pattern}' has empty content and filename arrays (will have no effect)`);
 
-  return warnings;
+  return {
+    warnings,
+    hasWarnings: warnings.length > 0
+  };
 };

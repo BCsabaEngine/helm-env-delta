@@ -12,6 +12,7 @@ import { isConfigMergerError } from './configMerger';
 import { validateConfigWarnings } from './configWarnings';
 import { showConsoleDiff } from './consoleDiffReporter';
 import { formatProgressMessage } from './consoleFormatter';
+import { SYNC_CONFIRMATION_DELAY_MS } from './constants';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
@@ -76,10 +77,10 @@ const main = async (): Promise<void> => {
     logger.log('\n' + formatProgressMessage('Configuration is valid', 'success'));
 
     // Check for non-fatal warnings
-    const warnings = validateConfigWarnings(config);
-    if (warnings.length > 0) {
+    const warningResult = validateConfigWarnings(config);
+    if (warningResult.hasWarnings) {
       console.warn(chalk.yellow('\n⚠️  Validation Warnings (non-fatal):\n'));
-      for (const warning of warnings) console.warn(chalk.yellow(`  • ${warning}`));
+      for (const warning of warningResult.warnings) console.warn(chalk.yellow(`  • ${warning}`));
     }
 
     return;
@@ -214,8 +215,8 @@ const main = async (): Promise<void> => {
 
     console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
 
-    // 2-second pause to let user cancel
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Pause to let user cancel
+    await new Promise((resolve) => setTimeout(resolve, SYNC_CONFIRMATION_DELAY_MS));
   }
 
   // Update files

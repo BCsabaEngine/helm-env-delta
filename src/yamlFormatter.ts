@@ -1,22 +1,23 @@
 import YAML, { Document, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
 
 import { ArraySortRule, OutputFormat } from './configFile';
+import { YAML_DEFAULT_INDENT, YAML_LINE_WIDTH_UNLIMITED } from './constants';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
+import { extractKeyValue, isScalar, isYamlMap, isYamlSeq } from './utils/yamlTypeGuards';
 
 // ============================================================================
 // Error Handling
 // ============================================================================
 
-const YamlFormatterErrorClass = createErrorClass('YAML Formatter Error', {
+export const YamlFormatterError = createErrorClass('YAML Formatter Error', {
   YAML_PARSE_ERROR: 'YAML file could not be parsed',
   YAML_FORMAT_ERROR: 'Failed to apply formatting',
   INVALID_JSON_PATH: 'Invalid JSON path pattern',
   PATTERN_MATCH_ERROR: 'File pattern matching failed'
 });
 
-export class YamlFormatterError extends YamlFormatterErrorClass {}
 export const isYamlFormatterError = createErrorTypeGuard(YamlFormatterError);
 
 // ============================================================================
@@ -59,35 +60,25 @@ const getFormattingRules = (
   return { keyOrders, arraySort, quoteValues };
 };
 
-const preserveMultilineStrings = (document_: Document): void => {
-  if (!document_.contents) return;
+const preserveMultilineStrings = (yamlDocument: Document): void => {
+  if (!yamlDocument.contents) return;
 
-  const traverse = (node: unknown): void => {
+  const traverseNodes = (node: unknown): void => {
     if (!node || typeof node !== 'object') return;
 
     // Handle Scalar nodes
-    if ('value' in node && !('items' in node)) {
-      const scalar = node as Scalar;
-      if (typeof scalar.value === 'string' && scalar.value.includes('\n')) scalar.type = 'BLOCK_LITERAL';
-
+    if (isScalar(node)) {
+      if (typeof node.value === 'string' && node.value.includes('\n')) node.type = 'BLOCK_LITERAL';
       return;
     }
 
     // Handle Maps and Sequences
-    if ('items' in node && Array.isArray((node as YAMLMap | YAMLSeq).items)) {
-      const items = (node as YAMLMap | YAMLSeq).items;
-
-      if (items.length > 0 && items[0] && typeof items[0] === 'object' && 'key' in items[0]) {
-        const map = node as YAMLMap;
-        for (const item of map.items) if (item.value) traverse(item.value);
-      } else {
-        const seq = node as YAMLSeq;
-        for (const item of seq.items) traverse(item);
-      }
-    }
+    if (isYamlMap(node)) {
+      for (const item of node.items) if (item.value) traverseNodes(item.value);
+    } else if (isYamlSeq(node)) for (const item of node.items) traverseNodes(item);
   };
 
-  traverse(document_.contents);
+  traverseNodes(yamlDocument.contents);
 };
 
 // ============================================================================
@@ -99,22 +90,22 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
   if (!content || content.trim() === '') return content;
 
   try {
-    const document_ = YAML.parseDocument(content);
+    const yamlDocument = YAML.parseDocument(content);
 
     // Batch all pattern matching in a single pass for better performance
     const rules = getFormattingRules(filePath, outputFormat);
 
     // Apply formatting rules (only if they matched)
-    if (rules.keyOrders.length > 0) applyKeyOrdering(document_, rules.keyOrders);
-    if (rules.arraySort.length > 0) applyArraySorting(document_, rules.arraySort);
-    if (rules.quoteValues.length > 0) applyValueQuoting(document_, rules.quoteValues);
+    if (rules.keyOrders.length > 0) applyKeyOrdering(yamlDocument, rules.keyOrders);
+    if (rules.arraySort.length > 0) applyArraySorting(yamlDocument, rules.arraySort);
+    if (rules.quoteValues.length > 0) applyValueQuoting(yamlDocument, rules.quoteValues);
 
     // Preserve literal block scalars for multi-line strings
-    preserveMultilineStrings(document_);
+    preserveMultilineStrings(yamlDocument);
 
     // Serialize with indent and disable line wrapping
-    const indent = outputFormat.indent ?? 2;
-    let result = document_.toString({ indent, lineWidth: 0 });
+    const indent = outputFormat.indent ?? YAML_DEFAULT_INDENT;
+    let result = yamlDocument.toString({ indent, lineWidth: YAML_LINE_WIDTH_UNLIMITED });
 
     // Apply keySeparator
     if (outputFormat.keySeparator) result = applyKeySeparator(result, indent);
@@ -143,14 +134,14 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
 // Key Ordering
 // ============================================================================
 
-const applyKeyOrdering = (document_: Document, orderLists: string[][]): void => {
+const applyKeyOrdering = (yamlDocument: Document, orderLists: string[][]): void => {
   if (orderLists.length === 0) return;
 
   const allOrders = orderLists.flat();
   const orderHierarchy = parseOrderHierarchy(allOrders);
 
-  if (document_.contents && typeof document_.contents === 'object' && 'items' in document_.contents)
-    applyOrderingToMap(document_.contents as YAMLMap, [], orderHierarchy);
+  if (yamlDocument.contents && typeof yamlDocument.contents === 'object' && 'items' in yamlDocument.contents)
+    applyOrderingToMap(yamlDocument.contents as YAMLMap, [], orderHierarchy);
 };
 
 const parseOrderHierarchy = (orders: string[]): Map<string, string[]> => {
@@ -222,55 +213,39 @@ const applyOrderingToMap = (map: YAMLMap, currentPath: string[], orderHierarchy:
 // Value Quoting
 // ============================================================================
 
-const applyValueQuoting = (document_: Document, quoteLists: string[][]): void => {
+const applyValueQuoting = (yamlDocument: Document, quoteLists: string[][]): void => {
   if (quoteLists.length === 0) return;
 
   const allPaths = quoteLists.flat();
   const parsedPaths = allPaths.map((p) => parseJsonPath(p));
 
-  if (document_.contents) traverseAndQuote(document_.contents, [], parsedPaths);
+  if (yamlDocument.contents) traverseAndQuote(yamlDocument.contents, [], parsedPaths);
 };
 
 const traverseAndQuote = (node: unknown, currentPath: string[], pathsToQuote: string[][]): void => {
   if (!node || typeof node !== 'object') return;
 
-  if ('items' in node && Array.isArray((node as YAMLMap | YAMLSeq).items)) {
-    const items = (node as YAMLMap | YAMLSeq).items;
+  if (isYamlMap(node))
+    for (const item of node.items) {
+      const keyValue = extractKeyValue(item);
 
-    if (items.length > 0 && items[0] && typeof items[0] === 'object' && 'key' in items[0]) {
-      const map = node as YAMLMap;
+      if (keyValue) {
+        const childPath = [...currentPath, keyValue];
 
-      for (const item of map.items) {
-        const keyValue =
-          item.key && typeof item.key === 'object' && 'value' in item.key ? String(item.key.value) : undefined;
+        if (isScalar(item.value) && shouldQuoteValue(childPath, pathsToQuote)) quoteScalar(item.value);
 
-        if (keyValue) {
-          const childPath = [...currentPath, keyValue];
-
-          if (item.value && typeof item.value === 'object' && 'value' in item.value) {
-            const scalar = item.value as Scalar;
-            if (shouldQuoteValue(childPath, pathsToQuote)) quoteScalar(scalar);
-          }
-
-          if (item.value) traverseAndQuote(item.value, childPath, pathsToQuote);
-        }
-      }
-    } else {
-      const seq = node as YAMLSeq;
-
-      for (let index = 0; index < seq.items.length; index++) {
-        const item = seq.items[index];
-        const wildcardPath = [...currentPath, '*'];
-
-        if (item && typeof item === 'object' && 'value' in item && !('items' in item)) {
-          const scalar = item as Scalar;
-          if (shouldQuoteValue(wildcardPath, pathsToQuote)) quoteScalar(scalar);
-        }
-
-        if (item) traverseAndQuote(item, wildcardPath, pathsToQuote);
+        if (item.value) traverseAndQuote(item.value, childPath, pathsToQuote);
       }
     }
-  }
+  else if (isYamlSeq(node))
+    for (let index = 0; index < node.items.length; index++) {
+      const item = node.items[index];
+      const wildcardPath = [...currentPath, '*'];
+
+      if (isScalar(item) && shouldQuoteValue(wildcardPath, pathsToQuote)) quoteScalar(item);
+
+      if (item) traverseAndQuote(item, wildcardPath, pathsToQuote);
+    }
 };
 
 const shouldQuoteValue = (currentPath: string[], pathsToQuote: string[][]): boolean => {
@@ -297,7 +272,7 @@ const quoteScalar = (scalar: Scalar): void => {
 // Array Sorting
 // ============================================================================
 
-const applyArraySorting = (document_: Document, sortRules: ArraySortRule[][]): void => {
+const applyArraySorting = (yamlDocument: Document, sortRules: ArraySortRule[][]): void => {
   if (sortRules.length === 0) return;
 
   const allRules = sortRules.flat();
@@ -306,7 +281,7 @@ const applyArraySorting = (document_: Document, sortRules: ArraySortRule[][]): v
     const pathParts = parseJsonPath(rule.path);
     if (pathParts.length === 0) continue;
 
-    if (document_.contents) traverseAndSort(document_.contents, [], pathParts, rule.sortBy, rule.order);
+    if (yamlDocument.contents) traverseAndSort(yamlDocument.contents, [], pathParts, rule.sortBy, rule.order);
   }
 };
 
@@ -321,32 +296,22 @@ const traverseAndSort = (
 
   // Match target path
   if (matchPath(currentPath, targetPath)) {
-    if ('items' in node && Array.isArray((node as YAMLSeq).items)) {
-      const seq = node as YAMLSeq;
-      sortYamlSeq(seq, sortByField, order);
-    }
+    if (isYamlSeq(node)) sortYamlSeq(node, sortByField, order);
+
     return;
   }
 
   // Continue traversing maps only
-  if ('items' in node && Array.isArray((node as YAMLMap | YAMLSeq).items)) {
-    const items = (node as YAMLMap | YAMLSeq).items;
+  if (isYamlMap(node))
+    for (const item of node.items) {
+      const keyValue = extractKeyValue(item);
 
-    if (items.length > 0 && items[0] && typeof items[0] === 'object' && 'key' in items[0]) {
-      const map = node as YAMLMap;
-
-      for (const item of map.items) {
-        const keyValue =
-          item.key && typeof item.key === 'object' && 'value' in item.key ? String(item.key.value) : undefined;
-
-        if (keyValue && item.value) {
-          const childPath = [...currentPath, keyValue];
-          if (isPotentialMatch(childPath, targetPath))
-            traverseAndSort(item.value, childPath, targetPath, sortByField, order);
-        }
+      if (keyValue && item.value) {
+        const childPath = [...currentPath, keyValue];
+        if (isPotentialMatch(childPath, targetPath))
+          traverseAndSort(item.value, childPath, targetPath, sortByField, order);
       }
     }
-  }
 };
 
 const isPotentialMatch = (currentPath: string[], targetPath: string[]): boolean => {
@@ -375,19 +340,14 @@ const sortYamlSeq = (seq: YAMLSeq, sortByField: string, order: 'asc' | 'desc'): 
 };
 
 const extractSortKey = (item: unknown, sortByField: string): string | number | undefined => {
-  if (!item || typeof item !== 'object') return undefined;
-  if (!('items' in item) || !Array.isArray((item as YAMLMap).items)) return undefined;
+  if (!isYamlMap(item)) return undefined;
 
-  const map = item as YAMLMap;
-
-  for (const pair of map.items) {
-    const keyValue =
-      pair.key && typeof pair.key === 'object' && 'value' in pair.key ? String(pair.key.value) : undefined;
+  for (const pair of item.items) {
+    const keyValue = extractKeyValue(pair);
 
     if (keyValue === sortByField) {
-      if (pair.value && typeof pair.value === 'object' && 'value' in pair.value) {
-        const scalar = pair.value as Scalar;
-        const value = scalar.value;
+      if (isScalar(pair.value)) {
+        const value = pair.value.value;
 
         if (typeof value === 'string') return value;
         if (typeof value === 'number') return value;

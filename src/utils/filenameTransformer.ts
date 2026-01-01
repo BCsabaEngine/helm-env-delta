@@ -1,22 +1,21 @@
 import path from 'node:path';
 
-import { isMatch } from 'picomatch';
-
 import type { TransformConfig, TransformRule } from '../configFile';
 import { createErrorClass, createErrorTypeGuard } from './errors';
+import { globalMatcher } from './patternMatcher';
+import { applyRegexRulesSequentially } from './regexTransform';
 
 // ============================================================================
 // Error Handling
 // ============================================================================
 
-const FilenameTransformerErrorClass = createErrorClass('Filename Transformer Error', {
+export const FilenameTransformerError = createErrorClass('Filename Transformer Error', {
   INVALID_FILENAME: 'Transformed path contains invalid characters',
   PATH_TRAVERSAL: 'Path transform attempted traversal outside source/destination',
   EMPTY_FILENAME: 'Transformed path is empty',
   REGEX_ERROR: 'Failed to apply regex transformation'
 });
 
-export class FilenameTransformerError extends FilenameTransformerErrorClass {}
 export const isFilenameTransformerError = createErrorTypeGuard(FilenameTransformerError);
 
 // ============================================================================
@@ -24,27 +23,21 @@ export const isFilenameTransformerError = createErrorTypeGuard(FilenameTransform
 // ============================================================================
 
 const applySequentialTransforms = (value: string, rules: TransformRule[]): string => {
-  let result = value;
-  for (const rule of rules)
-    try {
-      const regex = new RegExp(rule.find, 'g');
-      result = result.replace(regex, rule.replace);
-    } catch (error) {
-      const regexError = new FilenameTransformerError('Failed to apply regex transformation', {
-        code: 'REGEX_ERROR',
-        cause: error instanceof Error ? error : undefined
-      });
+  try {
+    return applyRegexRulesSequentially(value, rules, true);
+  } catch (error) {
+    const regexError = new FilenameTransformerError('Failed to apply regex transformation', {
+      code: 'REGEX_ERROR',
+      cause: error instanceof Error ? error : undefined
+    });
 
-      regexError.message += `\n\n  Hint: The regex pattern failed to compile. Check for:`;
-      regexError.message += `\n    - Balanced parentheses: (group)`;
-      regexError.message += `\n    - Escaped special chars: \\. \\[ \\]`;
-      regexError.message += `\n    - Valid capture groups: $1, $2, etc.`;
-      regexError.message += `\n    Pattern: ${rule.find}`;
+    regexError.message += `\n\n  Hint: The regex pattern failed to compile. Check for:`;
+    regexError.message += `\n    - Balanced parentheses: (group)`;
+    regexError.message += `\n    - Escaped special chars: \\. \\[ \\]`;
+    regexError.message += `\n    - Valid capture groups: $1, $2, etc.`;
 
-      throw regexError;
-    }
-
-  return result;
+    throw regexError;
+  }
 };
 
 const validateTransformedPath = (transformedPath: string, originalPath: string): void => {
@@ -108,7 +101,7 @@ export const getFilenameTransformsForFile = (filePath: string, transforms?: Tran
   const rules: TransformRule[] = [];
 
   for (const [pattern, transformRules] of Object.entries(transforms))
-    if (isMatch(filePath, pattern)) rules.push(...(transformRules.filename ?? []));
+    if (globalMatcher.match(filePath, pattern)) rules.push(...(transformRules.filename ?? []));
 
   return rules;
 };
