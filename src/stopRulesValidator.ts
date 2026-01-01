@@ -58,6 +58,14 @@ export interface ValidationResult {
   isValid: boolean;
 }
 
+export interface ValidationContext {
+  rule: StopRule;
+  oldData: unknown;
+  updatedData: unknown;
+  filePath: string;
+  configDirectory?: string;
+}
+
 // ============================================================================
 // Main Validation Function
 // ============================================================================
@@ -117,7 +125,13 @@ const validateFileAgainstRules = (
   const updatedData = changedFile.processedSourceContent;
 
   for (const rule of applicableRules) {
-    const violation = validateRule(rule, oldData, updatedData, changedFile.path, configDirectory);
+    const violation = validateRule({
+      rule,
+      oldData,
+      updatedData,
+      filePath: changedFile.path,
+      configDirectory
+    });
 
     if (violation) violations.push(violation);
   }
@@ -142,13 +156,8 @@ const getApplicableRules = (filePath: string, stopRulesConfig: Record<string, St
 // Rule Validation
 // ============================================================================
 
-const validateRule = (
-  rule: StopRule,
-  oldData: unknown,
-  updatedData: unknown,
-  filePath: string,
-  configDirectory?: string
-): StopRuleViolation | undefined => {
+const validateRule = (context: ValidationContext): StopRuleViolation | undefined => {
+  const { rule, oldData, updatedData, filePath, configDirectory } = context;
   // For regex rules with optional path, handle differently
   if (rule.type === 'regex' || rule.type === 'regexFile' || rule.type === 'regexFileKey')
     if (rule.path) {

@@ -20,6 +20,34 @@ export interface FileUpdateError {
   error: Error;
 }
 
+export interface FileOperationOptions {
+  relativePath: string;
+  content: string;
+  absoluteDestinationDirectory: string;
+  config: Config;
+  dryRun: boolean;
+  skipFormat: boolean;
+  logger: Logger;
+}
+
+export interface UpdateFileOptions {
+  changedFile: ChangedFile;
+  absoluteDestinationDirectory: string;
+  config: Config;
+  dryRun: boolean;
+  skipFormat: boolean;
+  logger: Logger;
+}
+
+interface OperationContext {
+  absoluteDestinationDirectory: string;
+  config: Config;
+  dryRun: boolean;
+  skipFormat: boolean;
+  logger: Logger;
+  errors: FileUpdateError[];
+}
+
 // Error Handling
 const FileUpdaterErrorClass = createErrorClass('File Updater Error', {
   WRITE_FAILED: 'File write operation failed',
@@ -158,15 +186,8 @@ const mergeYamlContent = (
   }
 };
 
-const addFile = async (
-  relativePath: string,
-  content: string,
-  absoluteDestinationDirectory: string,
-  config: Config,
-  dryRun: boolean,
-  skipFormat: boolean,
-  logger: Logger
-): Promise<void> => {
+const addFile = async (options: FileOperationOptions): Promise<void> => {
+  const { relativePath, content, absoluteDestinationDirectory, config, dryRun, skipFormat, logger } = options;
   const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
 
   if (dryRun) {
@@ -212,14 +233,8 @@ const addFile = async (
   }
 };
 
-const updateFile = async (
-  changedFile: ChangedFile,
-  absoluteDestinationDirectory: string,
-  config: Config,
-  dryRun: boolean,
-  skipFormat: boolean,
-  logger: Logger
-): Promise<void> => {
+const updateFile = async (options: UpdateFileOptions): Promise<void> => {
+  const { changedFile, absoluteDestinationDirectory, config, dryRun, skipFormat, logger } = options;
   const absolutePath = path.join(absoluteDestinationDirectory, changedFile.path);
 
   if (dryRun) {
@@ -285,6 +300,87 @@ const deleteFile = async (
   }
 };
 
+// Helper functions for file operations
+const addNewFiles = async (files: string[], sourceFiles: FileMap, context: OperationContext): Promise<void> => {
+  if (context.logger.shouldShow('debug')) context.logger.debug(`Processing ${files.length} new files`);
+
+  for (const relativePath of files)
+    try {
+      const content = sourceFiles.get(relativePath)!;
+      await addFile({
+        relativePath,
+        content,
+        absoluteDestinationDirectory: context.absoluteDestinationDirectory,
+        config: context.config,
+        dryRun: context.dryRun,
+        skipFormat: context.skipFormat,
+        logger: context.logger
+      });
+    } catch (error) {
+      context.errors.push({ operation: 'add', path: relativePath, error: error as Error });
+    }
+};
+
+const updateChangedFiles = async (files: ChangedFile[], context: OperationContext): Promise<void> => {
+  if (context.logger.shouldShow('debug')) context.logger.debug(`Updating ${files.length} changed files`);
+
+  for (const changedFile of files)
+    try {
+      await updateFile({
+        changedFile,
+        absoluteDestinationDirectory: context.absoluteDestinationDirectory,
+        config: context.config,
+        dryRun: context.dryRun,
+        skipFormat: context.skipFormat,
+        logger: context.logger
+      });
+    } catch (error) {
+      context.errors.push({ operation: 'update', path: changedFile.path, error: error as Error });
+    }
+};
+
+const formatUnchangedFiles = async (
+  files: string[],
+  destinationFiles: FileMap,
+  context: OperationContext
+): Promise<string[]> => {
+  const formattedFiles: string[] = [];
+
+  for (const relativePath of files)
+    if (isYamlFile(relativePath))
+      try {
+        const content = destinationFiles.get(relativePath)!;
+        const effectiveOutputFormat = context.skipFormat ? undefined : context.config.outputFormat;
+        const formatted = formatYaml(content, relativePath, effectiveOutputFormat);
+
+        if (formatted !== content) {
+          const absolutePath = path.join(context.absoluteDestinationDirectory, relativePath);
+
+          if (context.dryRun) context.logger.fileOp('format', relativePath, true);
+          else {
+            await ensureParentDirectory(absolutePath);
+            await writeFile(absolutePath, formatted, 'utf8');
+            context.logger.fileOp('format', relativePath, false);
+          }
+
+          formattedFiles.push(relativePath);
+        }
+      } catch (error) {
+        context.errors.push({ operation: 'update', path: relativePath, error: error as Error });
+      }
+
+  return formattedFiles;
+};
+
+const deleteRemovedFiles = async (files: string[], context: OperationContext): Promise<void> => {
+  for (const relativePath of files)
+    try {
+      await deleteFile(relativePath, context.absoluteDestinationDirectory, context.dryRun, context.logger);
+    } catch (error) {
+      context.errors.push({ operation: 'delete', path: relativePath, error: error as Error });
+    }
+};
+
 // Public API
 export const updateFiles = async (
   diffResult: FileDiffResult,
@@ -303,61 +399,20 @@ export const updateFiles = async (
   // Stop rules validation is performed in src/index.ts before updateFiles is called
   // This function assumes validation has already passed or --force was used
 
-  // Add verbose debug output
-  if (logger.shouldShow('debug')) logger.debug(`Processing ${diffResult.addedFiles.length} new files`);
+  const context: OperationContext = {
+    absoluteDestinationDirectory,
+    config,
+    dryRun,
+    skipFormat,
+    logger,
+    errors
+  };
 
-  // Add new files
-  for (const relativePath of diffResult.addedFiles)
-    try {
-      const content = sourceFiles.get(relativePath)!;
-      await addFile(relativePath, content, absoluteDestinationDirectory, config, dryRun, skipFormat, logger);
-    } catch (error) {
-      errors.push({ operation: 'add', path: relativePath, error: error as Error });
-    }
-
-  // Add verbose debug output
-  if (logger.shouldShow('debug')) logger.debug(`Updating ${diffResult.changedFiles.length} changed files`);
-
-  // Update changed files
-  for (const changedFile of diffResult.changedFiles)
-    try {
-      await updateFile(changedFile, absoluteDestinationDirectory, config, dryRun, skipFormat, logger);
-    } catch (error) {
-      errors.push({ operation: 'update', path: changedFile.path, error: error as Error });
-    }
-
-  // Format unchanged YAML files
-  const formattedFiles: string[] = [];
-  for (const relativePath of diffResult.unchangedFiles)
-    if (isYamlFile(relativePath))
-      try {
-        const content = destinationFiles.get(relativePath)!;
-        const effectiveOutputFormat = skipFormat ? undefined : config.outputFormat;
-        const formatted = formatYaml(content, relativePath, effectiveOutputFormat);
-
-        if (formatted !== content) {
-          const absolutePath = path.join(absoluteDestinationDirectory, relativePath);
-
-          if (dryRun) logger.fileOp('format', relativePath, true);
-          else {
-            await ensureParentDirectory(absolutePath);
-            await writeFile(absolutePath, formatted, 'utf8');
-            logger.fileOp('format', relativePath, false);
-          }
-
-          formattedFiles.push(relativePath);
-        }
-      } catch (error) {
-        errors.push({ operation: 'update', path: relativePath, error: error as Error });
-      }
-
-  // Delete removed files
-  for (const relativePath of diffResult.deletedFiles)
-    try {
-      await deleteFile(relativePath, absoluteDestinationDirectory, dryRun, logger);
-    } catch (error) {
-      errors.push({ operation: 'delete', path: relativePath, error: error as Error });
-    }
+  // Perform file operations
+  await addNewFiles(diffResult.addedFiles, sourceFiles, context);
+  await updateChangedFiles(diffResult.changedFiles, context);
+  const formattedFiles = await formatUnchangedFiles(diffResult.unchangedFiles, destinationFiles, context);
+  await deleteRemovedFiles(diffResult.deletedFiles, context);
 
   // Report summary
   if (dryRun) {

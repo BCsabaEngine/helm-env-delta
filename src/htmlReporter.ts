@@ -47,6 +47,16 @@ const escapeHtml = (text: string): string => {
     .replaceAll("'", '&#039;');
 };
 
+const DIFF2HTML_OPTIONS = {
+  drawFileList: false,
+  matching: 'lines',
+  outputFormat: 'side-by-side'
+} as const;
+
+const generateDiffHtml = (unifiedDiff: string): string => {
+  return diff2html(unifiedDiff, DIFF2HTML_OPTIONS);
+};
+
 const generateArrayDiffHtml = (change: ArrayChange): string => {
   let html = '<div class="array-diff">';
 
@@ -86,11 +96,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
     const destinationContent = serializeForDiff(file.processedDestContent, false);
     const sourceContent = serializeForDiff(file.processedSourceContent, false);
     const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-    const diffHtml = diff2html(unifiedDiff, {
-      drawFileList: false,
-      matching: 'lines',
-      outputFormat: 'side-by-side'
-    });
+    const diffHtml = generateDiffHtml(unifiedDiff);
 
     return `
     <details class="file-section" open>
@@ -108,11 +114,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
     const destinationContent = serializeForDiff(file.processedDestContent, true);
     const sourceContent = serializeForDiff(file.processedSourceContent, true);
     const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-    const diffHtml = diff2html(unifiedDiff, {
-      drawFileList: false,
-      matching: 'lines',
-      outputFormat: 'side-by-side'
-    });
+    const diffHtml = generateDiffHtml(unifiedDiff);
 
     return `
     <details class="file-section" open>
@@ -127,11 +129,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
   const destinationContent = serializeForDiff(file.processedDestContent, true);
   const sourceContent = serializeForDiff(file.processedSourceContent, true);
   const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-  const diffHtml = diff2html(unifiedDiff, {
-    drawFileList: false,
-    matching: 'lines',
-    outputFormat: 'side-by-side'
-  });
+  const diffHtml = generateDiffHtml(unifiedDiff);
 
   let arrayDiffsHtml = '';
 
