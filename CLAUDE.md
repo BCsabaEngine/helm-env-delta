@@ -61,11 +61,14 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 ## Code Style
 
 - **Functions:** Const arrow only: `const fn = (params): Type => { ... };`
+  - Single-line returns use implicit return: `const fn = (): Type => expression;` (no braces/return keyword)
+  - Multi-statement functions use explicit braces: `const fn = (): Type => { stmt1; return expr; };`
 - **TypeScript:** ES2023, CommonJS, strict, rootDir: "./src"
 - **ESLint:** unicorn/no-null, prevent-abbreviations, consistent-function-scoping, simple-import-sort
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x, format → lint → build → test
-- **Status:** 29 test files, 787 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Status:** 29 test files, 847 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Recent:** chore/opt branch - Simplified 8 arrow functions to use implicit returns (code style consistency)
 
 ## Utilities (`src/utils/`)
 
@@ -203,7 +206,7 @@ stopRules:
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**29 test files, 787 tests:**
+**30 test files, 847 tests:**
 
 - Core: commandLine, configFile, configLoader, configMerger, configWarnings, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
 - Reporters: consoleDiffReporter, jsonReporter, htmlReporter, consoleFormatter, logger
