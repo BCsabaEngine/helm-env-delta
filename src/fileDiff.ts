@@ -26,6 +26,7 @@ export interface ChangedFile {
   processedDestContent: unknown;
   rawParsedSource: unknown;
   rawParsedDest: unknown;
+  skipPaths: string[];
   normalizedSource?: unknown;
   normalizedDest?: unknown;
   parsedSource?: unknown;
@@ -189,6 +190,7 @@ const processYamlFile = (
     processedDestContent: normalizedDestination,
     rawParsedSource: sourceFiltered,
     rawParsedDest: destinationFiltered,
+    skipPaths: pathsToSkip,
     normalizedSource,
     normalizedDest: normalizedDestination,
     parsedSource: sourceParsed,
@@ -226,7 +228,8 @@ const processChangedFiles = (
         processedSourceContent: sourceContent,
         processedDestContent: destinationContent,
         rawParsedSource: sourceContent,
-        rawParsedDest: destinationContent
+        rawParsedDest: destinationContent,
+        skipPaths: []
       });
   }
 

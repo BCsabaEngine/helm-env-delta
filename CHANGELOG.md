@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-01-01
+
+### Added
+
+- Smart configuration suggestions: New `--suggest` flag analyzes your file differences and intelligently recommends configuration updates. The tool examines patterns in your changes and suggests transforms (like environment name changes) and stop rules (like version bump validations) to add to your config. Each suggestion includes a confidence score and occurrence count to help you decide what to apply.
+- Suggestion sensitivity control: New `--suggest-threshold` flag lets you control how sensitive the suggestion engine is (0-1 scale, default: 0.3). Lower values show more suggestions with less strict confidence requirements; higher values only show high-confidence patterns. Perfect for discovering hidden patterns or focusing on the most obvious improvements.
+- Noise filtering: The suggestion engine automatically ignores common noise like UUIDs, timestamps, single-character changes, and antonym pairs (enable/disable, true/false, on/off). It also filters out version-number-only changes and regex special characters unless they appear in meaningful patterns. This keeps suggestions focused on real configuration patterns worth capturing.
+
+### Changed
+
+- Dependency updates: Updated development and runtime dependencies to latest versions.
+
 ## [1.5.0] - 2025-12-30
 
 ### Added

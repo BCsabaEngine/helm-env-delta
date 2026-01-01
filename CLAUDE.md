@@ -17,10 +17,10 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # CLI
-helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
+helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
+**Key Flags:** `--config` (required), `--suggest` (heuristic analysis and config suggestions), `--suggest-threshold` (min confidence 0-1, default: 0.3), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
 
 ## Architecture
 
@@ -37,6 +37,7 @@ helm-env-delta --config config.yaml [--validate] [--dry-run] [--force] [--diff] 
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths)
+- `suggestionEngine.ts` - **NEW v1.5+** - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules using pattern recognition)
 - Reporters: `htmlReporter.ts`, `consoleDiffReporter.ts`, `jsonReporter.ts`
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
 
@@ -240,6 +241,25 @@ stopRules:
 - `--no-color` - Disable colored output for CI/accessibility
 - Help text includes usage examples (4 common workflows)
 - Commander suggestion for typos (e.g., --dryrun → --dry-run)
+
+**Smart Suggestions (v1.5+) - Heuristic Operation:**
+
+- `--suggest` - Uses heuristic analysis to examine diffs and recommend config updates
+- `--suggest-threshold` - Control suggestion sensitivity (0-1, default: 0.3)
+  - Lower threshold (e.g., 0.2): More suggestions, less strict
+  - Higher threshold (e.g., 0.7): Fewer suggestions, higher confidence only
+- Intelligently detects transform patterns using semantic matching (uat→prod, staging→production)
+- Suggests stop rules based on pattern recognition (version bumps, numeric ranges)
+- Provides confidence scores (0-100%) and occurrence counts for each suggestion
+- Outputs copy-paste ready YAML configuration
+- **Enhanced Noise Filtering:**
+  - Ignores UUIDs, timestamps, single-char changes
+  - Filters antonym pairs (enable/disable, true/false, on/off, etc.)
+  - Filters regex special characters (unless semantic keywords present)
+  - Filters version-number-only changes (service-v1 → service-v2)
+  - Allows semantic patterns even with special chars (db.uat.com → db.prod.com)
+- Use case: Bootstrap config from existing files, discover missing patterns through intelligent analysis
+- **Note:** Suggestions are heuristic-based and should be reviewed before applying
 
 ## Key Notes
 

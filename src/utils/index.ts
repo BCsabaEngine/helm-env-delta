@@ -25,9 +25,11 @@ export { generateUnifiedDiff } from './diffGenerator';
 // Version checking utilities
 export { checkForUpdates, isVersionCheckerError, VersionCheckerError } from './versionChecker';
 
+// YAML file loading utilities
+export { escapeRegex, isYamlFileLoaderError, loadYamlFile, YamlFileLoaderError } from './yamlFileLoader';
+
 // Transform file loading utilities
 export {
-  escapeRegex,
   isTransformFileLoaderError,
   loadTransformFile,
   loadTransformFiles,
@@ -41,3 +43,21 @@ export {
   loadRegexPatternsFromKeys,
   RegexPatternFileLoaderError
 } from './regexPatternFileLoader';
+
+// Suggestion engine constants
+export {
+  ANTONYM_PAIRS,
+  ARRAY_KEY_FIELDS,
+  CONFIDENCE_DEFAULTS,
+  CONSTRAINT_FIELD_NAMES,
+  FILTER_THRESHOLDS,
+  ISO_TIMESTAMP_PATTERN,
+  MAX_EXAMPLES_PER_SUGGESTION,
+  NUMERIC_MIN_FLOOR,
+  NUMERIC_MIN_MULTIPLIER,
+  PROBLEMATIC_REGEX_CHARS,
+  SEMANTIC_KEYWORDS,
+  SEMANTIC_PATTERNS,
+  SEMVER_PATTERN,
+  UUID_PATTERN
+} from './suggestionConstants';

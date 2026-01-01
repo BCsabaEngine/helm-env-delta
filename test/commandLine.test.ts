@@ -33,7 +33,9 @@ describe('commandLine', () => {
         showConfig: false,
         noColor: false,
         verbose: false,
-        quiet: false
+        quiet: false,
+        suggest: false,
+        suggestThreshold: 0.3
       });
     });
 
@@ -101,7 +103,9 @@ describe('commandLine', () => {
         showConfig: false,
         noColor: false,
         verbose: false,
-        quiet: false
+        quiet: false,
+        suggest: false,
+        suggestThreshold: 0.3
       });
     });
 
@@ -162,7 +166,9 @@ describe('commandLine', () => {
         showConfig: false,
         noColor: false,
         verbose: false,
-        quiet: false
+        quiet: false,
+        suggest: false,
+        suggestThreshold: 0.3
       });
     });
 
@@ -235,7 +241,9 @@ describe('commandLine', () => {
         showConfig: false,
         noColor: false,
         verbose: false,
-        quiet: false
+        quiet: false,
+        suggest: false,
+        suggestThreshold: 0.3
       });
     });
 
@@ -325,7 +333,9 @@ describe('commandLine', () => {
         showConfig: false,
         noColor: false,
         verbose: true,
-        quiet: false
+        quiet: false,
+        suggest: false,
+        suggestThreshold: 0.3
       });
     });
 
@@ -345,7 +355,9 @@ describe('commandLine', () => {
         showConfig: false,
         noColor: false,
         verbose: false,
-        quiet: true
+        quiet: true,
+        suggest: false,
+        suggestThreshold: 0.3
       });
     });
 

@@ -20,6 +20,8 @@ export type SyncCommand = {
   listFiles: boolean;
   showConfig: boolean;
   noColor: boolean;
+  suggest: boolean;
+  suggestThreshold: number;
 };
 
 // ============================================================================
@@ -43,6 +45,8 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--validate', 'Validate configuration file and exit', false)
     .option('--list-files', 'List files that would be synced without processing diffs', false)
     .option('--show-config', 'Display resolved configuration after inheritance and exit', false)
+    .option('--suggest', 'Analyze differences and suggest transforms and stop rules', false)
+    .option('--suggest-threshold <number>', 'Minimum confidence for suggestions (0-1, default: 0.3)', '0.3')
     .option('--no-color', 'Disable colored output')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
@@ -52,6 +56,9 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
 Examples:
   # Preview changes before syncing
   $ helm-env-delta --config config.yaml --dry-run --diff
+
+  # Get configuration suggestions
+  $ helm-env-delta --config config.yaml --suggest
 
   # Sync with HTML diff report
   $ helm-env-delta --config config.yaml --diff-html
@@ -78,6 +85,13 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     process.exit(1);
   }
 
+  // Validate --suggest-threshold value
+  const threshold = Number.parseFloat(options['suggestThreshold']);
+  if (Number.isNaN(threshold) || threshold < 0 || threshold > 1) {
+    console.error('Error: --suggest-threshold must be a number between 0 and 1');
+    process.exit(1);
+  }
+
   return {
     config: options['config'],
     dryRun: options['dryRun'],
@@ -91,6 +105,8 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     showConfig: options['showConfig'],
     noColor: !options['color'], // Commander's --no-color creates a 'color' property
     verbose: options['verbose'],
-    quiet: options['quiet']
+    quiet: options['quiet'],
+    suggest: options['suggest'],
+    suggestThreshold: threshold
   };
 };

@@ -50,6 +50,8 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with warnings.
 
+💡 **Smart Suggestions** - Heuristic analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically. Control sensitivity with `--suggest-threshold`.
+
 🛡️ **Safety First** - Pre-execution summary, first-run tips, improved error messages with helpful examples.
 
 ⚡ **High Performance** - 45-60% faster than alternatives with intelligent caching and parallel processing.
@@ -106,6 +108,17 @@ helm-env-delta --config config.yaml
 ```bash
 helm-env-delta --config config.yaml --diff-html
 ```
+
+### 5️⃣ Get Smart Suggestions (Optional)
+
+```bash
+helm-env-delta --config config.yaml --suggest
+
+# Control suggestion sensitivity (0-1, default: 0.3)
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
+```
+
+Analyzes differences and suggests transforms and stop rules automatically with configurable confidence filtering.
 
 **Done!** All files synced, production values preserved, changes validated.
 
@@ -238,6 +251,92 @@ helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
 - Transform files (`contentFile`, `filenameFile`)
 - Pattern files (`regexFile`, `regexFileKey`)
 - Global vs targeted regex validation
+
+---
+
+## 💡 Smart Configuration Suggestions (Heuristic)
+
+The `--suggest` flag uses heuristic analysis to examine differences between environments and automatically recommend configuration updates. This intelligent pattern detection helps bootstrap your config by discovering repeated changes and potential safety rules.
+
+### How It Works
+
+```bash
+helm-env-delta --config config.yaml --suggest
+
+# Control suggestion sensitivity (higher threshold = fewer, higher-confidence suggestions)
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
+```
+
+**How heuristic analysis works:**
+
+- 🔍 Intelligently detects repeated value changes across files
+- 🎯 Suggests transform patterns (regex find/replace) based on semantic patterns
+- 🛡️ Recommends stop rules for safety validation using pattern recognition
+- 📊 Provides confidence scores and occurrence counts for each suggestion
+- 🎛️ **NEW:** Configurable threshold filters suggestions by confidence level (0-1)
+- 📝 Outputs copy-paste ready YAML configuration
+- ✨ **Enhanced noise filtering:**
+  - Ignores UUIDs, timestamps, single-character changes
+  - Filters antonym pairs (enable/disable, true/false, on/off)
+  - Filters regex special characters (unless semantic keywords present)
+  - Filters version-number-only changes (service-v1 → service-v2)
+  - Allows semantic patterns even with special chars (db.uat.com → db.prod.com)
+
+### Example Output
+
+```yaml
+# Suggested Transforms
+transforms:
+  '**/*.yaml':
+    content:
+      - find: 'uat-cluster'
+        replace: 'prod-cluster'
+        # Confidence: 95% (42 occurrences across 12 files)
+
+# Suggested Stop Rules
+stopRules:
+  '**/*.yaml':
+    - type: 'semverMajorUpgrade'
+      path: 'image.tag'
+      # Detected version changes: v1.2.3 → v2.0.0
+```
+
+### When to Use
+
+- 🚀 **First-time setup**: Let heuristics discover patterns automatically instead of manual analysis
+- 🔄 **Config refinement**: Find missing transforms or stop rules through smart detection
+- 📚 **Learning tool**: Understand what's changing between environments
+- ⚡ **Quick start**: Bootstrap configuration from existing files using intelligent pattern matching
+- 🧠 **Pattern discovery**: Leverage heuristic algorithms to identify semantic transformations (uat→prod, staging→production)
+- 🎯 **Confidence tuning**: Adjust threshold to balance between finding all patterns vs. high-confidence only
+
+**Confidence threshold control:**
+
+```bash
+# More suggestions (lower threshold = less strict)
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.2
+
+# Default balance (standard heuristics, threshold: 0.3)
+helm-env-delta --config config.yaml --suggest
+
+# Only high-confidence (higher threshold = more strict)
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.8
+```
+
+**Workflow:**
+
+```bash
+# 1. Get suggestions (optionally with custom threshold)
+helm-env-delta --config config.yaml --suggest --suggest-threshold 0.5 > suggestions.yaml
+
+# 2. Review and copy relevant sections to config.yaml
+
+# 3. Test with dry-run
+helm-env-delta --config config.yaml --dry-run --diff
+
+# 4. Execute
+helm-env-delta --config config.yaml
+```
 
 ---
 
@@ -511,27 +610,35 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag              | Description                                      |
-| ----------------- | ------------------------------------------------ |
-| `--config <path>` | **Required** - Configuration file                |
-| `--validate`      | Validate config and exit (shows warnings)        |
-| `--dry-run`       | Preview changes without writing files            |
-| `--force`         | Override stop rules                              |
-| `--diff`          | Show console diff                                |
-| `--diff-html`     | Generate HTML report (opens in browser)          |
-| `--diff-json`     | Output JSON to stdout (pipe to jq)               |
-| `--list-files`    | List source/destination files without processing |
-| `--show-config`   | Display resolved config after inheritance        |
-| `--skip-format`   | Skip YAML formatting                             |
-| `--no-color`      | Disable colored output (CI/accessibility)        |
-| `--verbose`       | Show detailed debug info                         |
-| `--quiet`         | Suppress output except errors                    |
+| Flag                        | Description                                       |
+| --------------------------- | ------------------------------------------------- |
+| `--config <path>`           | **Required** - Configuration file                 |
+| `--validate`                | Validate config and exit (shows warnings)         |
+| `--suggest`                 | Analyze differences and suggest config updates    |
+| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3) |
+| `--dry-run`                 | Preview changes without writing files             |
+| `--force`                   | Override stop rules                               |
+| `--diff`                    | Show console diff                                 |
+| `--diff-html`               | Generate HTML report (opens in browser)           |
+| `--diff-json`               | Output JSON to stdout (pipe to jq)                |
+| `--list-files`              | List source/destination files without processing  |
+| `--show-config`             | Display resolved config after inheritance         |
+| `--skip-format`             | Skip YAML formatting                              |
+| `--no-color`                | Disable colored output (CI/accessibility)         |
+| `--verbose`                 | Show detailed debug info                          |
+| `--quiet`                   | Suppress output except errors                     |
 
 ### Examples
 
 ```bash
 # Validate configuration (shows warnings)
 hed --config config.yaml --validate
+
+# Get smart configuration suggestions
+hed --config config.yaml --suggest
+
+# Get only high-confidence suggestions
+hed --config config.yaml --suggest --suggest-threshold 0.7
 
 # Preview files that will be synced
 hed --config config.yaml --list-files
