@@ -6,6 +6,7 @@ export interface ErrorOptions {
   code?: string;
   path?: string;
   cause?: Error;
+  hints?: string[];
   [key: string]: unknown;
 }
 
@@ -31,6 +32,11 @@ export const createErrorClass = (
 
     if (options.cause) fullMessage += `\n  Details: ${options.cause.message}`;
 
+    if (options.hints && options.hints.length > 0) {
+      fullMessage += '\n\n  Hints:';
+      for (const hint of options.hints) fullMessage += `\n    - ${hint}`;
+    }
+
     return fullMessage;
   };
 
@@ -38,6 +44,7 @@ export const createErrorClass = (
     public readonly code?: string;
     public readonly path?: string;
     public override readonly cause?: Error;
+    public readonly hints?: string[];
     [key: string]: unknown;
 
     constructor(message: string, options: ErrorOptions = {}) {
@@ -47,9 +54,10 @@ export const createErrorClass = (
       this.code = options.code;
       this.path = options.path;
       this.cause = options.cause;
+      this.hints = options.hints;
 
       for (const [key, value] of Object.entries(options))
-        if (key !== 'code' && key !== 'path' && key !== 'cause') this[key] = value;
+        if (key !== 'code' && key !== 'path' && key !== 'cause' && key !== 'hints') this[key] = value;
     }
   }
 

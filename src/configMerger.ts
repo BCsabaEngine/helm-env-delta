@@ -4,6 +4,7 @@ import path from 'node:path';
 import * as YAML from 'yaml';
 
 import { type BaseConfig, parseBaseConfig, type TransformRules } from './configFile';
+import { MAX_CONFIG_EXTENDS_DEPTH } from './constants';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 
 // ============================================================================
@@ -43,12 +44,6 @@ const ConfigMergerErrorClass = createErrorClass(
 
 export class ConfigMergerError extends ConfigMergerErrorClass {}
 export const isConfigMergerError = createErrorTypeGuard(ConfigMergerError);
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const MAX_EXTENDS_DEPTH = 5;
 
 // ============================================================================
 // Config Merging
@@ -195,15 +190,15 @@ export const resolveConfigWithExtends = (
   logger?: import('./logger').Logger
 ): BaseConfig => {
   // Check depth limit
-  if (depth > MAX_EXTENDS_DEPTH) {
-    const depthError = new ConfigMergerError('Extends chain exceeds maximum depth of 5', {
+  if (depth > MAX_CONFIG_EXTENDS_DEPTH) {
+    const depthError = new ConfigMergerError(`Extends chain exceeds maximum depth of ${MAX_CONFIG_EXTENDS_DEPTH}`, {
       code: 'MAX_DEPTH_EXCEEDED',
       path: configPath,
       depth
     });
 
     depthError.message += '\n\n  Hint: Simplify your config inheritance:';
-    depthError.message += '\n    - Maximum depth is 5 levels';
+    depthError.message += `\n    - Maximum depth is ${MAX_CONFIG_EXTENDS_DEPTH} levels`;
     depthError.message += `\n    - Current depth: ${depth}`;
     depthError.message += '\n    - Consider consolidating base configs';
 

@@ -17,27 +17,30 @@ describe('validateConfigWarnings', () => {
       const config = createBaseConfig();
       config.include = ['**/**/*.yaml'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toContain("Inefficient glob pattern '**/**/*.yaml' detected (use '**/*' instead)");
+      expect(result.warnings).toContain("Inefficient glob pattern '**/**/*.yaml' detected (use '**/*' instead)");
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should warn about **/** in exclude patterns', () => {
       const config = createBaseConfig();
       config.exclude = ['**/**/test.yaml'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toContain("Inefficient glob pattern '**/**/test.yaml' detected (use '**/*' instead)");
+      expect(result.warnings).toContain("Inefficient glob pattern '**/**/test.yaml' detected (use '**/*' instead)");
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should not warn about valid glob patterns', () => {
       const config = createBaseConfig();
       config.include = ['**/*.yaml', 'src/**/*.yml'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('Inefficient glob pattern'));
+      expect(result.warnings).not.toContain(expect.stringContaining('Inefficient glob pattern'));
+      expect(result.hasWarnings).toBe(false);
     });
   });
 
@@ -46,18 +49,20 @@ describe('validateConfigWarnings', () => {
       const config = createBaseConfig();
       config.include = ['**/*.yaml', '*.yml', '**/*.yaml'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toContain('Duplicate patterns found in include array');
+      expect(result.warnings).toContain('Duplicate patterns found in include array');
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should warn about duplicate exclude patterns', () => {
       const config = createBaseConfig();
       config.exclude = ['node_modules/**', 'test/**', 'node_modules/**'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toContain('Duplicate patterns found in exclude array');
+      expect(result.warnings).toContain('Duplicate patterns found in exclude array');
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should not warn when no duplicates exist', () => {
@@ -65,9 +70,10 @@ describe('validateConfigWarnings', () => {
       config.include = ['**/*.yaml', '*.yml'];
       config.exclude = ['node_modules/**', 'test/**'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('Duplicate patterns'));
+      expect(result.warnings).not.toContain(expect.stringContaining('Duplicate patterns'));
+      expect(result.hasWarnings).toBe(false);
     });
   });
 
@@ -77,9 +83,12 @@ describe('validateConfigWarnings', () => {
       config.include = ['**/*.yaml', 'src/**/*.yml'];
       config.exclude = ['**/*.yaml', 'test/**'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toContain("Pattern '**/*.yaml' appears in both include and exclude (exclude takes precedence)");
+      expect(result.warnings).toContain(
+        "Pattern '**/*.yaml' appears in both include and exclude (exclude takes precedence)"
+      );
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should not warn when patterns do not overlap', () => {
@@ -87,9 +96,10 @@ describe('validateConfigWarnings', () => {
       config.include = ['**/*.yaml'];
       config.exclude = ['test/**'];
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('appears in both'));
+      expect(result.warnings).not.toContain(expect.stringContaining('appears in both'));
+      expect(result.hasWarnings).toBe(false);
     });
   });
 
@@ -101,18 +111,20 @@ describe('validateConfigWarnings', () => {
         'empty.yaml': []
       };
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toContain("skipPath pattern 'empty.yaml' has empty array (will have no effect)");
+      expect(result.warnings).toContain("skipPath pattern 'empty.yaml' has empty array (will have no effect)");
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should not warn when skipPath is undefined', () => {
       const config = createBaseConfig();
       config.skipPath = undefined;
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('skipPath'));
+      expect(result.warnings).not.toContain(expect.stringContaining('skipPath'));
+      expect(result.hasWarnings).toBe(false);
     });
 
     it('should not warn when all skipPath patterns have values', () => {
@@ -122,9 +134,10 @@ describe('validateConfigWarnings', () => {
         'config.yaml': ['$.spec.replicas']
       };
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('skipPath'));
+      expect(result.warnings).not.toContain(expect.stringContaining('skipPath'));
+      expect(result.hasWarnings).toBe(false);
     });
   });
 
@@ -142,20 +155,22 @@ describe('validateConfigWarnings', () => {
         }
       };
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toContain(
+      expect(result.warnings).toContain(
         "Transform pattern 'empty.yaml' has empty content and filename arrays (will have no effect)"
       );
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should not warn when transforms is undefined', () => {
       const config = createBaseConfig();
       config.transforms = undefined;
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('Transform pattern'));
+      expect(result.warnings).not.toContain(expect.stringContaining('Transform pattern'));
+      expect(result.hasWarnings).toBe(false);
     });
 
     it('should not warn when content array has values', () => {
@@ -167,9 +182,10 @@ describe('validateConfigWarnings', () => {
         }
       };
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('Transform pattern'));
+      expect(result.warnings).not.toContain(expect.stringContaining('Transform pattern'));
+      expect(result.hasWarnings).toBe(false);
     });
 
     it('should not warn when filename array has values', () => {
@@ -181,9 +197,10 @@ describe('validateConfigWarnings', () => {
         }
       };
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).not.toContain(expect.stringContaining('Transform pattern'));
+      expect(result.warnings).not.toContain(expect.stringContaining('Transform pattern'));
+      expect(result.hasWarnings).toBe(false);
     });
   });
 
@@ -196,12 +213,13 @@ describe('validateConfigWarnings', () => {
         empty: []
       };
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings.length).toBeGreaterThanOrEqual(3);
-      expect(warnings.some((w) => w.includes('Inefficient glob pattern'))).toBe(true);
-      expect(warnings).toContain('Duplicate patterns found in include array');
-      expect(warnings.some((w) => w.includes('skipPath'))).toBe(true);
+      expect(result.warnings.length).toBeGreaterThanOrEqual(3);
+      expect(result.warnings.some((w) => w.includes('Inefficient glob pattern'))).toBe(true);
+      expect(result.warnings).toContain('Duplicate patterns found in include array');
+      expect(result.warnings.some((w) => w.includes('skipPath'))).toBe(true);
+      expect(result.hasWarnings).toBe(true);
     });
 
     it('should return empty array when config is valid', () => {
@@ -212,9 +230,10 @@ describe('validateConfigWarnings', () => {
         '**/*.yaml': ['$.metadata']
       };
 
-      const warnings = validateConfigWarnings(config);
+      const result = validateConfigWarnings(config);
 
-      expect(warnings).toEqual([]);
+      expect(result.warnings).toEqual([]);
+      expect(result.hasWarnings).toBe(false);
     });
   });
 });

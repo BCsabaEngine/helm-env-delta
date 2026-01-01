@@ -33,6 +33,14 @@ export interface ChangedFile {
   parsedDest?: unknown;
 }
 
+export interface ProcessYamlOptions {
+  filePath: string;
+  sourceContent: string;
+  destinationContent: string;
+  skipPath?: Record<string, string[]>;
+  transforms?: TransformConfig;
+}
+
 // Error Handling
 const FileDiffErrorClass = createErrorClass('File Diff Error', {
   YAML_PARSE_ERROR: 'YAML file could not be parsed'
@@ -118,13 +126,8 @@ export const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, 
   return pathsToSkip;
 };
 
-const processYamlFile = (
-  filePath: string,
-  sourceContent: string,
-  destinationContent: string,
-  skipPath?: Record<string, string[]>,
-  transforms?: TransformConfig
-): ChangedFile | undefined => {
+const processYamlFile = (options: ProcessYamlOptions): ChangedFile | undefined => {
+  const { filePath, sourceContent, destinationContent, skipPath, transforms } = options;
   let sourceParsed: unknown;
   let destinationParsed: unknown;
 
@@ -215,7 +218,13 @@ const processChangedFiles = (
     const isYaml = isYamlFile(path);
 
     if (isYaml) {
-      const changed = processYamlFile(path, sourceContent, destinationContent, skipPath, transforms);
+      const changed = processYamlFile({
+        filePath: path,
+        sourceContent,
+        destinationContent,
+        skipPath,
+        transforms
+      });
 
       if (changed) changedFiles.push(changed);
       else unchangedFiles.push(path);

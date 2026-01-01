@@ -1,6 +1,7 @@
 import type { TransformConfig, TransformRule } from '../configFile';
 import { createErrorClass, createErrorTypeGuard } from './errors';
 import { globalMatcher } from './patternMatcher';
+import { applyRegexRulesSequentially } from './regexTransform';
 
 // ============================================================================
 // Error Handling
@@ -34,15 +35,8 @@ export const getTransformsForFile = (filePath: string, transforms?: TransformCon
 // ============================================================================
 
 const transformValueRecursive = (value: unknown, rules: TransformRule[]): unknown => {
-  // String: apply all transforms sequentially
-  if (typeof value === 'string') {
-    let result = value;
-    for (const rule of rules) {
-      const regex = new RegExp(rule.find, 'g');
-      result = result.replace(regex, rule.replace);
-    }
-    return result;
-  }
+  // String: apply all transforms sequentially using shared utility
+  if (typeof value === 'string') return applyRegexRulesSequentially(value, rules, false);
 
   // Array: map and recurse
   if (Array.isArray(value)) return value.map((item) => transformValueRecursive(item, rules));

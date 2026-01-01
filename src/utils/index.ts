@@ -11,7 +11,7 @@ export { deepEqual } from './deepEqual';
 export { normalizeForComparison, serializeForDiff } from './serialization';
 
 // Path utilities
-export { getValueAtPath, parseJsonPath } from './jsonPath';
+export { clearJsonPathCache, getValueAtPath, parseJsonPath } from './jsonPath';
 
 // File utilities
 export { isYamlFile } from './fileType';
@@ -21,6 +21,9 @@ export { globalMatcher, PatternMatcher } from './patternMatcher';
 
 // Diff utilities
 export { generateUnifiedDiff } from './diffGenerator';
+
+// Array diff processing utilities
+export { type ArrayChange, type ArrayChangeInfo, detectArrayChanges } from './arrayDiffProcessor';
 
 // Version checking utilities
 export { checkForUpdates, isVersionCheckerError, VersionCheckerError } from './versionChecker';
@@ -43,6 +46,31 @@ export {
   loadRegexPatternsFromKeys,
   RegexPatternFileLoaderError
 } from './regexPatternFileLoader';
+
+// Regex validation utilities
+export {
+  getAllValuesRecursive,
+  type RegexValidationOptions,
+  type StopRuleViolation,
+  validatePathlessRegex,
+  validateTargetedRegex
+} from './regexValidator';
+
+// Regex transformation utilities
+export { applyRegexRulesSequentially } from './regexTransform';
+
+// Version validation utilities
+export { validateVersionString, type VersionValidationResult, type VPrefixMode } from './versionValidator';
+
+// YAML type guards and helpers
+export {
+  extractKeyValue,
+  extractScalarValue,
+  isScalar,
+  isYamlCollection,
+  isYamlMap,
+  isYamlSeq
+} from './yamlTypeGuards';
 
 // Suggestion engine constants
 export {
