@@ -38,14 +38,13 @@ const generateTemporaryFilePath = (): string => {
   return path.join(tmpdir(), filename);
 };
 
-const escapeHtml = (text: string): string => {
-  return text
+const escapeHtml = (text: string): string =>
+  text
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
-};
 
 const DIFF2HTML_OPTIONS = {
   drawFileList: false,
@@ -53,9 +52,7 @@ const DIFF2HTML_OPTIONS = {
   outputFormat: 'side-by-side'
 } as const;
 
-const generateDiffHtml = (unifiedDiff: string): string => {
-  return diff2html(unifiedDiff, DIFF2HTML_OPTIONS);
-};
+const generateDiffHtml = (unifiedDiff: string): string => diff2html(unifiedDiff, DIFF2HTML_OPTIONS);
 
 const generateArrayDiffHtml = (change: ArrayChange): string => {
   let html = '<div class="array-diff">';

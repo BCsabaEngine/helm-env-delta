@@ -77,13 +77,10 @@ export interface JsonReport {
 // Helper Functions
 // ============================================================================
 
-const isPrimitive = (value: unknown): boolean => {
-  return value === undefined || value === null || typeof value !== 'object';
-};
+const isPrimitive = (value: unknown): boolean => value === undefined || value === null || typeof value !== 'object';
 
-const isObject = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-};
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const formatJsonPath = (path: string[]): string => {
   if (path.length === 0) return '$';

@@ -13,19 +13,15 @@ import type { Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
  * Checks if a node is a YAML Scalar (leaf value).
  * Scalars have a 'value' property but no 'items' property.
  */
-export const isScalar = (node: unknown): node is Scalar => {
-  return typeof node === 'object' && node !== null && 'value' in node && !('items' in node);
-};
+export const isScalar = (node: unknown): node is Scalar =>
+  typeof node === 'object' && node !== null && 'value' in node && !('items' in node);
 
 /**
  * Checks if a node is a YAML Map or Sequence (collection).
  * Collections have an 'items' property that is an array.
  */
-export const isYamlCollection = (node: unknown): node is YAMLMap | YAMLSeq => {
-  return (
-    typeof node === 'object' && node !== null && 'items' in node && Array.isArray((node as YAMLMap | YAMLSeq).items)
-  );
-};
+export const isYamlCollection = (node: unknown): node is YAMLMap | YAMLSeq =>
+  typeof node === 'object' && node !== null && 'items' in node && Array.isArray((node as YAMLMap | YAMLSeq).items);
 
 /**
  * Checks if a node is specifically a YAML Map (key-value pairs).
