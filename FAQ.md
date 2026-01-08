@@ -1062,13 +1062,13 @@ Running `--show-config` shows the **merged result** (both configs combined).
 
 ### Does --validate show warnings for potential config issues?
 
-**Yes!** As of recent versions, `--validate` now shows **non-fatal warnings** in addition to errors:
+**Yes!** The `--validate` flag performs comprehensive validation in two phases:
 
 ```bash
 helm-env-delta --config config.yaml --validate
 ```
 
-**Warnings detect:**
+**Phase 1 - Static Config Warnings:**
 
 - ✅ Inefficient glob patterns (e.g., `**/**` should be `**/*`)
 - ✅ Duplicate patterns in include/exclude arrays
@@ -1076,22 +1076,49 @@ helm-env-delta --config config.yaml --validate
 - ✅ Empty skipPath arrays (no effect)
 - ✅ Empty transform arrays (no content or filename transforms)
 
+**Phase 2 - Pattern Usage Validation (NEW):**
+
+- ✅ Unused exclude patterns (patterns that match no files)
+- ✅ Unused skipPath patterns (patterns that match no files)
+- ✅ Unused stopRules glob patterns (patterns that match no files)
+- ✅ stopRules JSONPath fields that don't exist in any matched files
+
 **Example output:**
 
 ```
-✓ Configuration is valid
+✓ Validating configuration...
 
-⚠️  Validation Warnings (non-fatal):
+⚠️  Configuration Warnings (non-fatal):
 
   • Inefficient glob pattern '**/**/*.yaml' detected (use '**/*' instead)
   • Duplicate patterns found in include array
-  • skipPath pattern 'empty.yaml' has empty array (will have no effect)
+
+⚠️  Pattern Usage Warnings (non-fatal):
+
+  • Exclude pattern 'test/**/*.yaml' matches no files
+  • skipPath pattern 'legacy/*.yaml' matches no files
+  • stopRules glob pattern 'helm-charts/**/*.yaml' matches no files (3 rule(s) defined)
+  • stopRules JSONPath 'spec.replicas' not found in any matched files (Rule type: numeric, matches 5 file(s))
+
+✓ Configuration is valid
 ```
+
+**What gets validated:**
+
+- **Static validation**: Syntax, structure, inefficiencies
+- **File-based validation**: Loads source and destination files to verify all patterns actually match
 
 **Warnings vs Errors:**
 
 - **Errors** = Config is invalid, tool won't run
-- **Warnings** = Config works but could be improved
+- **Warnings** = Config works but has potential issues (typos, outdated patterns, etc.)
+
+**When to use:**
+
+- After updating configuration files
+- When troubleshooting why patterns aren't working
+- As part of CI/CD pre-flight checks
+- After reorganizing your file structure
 
 ---
 
@@ -1301,4 +1328,4 @@ include:
 
 ---
 
-**Last Updated:** 2026-01-01 (chore/opt: Code style optimizations - simplified arrow functions for better readability)
+**Last Updated:** 2026-01-08 (feat/setting-validation: Unused pattern validation for exclude, skipPath, and stopRules)
