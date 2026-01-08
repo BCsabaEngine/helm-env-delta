@@ -1079,7 +1079,8 @@ helm-env-delta --config config.yaml --validate
 **Phase 2 - Pattern Usage Validation (NEW):**
 
 - ✅ Unused exclude patterns (patterns that match no files)
-- ✅ Unused skipPath patterns (patterns that match no files)
+- ✅ Unused skipPath glob patterns (patterns that match no files)
+- ✅ Unused skipPath JSONPath fields (paths that don't exist in any matched files)
 - ✅ Unused stopRules glob patterns (patterns that match no files)
 - ✅ stopRules JSONPath fields that don't exist in any matched files
 
@@ -1097,6 +1098,7 @@ helm-env-delta --config config.yaml --validate
 
   • Exclude pattern 'test/**/*.yaml' matches no files
   • skipPath pattern 'legacy/*.yaml' matches no files
+  • skipPath JSONPath 'microservice.replicaCountX' not found in any matched files (Pattern: svc/**/values.yaml, matches 50 file(s))
   • stopRules glob pattern 'helm-charts/**/*.yaml' matches no files (3 rule(s) defined)
   • stopRules JSONPath 'spec.replicas' not found in any matched files (Rule type: numeric, matches 5 file(s))
 

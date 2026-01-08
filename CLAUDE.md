@@ -68,7 +68,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - **ESLint:** unicorn/no-null, prevent-abbreviations, consistent-function-scoping, simple-import-sort
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x, format → lint → build → test
-- **Status:** 31 test files, 868 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Status:** 31 test files, 871 tests, 84%+ coverage, 45-60% faster (v1.3.3)
 - **Current Branch:** feat/setting-validation - Unused pattern validation for exclude, skipPath, stopRules
 - **Recent:** chore/opt branch - Simplified 8 arrow functions to use implicit returns (code style consistency)
 
@@ -220,7 +220,9 @@ Validates that config patterns actually match files and JSONPaths exist. Helps c
 **What Gets Validated:**
 
 - **exclude patterns**: Warn if matches no files in source or destination
-- **skipPath patterns**: Warn if matches no files
+- **skipPath patterns**: Two-level validation:
+  - Glob pattern must match at least one file
+  - JSONPath must exist in at least one matched YAML file
 - **stopRules patterns**: Two-level validation:
   - Glob pattern must match at least one file
   - If rule has `path` field, JSONPath must exist in at least one matched YAML file
@@ -229,7 +231,7 @@ Validates that config patterns actually match files and JSONPaths exist. Helps c
 
 - Uses `globalMatcher.match()` for glob testing
 - Uses `parseJsonPath()` + `getValueAtPath()` for JSONPath validation
-- Lazy YAML parsing (only for stopRule path validation)
+- Lazy YAML parsing (only for skipPath and stopRule path validation)
 - Catches and skips YAML parse errors (reported elsewhere)
 - Returns structured warnings with type, pattern, message, context
 
@@ -237,7 +239,12 @@ Validates that config patterns actually match files and JSONPaths exist. Helps c
 
 ```typescript
 type PatternUsageWarning = {
-  type: 'unused-exclude' | 'unused-skipPath' | 'unused-stopRule-glob' | 'unused-stopRule-path';
+  type:
+    | 'unused-exclude'
+    | 'unused-skipPath'
+    | 'unused-skipPath-jsonpath'
+    | 'unused-stopRule-glob'
+    | 'unused-stopRule-path';
   pattern: string;
   message: string;
   context?: string; // Additional info (e.g., rule count, matched files)
@@ -252,14 +259,14 @@ type PatternUsageWarning = {
 
 **Test Coverage:**
 
-- 21 tests in `test/patternUsageValidator.test.ts`
-- Covers: unused patterns, valid patterns, edge cases, YAML parse errors, non-YAML files
+- 24 tests in `test/patternUsageValidator.test.ts`
+- Covers: unused patterns, valid patterns, skipPath JSONPath validation, edge cases, YAML parse errors, non-YAML files
 
 ## Testing
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**31 test files, 868 tests:**
+**31 test files, 871 tests:**
 
 - Core: commandLine, configFile, configLoader, configMerger, configWarnings, patternUsageValidator, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
 - Reporters: consoleDiffReporter, jsonReporter, htmlReporter, consoleFormatter, logger
