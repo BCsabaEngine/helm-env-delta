@@ -48,7 +48,7 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 📊 **Multiple Reports** - Console, HTML (visual), and JSON (CI/CD) output formats.
 
-🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with warnings.
+🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with comprehensive warnings including unused pattern detection.
 
 💡 **Smart Suggestions** - Heuristic analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically. Control sensitivity with `--suggest-threshold`.
 
@@ -610,23 +610,23 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag                        | Description                                       |
-| --------------------------- | ------------------------------------------------- |
-| `--config <path>`           | **Required** - Configuration file                 |
-| `--validate`                | Validate config and exit (shows warnings)         |
-| `--suggest`                 | Analyze differences and suggest config updates    |
-| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3) |
-| `--dry-run`                 | Preview changes without writing files             |
-| `--force`                   | Override stop rules                               |
-| `--diff`                    | Show console diff                                 |
-| `--diff-html`               | Generate HTML report (opens in browser)           |
-| `--diff-json`               | Output JSON to stdout (pipe to jq)                |
-| `--list-files`              | List source/destination files without processing  |
-| `--show-config`             | Display resolved config after inheritance         |
-| `--skip-format`             | Skip YAML formatting                              |
-| `--no-color`                | Disable colored output (CI/accessibility)         |
-| `--verbose`                 | Show detailed debug info                          |
-| `--quiet`                   | Suppress output except errors                     |
+| Flag                        | Description                                        |
+| --------------------------- | -------------------------------------------------- |
+| `--config <path>`           | **Required** - Configuration file                  |
+| `--validate`                | Validate config and pattern usage (shows warnings) |
+| `--suggest`                 | Analyze differences and suggest config updates     |
+| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)  |
+| `--dry-run`                 | Preview changes without writing files              |
+| `--force`                   | Override stop rules                                |
+| `--diff`                    | Show console diff                                  |
+| `--diff-html`               | Generate HTML report (opens in browser)            |
+| `--diff-json`               | Output JSON to stdout (pipe to jq)                 |
+| `--list-files`              | List source/destination files without processing   |
+| `--show-config`             | Display resolved config after inheritance          |
+| `--skip-format`             | Skip YAML formatting                               |
+| `--no-color`                | Disable colored output (CI/accessibility)          |
+| `--verbose`                 | Show detailed debug info                           |
+| `--quiet`                   | Suppress output except errors                      |
 
 ### Examples
 
@@ -821,6 +821,56 @@ env:
 
 **Git diff:** Shows all lines changed (noisy)
 **HelmEnvDelta:** Only `LOG_LEVEL: debug → info` (clean)
+
+---
+
+### 🔍 Pattern Usage Validation
+
+HelmEnvDelta validates that your configuration patterns actually match files and exist in your YAML structure. This helps catch typos, outdated patterns, and misconfigured rules early.
+
+**Run validation:**
+
+```bash
+helm-env-delta --config config.yaml --validate
+```
+
+**What gets validated:**
+
+1. **exclude patterns** - Warns if pattern matches no files
+2. **skipPath patterns** - Two-level validation:
+   - Glob pattern must match at least one file
+   - JSONPath must exist in at least one matched file
+3. **stopRules patterns** - Two-level validation:
+   - Glob pattern must match at least one file
+   - JSONPath (if specified) must exist in at least one matched file
+
+**Example output:**
+
+```
+✓ Configuration is valid
+
+⚠️  Pattern Usage Warnings (non-fatal):
+
+  • Exclude pattern 'test/**/*.yaml' matches no files
+  • skipPath pattern 'legacy/*.yaml' matches no files
+  • skipPath JSONPath 'microservice.replicaCountX' not found in any matched files (Pattern: svc/**/values.yaml, matches 50 file(s))
+  • stopRules glob pattern 'helm-charts/**/*.yaml' matches no files (3 rule(s) defined)
+  • stopRules JSONPath 'spec.replicas' not found in any matched files (Rule type: numeric, matches 5 file(s))
+```
+
+**Validation phases:**
+
+- **Phase 1 (Static)**: Validates config syntax, checks for inefficient patterns, duplicates, conflicts
+- **Phase 2 (File-Based)**: Loads files and validates all patterns actually match and paths exist
+
+**When to use:**
+
+- After updating configuration
+- When patterns stop working as expected
+- To verify config file patterns after file reorganization
+- As part of CI/CD pre-flight checks
+
+**Important:** Warnings are non-fatal and don't block execution. They help you catch potential issues but won't stop your workflow.
 
 ---
 

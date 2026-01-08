@@ -20,7 +20,7 @@ npm run all           # Fix + build + test
 helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--suggest` (heuristic analysis and config suggestions), `--suggest-threshold` (min confidence 0-1, default: 0.3), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
+**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis and config suggestions), `--suggest-threshold` (min confidence 0-1, default: 0.3), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
 
 ## Architecture
 
@@ -32,6 +32,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `configFile.ts` - Zod validation (BaseConfig/FinalConfig)
 - `configLoader.ts` / `configMerger.ts` - YAML loading, inheritance (max 5 levels)
 - `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts, empty arrays)
+- `patternUsageValidator.ts` - **NEW feat/setting-validation** - Unused pattern detection (validates exclude, skipPath, stopRules actually match files and paths exist)
 - `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map)
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → skipPath → normalize → deepEqual)
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
@@ -67,7 +68,8 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - **ESLint:** unicorn/no-null, prevent-abbreviations, consistent-function-scoping, simple-import-sort
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x, format → lint → build → test
-- **Status:** 29 test files, 847 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Status:** 31 test files, 871 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Current Branch:** feat/setting-validation - Unused pattern validation for exclude, skipPath, stopRules
 - **Recent:** chore/opt branch - Simplified 8 arrow functions to use implicit returns (code style consistency)
 
 ## Utilities (`src/utils/`)
@@ -202,13 +204,71 @@ stopRules:
 - Paths resolved relative to config file directory
 - Empty files return empty array (no error)
 
+## Pattern Usage Validation (feat/setting-validation)
+
+Validates that config patterns actually match files and JSONPaths exist. Helps catch typos, outdated patterns, and misconfigurations.
+
+**Module:** `src/patternUsageValidator.ts`
+
+**Triggered by:** `--validate` flag (runs after static config validation)
+
+**Two-Phase Validation:**
+
+1. **Phase 1 (Static)** - `configWarnings.ts` validates syntax, inefficient patterns, duplicates
+2. **Phase 2 (File-Based)** - `patternUsageValidator.ts` validates pattern usage
+
+**What Gets Validated:**
+
+- **exclude patterns**: Warn if matches no files in source or destination
+- **skipPath patterns**: Two-level validation:
+  - Glob pattern must match at least one file
+  - JSONPath must exist in at least one matched YAML file
+- **stopRules patterns**: Two-level validation:
+  - Glob pattern must match at least one file
+  - If rule has `path` field, JSONPath must exist in at least one matched YAML file
+
+**Implementation Details:**
+
+- Uses `globalMatcher.match()` for glob testing
+- Uses `parseJsonPath()` + `getValueAtPath()` for JSONPath validation
+- Lazy YAML parsing (only for skipPath and stopRule path validation)
+- Catches and skips YAML parse errors (reported elsewhere)
+- Returns structured warnings with type, pattern, message, context
+
+**Warning Types:**
+
+```typescript
+type PatternUsageWarning = {
+  type:
+    | 'unused-exclude'
+    | 'unused-skipPath'
+    | 'unused-skipPath-jsonpath'
+    | 'unused-stopRule-glob'
+    | 'unused-stopRule-path';
+  pattern: string;
+  message: string;
+  context?: string; // Additional info (e.g., rule count, matched files)
+};
+```
+
+**Performance:**
+
+- Only runs with `--validate` flag (no impact on normal operations)
+- Expected overhead: <500ms for typical configs (<100 files, <10 patterns)
+- Early exit (stops checking once path found in one file)
+
+**Test Coverage:**
+
+- 24 tests in `test/patternUsageValidator.test.ts`
+- Covers: unused patterns, valid patterns, skipPath JSONPath validation, edge cases, YAML parse errors, non-YAML files
+
 ## Testing
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**30 test files, 847 tests:**
+**31 test files, 871 tests:**
 
-- Core: commandLine, configFile, configLoader, configMerger, configWarnings, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
+- Core: commandLine, configFile, configLoader, configMerger, configWarnings, patternUsageValidator, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
 - Reporters: consoleDiffReporter, jsonReporter, htmlReporter, consoleFormatter, logger
 - Utils: errors, fileType, diffGenerator, serialization, deepEqual, jsonPath, transformer, filenameTransformer, collisionDetector, versionChecker, index
 - Integration: index, ZodError

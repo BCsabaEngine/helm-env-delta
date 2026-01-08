@@ -19,6 +19,7 @@ import { isFileUpdaterError, updateFiles } from './fileUpdater';
 import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
 import { generateJsonReport, isJsonReporterError } from './jsonReporter';
 import { Logger, VerbosityLevel } from './logger';
+import { validatePatternUsage } from './patternUsageValidator';
 import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
@@ -74,14 +75,57 @@ const main = async (): Promise<void> => {
 
   // Early exit for validation-only mode
   if (command.validate) {
-    logger.log('\n' + formatProgressMessage('Configuration is valid', 'success'));
+    // Phase 1: Static validation
+    logger.log('\n' + formatProgressMessage('Validating configuration...', 'info'));
 
-    // Check for non-fatal warnings
     const warningResult = validateConfigWarnings(config);
+    let hasAnyWarnings = warningResult.hasWarnings;
+
     if (warningResult.hasWarnings) {
-      console.warn(chalk.yellow('\n⚠️  Validation Warnings (non-fatal):\n'));
+      console.warn(chalk.yellow('\n⚠️  Configuration Warnings (non-fatal):\n'));
       for (const warning of warningResult.warnings) console.warn(chalk.yellow(`  • ${warning}`));
     }
+
+    // Phase 2: File-based validation
+    logger.log('\n' + formatProgressMessage('Loading files for validation...', 'loading'));
+
+    const sourceFiles = await loadFiles(
+      {
+        baseDirectory: config.source,
+        include: config.include,
+        exclude: config.exclude,
+        transforms: config.transforms
+      },
+      logger
+    );
+
+    const destinationFiles = await loadFiles(
+      {
+        baseDirectory: config.destination,
+        include: config.include,
+        exclude: config.exclude
+      },
+      logger
+    );
+
+    logger.progress(`Loaded ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`, 'success');
+
+    logger.log('\n' + formatProgressMessage('Validating pattern usage...', 'info'));
+
+    const usageResult = validatePatternUsage(config, sourceFiles, destinationFiles);
+    hasAnyWarnings = hasAnyWarnings || usageResult.hasWarnings;
+
+    if (usageResult.hasWarnings) {
+      console.warn(chalk.yellow('\n⚠️  Pattern Usage Warnings (non-fatal):\n'));
+      for (const warning of usageResult.warnings) {
+        const contextString = warning.context ? chalk.dim(` (${warning.context})`) : '';
+        console.warn(chalk.yellow(`  • ${warning.message}${contextString}`));
+      }
+    }
+
+    // Final result
+    if (hasAnyWarnings) logger.log('\n' + formatProgressMessage('Configuration has warnings but is usable', 'info'));
+    else logger.log('\n' + formatProgressMessage('Configuration is valid', 'success'));
 
     return;
   }
