@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-01-08
+
+### Added
+
+- Pattern usage validation: The `--validate` flag now checks if your configuration patterns actually match files in your project. Catches typos and outdated patterns in `exclude`, `skipPath`, and `stopRules` before they cause issues. For example, if you misspell a field name like `microservice.replicaCountX` instead of `microservice.replicaCount`, validation will warn you that the path doesn't exist in your files.
+- JSONPath validation for skipPath: In addition to checking if glob patterns match files, validation now verifies that JSONPath fields specified in `skipPath` actually exist in your YAML files. This helps you catch configuration mistakes early, like referencing fields that were renamed or removed.
+- Comprehensive validation warnings: Get detailed context with each warning, including which pattern failed to match, how many files were checked, and what rule type triggered the warning. Makes it easy to understand exactly what needs fixing in your configuration.
+
+### Changed
+
+- Two-phase validation: The `--validate` flag now runs in two phases - first validating configuration syntax and structure (static checks), then loading your actual files to verify patterns match and paths exist (file-based checks). This catches more potential issues before you run a sync operation.
+
 ## [1.6.0] - 2026-01-01
 
 ### Added
