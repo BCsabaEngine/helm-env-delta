@@ -17,7 +17,12 @@ export interface PatternUsageResult {
  * Individual pattern usage warning.
  */
 export interface PatternUsageWarning {
-  type: 'unused-exclude' | 'unused-skipPath' | 'unused-stopRule-glob' | 'unused-stopRule-path';
+  type:
+    | 'unused-exclude'
+    | 'unused-skipPath'
+    | 'unused-skipPath-jsonpath'
+    | 'unused-stopRule-glob'
+    | 'unused-stopRule-path';
   pattern: string;
   message: string;
   context?: string;
@@ -77,6 +82,7 @@ const validateExcludePatterns = (
 
 /**
  * Validates skipPath patterns match at least one file.
+ * Also validates that JSONPaths exist in at least one matched file.
  */
 const validateSkipPathPatterns = (
   config: FinalConfig,
@@ -89,15 +95,36 @@ const validateSkipPathPatterns = (
 
   const allFiles = new Set([...sourceFiles.keys(), ...destinationFiles.keys()]);
 
-  for (const pattern of Object.keys(config.skipPath)) {
-    const matchesAny = [...allFiles].some((filePath) => globalMatcher.match(filePath, pattern));
+  for (const [pattern, jsonPaths] of Object.entries(config.skipPath)) {
+    // Check if glob matches any files
+    const matchedFiles = [...allFiles].filter((filePath) => globalMatcher.match(filePath, pattern));
 
-    if (!matchesAny)
+    if (matchedFiles.length === 0) {
       warnings.push({
         type: 'unused-skipPath',
         pattern,
         message: `skipPath pattern '${pattern}' matches no files`
       });
+      continue; // Skip JSONPath validation if glob doesn't match
+    }
+
+    // Only validate for YAML files
+    const yamlFiles = matchedFiles.filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
+
+    if (yamlFiles.length === 0) continue;
+
+    // For each JSONPath, verify it exists in at least one matched file
+    for (const jsonPath of jsonPaths) {
+      const pathExistsInAny = validateJsonPathInFiles(jsonPath, yamlFiles, sourceFiles, destinationFiles);
+
+      if (!pathExistsInAny)
+        warnings.push({
+          type: 'unused-skipPath-jsonpath',
+          pattern,
+          message: `skipPath JSONPath '${jsonPath}' not found in any matched files`,
+          context: `Pattern: ${pattern}, matches ${yamlFiles.length} file(s)`
+        });
+    }
   }
 
   return warnings;

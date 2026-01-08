@@ -207,6 +207,86 @@ describe('patternUsageValidator', () => {
         })
       );
     });
+
+    it('should warn when skipPath JSONPath not found in any matched files', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['metadata.nonexistent', 'spec.missing']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0\nmetadata:\n  name: app'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0\nmetadata:\n  name: app'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.hasWarnings).toBe(true);
+      expect(result.warnings).toContainEqual({
+        type: 'unused-skipPath-jsonpath',
+        pattern: '**/*.yaml',
+        message: "skipPath JSONPath 'metadata.nonexistent' not found in any matched files",
+        context: 'Pattern: **/*.yaml, matches 1 file(s)'
+      });
+      expect(result.warnings).toContainEqual({
+        type: 'unused-skipPath-jsonpath',
+        pattern: '**/*.yaml',
+        message: "skipPath JSONPath 'spec.missing' not found in any matched files",
+        context: 'Pattern: **/*.yaml, matches 1 file(s)'
+      });
+    });
+
+    it('should not warn when skipPath JSONPath exists in at least one file', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['metadata.name', 'version']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0\nmetadata:\n  name: app',
+        'config.yaml': 'name: test'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath'
+        })
+      );
+    });
+
+    it('should validate nested JSONPath in skipPath', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['spec.template.containers[*].image']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'spec:\n  replicas: 3\n  name: app'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'spec:\n  replicas: 3'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.hasWarnings).toBe(true);
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath',
+          message: "skipPath JSONPath 'spec.template.containers[*].image' not found in any matched files"
+        })
+      );
+    });
   });
 
   describe('validateStopRulePatterns', () => {
