@@ -177,7 +177,8 @@ describe('filenameTransformer', () => {
     it('should return unchanged map when transforms is undefined', () => {
       const fileMap = new Map([['test.yaml', 'content']]);
       const result = transformFilenameMap(fileMap);
-      expect(result).toBe(fileMap);
+      expect(result.fileMap).toBe(fileMap);
+      expect(result.originalPaths.size).toBe(0);
     });
 
     it('should transform all keys in the map', () => {
@@ -190,10 +191,10 @@ describe('filenameTransformer', () => {
         ['other/file.yaml', 'content3']
       ]);
       const result = transformFilenameMap(fileMap, transforms);
-      expect(result.get('envs/prod/app.yaml')).toBe('content1');
-      expect(result.get('envs/prod/db.yaml')).toBe('content2');
-      expect(result.get('other/file.yaml')).toBe('content3');
-      expect(result.size).toBe(3);
+      expect(result.fileMap.get('envs/prod/app.yaml')).toBe('content1');
+      expect(result.fileMap.get('envs/prod/db.yaml')).toBe('content2');
+      expect(result.fileMap.get('other/file.yaml')).toBe('content3');
+      expect(result.fileMap.size).toBe(3);
     });
 
     it('should preserve content values', () => {
@@ -202,7 +203,22 @@ describe('filenameTransformer', () => {
       };
       const fileMap = new Map([['uat-app.yaml', 'original content']]);
       const result = transformFilenameMap(fileMap, transforms);
-      expect(result.get('prod-app.yaml')).toBe('original content');
+      expect(result.fileMap.get('prod-app.yaml')).toBe('original content');
+    });
+
+    it('should track original paths for transformed files', () => {
+      const transforms: TransformConfig = {
+        '**/*.yaml': { filename: [{ find: '/uat/', replace: '/prod/' }] }
+      };
+      const fileMap = new Map([
+        ['envs/uat/app.yaml', 'content1'],
+        ['other/file.yaml', 'content2']
+      ]);
+      const result = transformFilenameMap(fileMap, transforms);
+      // Only transformed files should have originalPaths entries
+      expect(result.originalPaths.get('envs/prod/app.yaml')).toBe('envs/uat/app.yaml');
+      expect(result.originalPaths.has('other/file.yaml')).toBe(false); // Not transformed
+      expect(result.originalPaths.size).toBe(1);
     });
   });
 

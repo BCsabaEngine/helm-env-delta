@@ -251,4 +251,126 @@ describe('fileDiff', () => {
       expect(result.unchangedFiles).toContain('apps/config.yaml');
     });
   });
+
+  describe('skipPath with filter expressions', () => {
+    it('should skip array item by filter in skipPath', () => {
+      const source = new Map([['file.yaml', 'env:\n  - name: DEBUG\n    value: "1"\n  - name: PROD\n    value: "0"']]);
+      const destination = new Map([
+        ['file.yaml', 'env:\n  - name: DEBUG\n    value: "changed"\n  - name: PROD\n    value: "0"']
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        skipPath: { '*.yaml': ['env[name=DEBUG]'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should detect changes in non-filtered array items', () => {
+      const source = new Map([['file.yaml', 'env:\n  - name: DEBUG\n    value: "1"\n  - name: PROD\n    value: "0"']]);
+      const destination = new Map([
+        ['file.yaml', 'env:\n  - name: DEBUG\n    value: "1"\n  - name: PROD\n    value: "changed"']
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        skipPath: { '*.yaml': ['env[name=DEBUG]'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.changedFiles).toHaveLength(1);
+    });
+
+    it('should handle nested filter paths', () => {
+      const yaml = `containers:
+  - name: app
+    env:
+      - name: SECRET
+        value: xxx
+      - name: DEBUG
+        value: "1"
+  - name: sidecar
+    env:
+      - name: LOG_LEVEL
+        value: info`;
+      const changedYaml = yaml.replace('xxx', 'yyy');
+      const source = new Map([['file.yaml', yaml]]);
+      const destination = new Map([['file.yaml', changedYaml]]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        skipPath: { '*.yaml': ['containers[name=app].env[name=SECRET]'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should skip nested value within filtered array item', () => {
+      const source = new Map([['file.yaml', 'env:\n  - name: A\n    value: "1"\n  - name: B\n    value: "2"']]);
+      const destination = new Map([
+        ['file.yaml', 'env:\n  - name: A\n    value: "changed"\n  - name: B\n    value: "2"']
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        skipPath: { '*.yaml': ['env[name=A].value'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should handle filter with no matching items gracefully', () => {
+      const source = new Map([['file.yaml', 'env:\n  - name: A\n    value: "1"']]);
+      const destination = new Map([['file.yaml', 'env:\n  - name: A\n    value: "1"']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        skipPath: { '*.yaml': ['env[name=NONEXISTENT]'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should work with mixed filter and wildcard paths', () => {
+      const source = new Map([
+        ['file.yaml', 'containers:\n  - name: app\n    env:\n      - name: VAR\n        value: "1"']
+      ]);
+      const destination = new Map([
+        ['file.yaml', 'containers:\n  - name: app\n    env:\n      - name: VAR\n        value: "changed"']
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        skipPath: { '*.yaml': ['containers[name=app].env[*].value'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should convert numeric property values for comparison', () => {
+      const source = new Map([['file.yaml', 'items:\n  - id: 123\n    data: old']]);
+      const destination = new Map([['file.yaml', 'items:\n  - id: 123\n    data: new']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        skipPath: { '*.yaml': ['items[id=123]'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+  });
 });

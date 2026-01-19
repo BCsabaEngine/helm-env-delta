@@ -2,7 +2,7 @@ import YAML from 'yaml';
 
 import type { FinalConfig, StopRule } from './configFile';
 import type { FileMap } from './fileLoader';
-import { getValueAtPath, parseJsonPath } from './utils/jsonPath';
+import { isFilterSegment, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
 
 /**
@@ -194,8 +194,54 @@ const hasPathField = (rule: StopRule): rule is StopRule & { path?: string } =>
   'path' in rule && typeof rule.path === 'string';
 
 /**
+ * Checks if a JSONPath could potentially match in an object.
+ * For filter segments, checks if the array contains items with the specified property.
+ */
+const pathCouldMatch = (object: unknown, pathParts: string[]): boolean => {
+  let current = object;
+
+  for (const part of pathParts) {
+    if (!current || typeof current !== 'object') return false;
+
+    if (isFilterSegment(part)) {
+      if (!Array.isArray(current)) return false;
+
+      const filter = parseFilterSegment(part);
+      if (!filter) return false;
+
+      // Check if any array item has the property with matching value
+      const matched = current.find((item) => {
+        if (!item || typeof item !== 'object') return false;
+        const itemValue = (item as Record<string, unknown>)[filter.property];
+        return String(itemValue) === filter.value;
+      });
+
+      if (!matched) return false;
+      current = matched;
+      continue;
+    }
+
+    if (Array.isArray(current)) {
+      if (part === '*') {
+        // For wildcard, check if any item could continue the path
+        if (pathParts.indexOf(part) === pathParts.length - 1) return true;
+        return current.some((item) => item !== undefined);
+      }
+
+      const index = Number(part);
+      if (Number.isNaN(index)) return false;
+
+      current = current[index];
+    } else current = (current as Record<string, unknown>)[part];
+  }
+
+  return current !== undefined;
+};
+
+/**
  * Checks if a JSONPath exists in at least one file.
- * Parses YAML and uses getValueAtPath utility.
+ * Parses YAML and validates path could match.
+ * Supports filter segments like 'env[name=DEBUG]'.
  */
 const validateJsonPathInFiles = (
   jsonPath: string,
@@ -212,9 +258,7 @@ const validateJsonPathInFiles = (
 
     try {
       const parsed = YAML.parse(content);
-      const value = getValueAtPath(parsed, pathParts);
-
-      if (value !== undefined) return true; // Found in at least one file
+      if (pathCouldMatch(parsed, pathParts)) return true;
     } catch {
       // Ignore parse errors (they'll be caught elsewhere)
       continue;

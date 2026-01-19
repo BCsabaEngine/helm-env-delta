@@ -46,7 +46,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 
 - Core: `source`, `destination` (required), `include`/`exclude`, `prune`
 - Inheritance: Single parent via `extends`, max 5 levels, circular detection
-- `skipPath`: JSONPath patterns per-file (glob patterns)
+- `skipPath`: JSONPath patterns per-file (glob patterns), supports filter expressions `[prop=value]`
 - `transforms`: **BREAKING v1.1+** - Object with `content`/`filename` arrays (regex find/replace, sequential)
   - **NEW v1.4+**: `contentFile`/`filenameFile` - Load transforms from external YAML files (single string or array)
   - File-based transforms: Literal string replacement (keys escaped for regex safety)
@@ -68,7 +68,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - **ESLint:** unicorn/no-null, prevent-abbreviations, consistent-function-scoping, simple-import-sort
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x, format → lint → build → test
-- **Status:** 31 test files, 871 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Status:** 31 test files, 917 tests, 84%+ coverage, 45-60% faster (v1.3.3)
 - **Current Branch:** feat/setting-validation - Unused pattern validation for exclude, skipPath, stopRules
 - **Recent:** chore/opt branch - Simplified 8 arrow functions to use implicit returns (code style consistency)
 
@@ -81,7 +81,7 @@ Barrel exports via `index.ts`:
 - `diffGenerator.ts` - generateUnifiedDiff()
 - `serialization.ts` - serializeForDiff, normalizeForComparison (YAML.stringify cache)
 - `deepEqual.ts` - deepEqual (fast path for small objects)
-- `jsonPath.ts` - parseJsonPath, getValueAtPath (memoization cache)
+- `jsonPath.ts` - parseJsonPath, getValueAtPath, isFilterSegment, parseFilterSegment (memoization cache, filter expressions)
 - `transformer.ts` - applyTransforms (regex on values, sequential)
 - `patternMatcher.ts` - PatternMatcher, globalMatcher (picomatch cache)
 - `versionChecker.ts` - checkForUpdates (npm registry, CI detection)
@@ -109,6 +109,33 @@ Barrel exports via `index.ts`:
 4. Batched pattern matching - yamlFormatter single pass vs 3 passes
 5. Early returns - skip structuredClone, binary detection when unneeded
 6. Fast paths - deepEqual optimized for small objects, empty arrays
+
+## SkipPath Filter Expressions
+
+Skip specific array items by property value using filter syntax `[prop=value]`:
+
+```yaml
+skipPath:
+  '**/*.yaml':
+    - 'env[name=SECRET_KEY]' # Skip array item where name=SECRET_KEY
+    - 'containers[name=sidecar].resources' # Skip nested field in matching item
+    - 'spec.template.containers[name=app].env[name=DEBUG]' # Multiple nested filters
+    - 'items[id=123]' # Numeric values (converted to string)
+    - 'data[key="value with spaces"]' # Quoted values for spaces
+```
+
+**Syntax:**
+
+- `array[prop=value]` - Match array items where property equals value
+- Values are compared as strings (numeric YAML values converted)
+- Supports quoted values: `[name="value with spaces"]`
+- Can be combined with wildcards: `containers[name=app].env[*].value`
+- Nested filters: `a[x=1].b[y=2].field`
+
+**Behavior:**
+
+- As last segment: Removes matching array items entirely
+- As middle segment: Navigates into matching items, continues path traversal
 
 ## Filename Transforms
 

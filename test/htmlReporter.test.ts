@@ -83,6 +83,7 @@ const createMockChangedFile = (overrides?: Partial<ChangedFile>): ChangedFile =>
   processedDestContent: { version: '0.9.0' },
   rawParsedSource: { version: '1.0.0' },
   rawParsedDest: { version: '0.9.0' },
+  skipPaths: [],
   ...overrides
 });
 
@@ -461,6 +462,43 @@ describe('htmlReporter', () => {
       await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       expect(generateUnifiedDiff).toHaveBeenCalledWith('test-file.yaml', expect.any(String), expect.any(String));
+    });
+
+    it('should display transformed filename with original when originalPath is set', async () => {
+      const changedFile = createMockChangedFile({
+        path: 'envs/prod/app.yaml',
+        originalPath: 'envs/uat/app.yaml'
+      });
+      const diffResult = createMockDiffResult({
+        changedFiles: [changedFile]
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('envs/uat/app.yaml');
+      expect(htmlContent).toContain('envs/prod/app.yaml');
+      expect(htmlContent).toContain('→');
+      expect(htmlContent).toContain('filename-transform');
+    });
+
+    it('should display only path when no filename transform occurred', async () => {
+      const changedFile = createMockChangedFile({
+        path: 'config/app.yaml'
+        // No originalPath set
+      });
+      const diffResult = createMockDiffResult({
+        changedFiles: [changedFile]
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('<summary>config/app.yaml</summary>');
+      // Should not have the span with transform class wrapping the filename
+      expect(htmlContent).not.toContain('<span class="filename-transform">');
     });
   });
 });

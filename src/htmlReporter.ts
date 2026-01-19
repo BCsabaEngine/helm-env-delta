@@ -86,8 +86,15 @@ const generateArrayDiffHtml = (change: ArrayChange): string => {
   return html;
 };
 
+const generateFileSummary = (file: ChangedFile): string => {
+  if (!file.originalPath) return file.path;
+
+  return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
+};
+
 const generateChangedFileSection = (file: ChangedFile): string => {
   const isYaml = isYamlFile(file.path);
+  const summary = generateFileSummary(file);
 
   if (!isYaml) {
     const destinationContent = serializeForDiff(file.processedDestContent, false);
@@ -97,7 +104,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
 
     return `
     <details class="file-section" open>
-      <summary>${file.path}</summary>
+      <summary>${summary}</summary>
       <div class="diff-container">
         ${diffHtml}
       </div>
@@ -115,7 +122,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
 
     return `
     <details class="file-section" open>
-      <summary>${file.path}</summary>
+      <summary>${summary}</summary>
       <div class="diff-container">
         ${diffHtml}
       </div>
@@ -131,7 +138,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
   let arrayDiffsHtml = '';
 
   if (arrayInfo.hasChanges) {
-    arrayDiffsHtml = '<div class="array-details"><h3>Array-specific details:</h3>';
+    arrayDiffsHtml = '<details class="array-details"><summary>Array-specific details:</summary>';
 
     for (const change of arrayInfo.changes) {
       const pathString = change.path.join('.');
@@ -140,12 +147,12 @@ const generateChangedFileSection = (file: ChangedFile): string => {
       arrayDiffsHtml += '</div>';
     }
 
-    arrayDiffsHtml += '</div>';
+    arrayDiffsHtml += '</details>';
   }
 
   return `
     <details class="file-section" open>
-      <summary>${file.path}</summary>
+      <summary>${summary}</summary>
       <div class="diff-container">
         ${diffHtml}
         ${arrayDiffsHtml}

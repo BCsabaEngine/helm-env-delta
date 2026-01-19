@@ -374,7 +374,26 @@ skipPath:
     - 'resources.limits'
 ```
 
-**Use cases:** Namespaces, replicas, resource limits, secrets, URLs.
+#### Filter Expressions (Skip by Name)
+
+Skip specific array items by property value using filter syntax:
+
+```yaml
+skipPath:
+  '**/*.yaml':
+    - 'env[name=SECRET_KEY]' # Skip item where name=SECRET_KEY
+    - 'env[name=INTERNAL_TOKEN].value' # Skip nested field in matching item
+    - 'containers[name=sidecar]' # Skip entire sidecar container
+    - 'spec.containers[name=app].env[name=DEBUG]' # Nested filters
+```
+
+**Syntax:**
+
+- `array[prop=value]` - Match items where property equals value
+- `array[prop="value with spaces"]` - Quoted values for special characters
+- Combine with wildcards: `containers[name=app].env[*].value`
+
+**Use cases:** Namespaces, replicas, resource limits, secrets, URLs, environment-specific array items.
 
 ---
 
@@ -730,7 +749,7 @@ git push origin main
 
 ✅ **Flexibility** - Per-file patterns. Config inheritance. Regex transforms.
 
-✅ **Reliability** - 847 tests, 84% coverage. Battle-tested.
+✅ **Reliability** - 917 tests, 84% coverage. Battle-tested.
 
 ---
 
@@ -840,6 +859,7 @@ helm-env-delta --config config.yaml --validate
 2. **skipPath patterns** - Two-level validation:
    - Glob pattern must match at least one file
    - JSONPath must exist in at least one matched file
+   - Filter expressions `[prop=value]` validated against actual array items
 3. **stopRules patterns** - Two-level validation:
    - Glob pattern must match at least one file
    - JSONPath (if specified) must exist in at least one matched file
@@ -930,6 +950,8 @@ spec:
 # ✅ Correct
 - 'spec.replicas' # No prefix
 - 'env[*].name' # Array wildcard
+- 'env[name=DEBUG]' # Filter by property value
+- 'containers[name=app].env[name=SECRET]' # Nested filters
 ```
 
 ---

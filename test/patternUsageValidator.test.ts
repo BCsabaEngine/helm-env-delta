@@ -628,4 +628,132 @@ describe('patternUsageValidator', () => {
       );
     });
   });
+
+  describe('skipPath with filter expressions', () => {
+    it('should not warn when filter path property exists with matching value', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['env[name=DEBUG]']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'env:\n  - name: DEBUG\n    value: "1"\n  - name: PROD\n    value: "0"'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'env:\n  - name: DEBUG\n    value: "1"'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath'
+        })
+      );
+    });
+
+    it('should warn when filter value does not match any array item', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['env[name=NONEXISTENT]']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'env:\n  - name: DEBUG\n    value: "1"\n  - name: PROD\n    value: "0"'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'env:\n  - name: DEBUG\n    value: "1"'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.hasWarnings).toBe(true);
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath',
+          message: expect.stringContaining('env[name=NONEXISTENT]')
+        })
+      );
+    });
+
+    it('should validate nested filter paths', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['spec.containers[name=app].env[name=SECRET]']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'spec:\n  containers:\n    - name: app\n      env:\n        - name: SECRET\n          value: xxx'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, createFileMap({}));
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath'
+        })
+      );
+    });
+
+    it('should warn when nested filter path does not exist', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['spec.containers[name=missing].env']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'spec:\n  containers:\n    - name: app\n      env:\n        - name: DEBUG\n          value: "1"'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, createFileMap({}));
+
+      expect(result.hasWarnings).toBe(true);
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath',
+          message: expect.stringContaining('spec.containers[name=missing].env')
+        })
+      );
+    });
+
+    it('should handle filter with numeric property value', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['items[id=123]']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'items:\n  - id: 123\n    data: test'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, createFileMap({}));
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath'
+        })
+      );
+    });
+
+    it('should handle mixed filter and wildcard paths', () => {
+      const config = createBaseConfig();
+      config.skipPath = {
+        '**/*.yaml': ['containers[name=app].env[*].value']
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'containers:\n  - name: app\n    env:\n      - name: VAR\n        value: test'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, createFileMap({}));
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath'
+        })
+      );
+    });
+  });
 });

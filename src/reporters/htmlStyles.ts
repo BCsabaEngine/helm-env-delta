@@ -134,6 +134,10 @@ export const HTML_STYLES = `
     background: #eaeef2;
   }
 
+  .filename-transform {
+    color: #0969da;
+  }
+
   .diff-container {
     padding: 0;
   }
@@ -167,16 +171,25 @@ export const HTML_STYLES = `
 
   .array-details {
     margin: 20px 0;
-    padding: 15px;
     background: #f6f8fa;
     border-radius: 6px;
     border-left: 3px solid #0969da;
   }
 
-  .array-details h3 {
-    margin: 0 0 15px 0;
+  .array-details summary {
+    padding: 12px 15px;
+    cursor: pointer;
     color: #0969da;
-    font-size: 16px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .array-details summary:hover {
+    background: #eaeef2;
+  }
+
+  .array-details > .array-section {
+    margin: 0 15px 15px 15px;
   }
 
   .array-section {

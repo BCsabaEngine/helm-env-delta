@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-01-19
+
+### Added
+
+- Array filter expressions in skipPath: Skip specific array items by property value using filter syntax like `env[name=SECRET_KEY]` or `containers[name=sidecar].resources`. Perfect for skipping environment-specific array entries without excluding the entire array. Supports nested filters, quoted values for spaces, and numeric matching.
+
+### Fixed
+
+- HTML diff report now displays filename transformations: When using filename transforms to rename files during sync (e.g., `envs/uat/` → `envs/prod/`), the HTML report now shows both the original and transformed filenames, making it easier to track what happened to each file.
+- HTML report array sections now display correctly with proper collapsible styling.
+
 ## [1.7.0] - 2026-01-08
 
 ### Added

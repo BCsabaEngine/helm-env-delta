@@ -18,6 +18,11 @@ export interface FileLoaderOptions {
 
 export type FileMap = Map<string, string>;
 
+export interface FileLoaderResult {
+  fileMap: FileMap;
+  originalPaths: Map<string, string>; // Map<transformedPath, originalPath> - only for transformed files
+}
+
 // Error Handling
 const FileLoaderErrorClass = createErrorClass('File Loader Error', {
   ENOENT: 'File or directory not found',
@@ -189,7 +194,10 @@ const readFilesIntoMap = async (baseDirectory: string, absoluteFilePaths: string
 };
 
 // Loads files from a directory based on include/exclude glob patterns.
-export const loadFiles = async (options: FileLoaderOptions, logger?: import('./logger').Logger): Promise<FileMap> => {
+export const loadFiles = async (
+  options: FileLoaderOptions,
+  logger?: import('./logger').Logger
+): Promise<FileLoaderResult> => {
   const absoluteBaseDirectory = await validateAndResolveBaseDirectory(options.baseDirectory);
 
   const includePatterns = options.include ?? ['**/*'];
@@ -207,23 +215,22 @@ export const loadFiles = async (options: FileLoaderOptions, logger?: import('./l
 
   const fileMap = await readFilesIntoMap(absoluteBaseDirectory, files);
 
-  const transformedMap = options.transforms ? transformFilenameMap(fileMap, options.transforms) : fileMap;
+  const transformResult = transformFilenameMap(fileMap, options.transforms);
 
   if (options.transforms && logger?.shouldShow('debug')) {
-    logger.debug(`Filename transforms applied: ${fileMap.size} → ${transformedMap.size} files`);
+    logger.debug(`Filename transforms applied: ${fileMap.size} → ${transformResult.fileMap.size} files`);
 
     // Show up to 3 examples of transformations
     let exampleCount = 0;
-    for (const [transformed, content] of transformedMap.entries()) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const original = [...fileMap.entries()].find(([_key, c]) => c === content)?.[0];
-      if (original && original !== transformed) {
-        logger.debug(`  ${original} → ${transformed}`);
-        exampleCount++;
-        if (exampleCount >= 3) break;
-      }
+    for (const [transformedPath, originalPath] of transformResult.originalPaths.entries()) {
+      logger.debug(`  ${originalPath} → ${transformedPath}`);
+      exampleCount++;
+      if (exampleCount >= 3) break;
     }
   }
 
-  return sortMapByKeys(transformedMap);
+  return {
+    fileMap: sortMapByKeys(transformResult.fileMap),
+    originalPaths: transformResult.originalPaths
+  };
 };

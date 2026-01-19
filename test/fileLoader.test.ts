@@ -5,7 +5,7 @@ import { glob as tinyglobbyGlob } from 'tinyglobby';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FileLoaderError, isFileLoaderError, loadFiles } from '../src/fileLoader';
-import { transformFilename, transformFilenameMap } from '../src/utils/filenameTransformer';
+import { transformFilename, transformFilenameMap, TransformMapResult } from '../src/utils/filenameTransformer';
 
 vi.mock('node:fs/promises');
 vi.mock('tinyglobby');
@@ -17,9 +17,20 @@ const mockGlob = vi.mocked(tinyglobbyGlob);
 const mockTransformFilename = vi.mocked(transformFilename);
 const mockTransformFilenameMap = vi.mocked(transformFilenameMap);
 
+// Helper to create mock TransformMapResult
+const createMockTransformResult = (
+  fileMap: Map<string, string>,
+  originalPaths?: Map<string, string>
+): TransformMapResult => ({
+  fileMap,
+  originalPaths: originalPaths ?? new Map()
+});
+
 describe('fileLoader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock for transformFilenameMap - returns input fileMap unchanged with empty originalPaths
+    mockTransformFilenameMap.mockImplementation((fileMap) => createMockTransformResult(fileMap));
   });
 
   afterEach(() => {
@@ -169,7 +180,7 @@ describe('fileLoader', () => {
 
       const result = await loadFiles({ baseDirectory, include: ['**/*.yaml'], exclude: [] });
 
-      expect(result.size).toBe(0);
+      expect(result.fileMap.size).toBe(0);
     });
 
     it('should use default include pattern when not provided', async () => {
@@ -218,7 +229,7 @@ describe('fileLoader', () => {
       const baseDirectory = '/base';
       const transforms = { '**/*.yaml': { content: [{ find: 'test', replace: 'prod' }] } };
       mockGlob.mockResolvedValue([]);
-      mockTransformFilenameMap.mockReturnValue(new Map());
+      mockTransformFilenameMap.mockReturnValue(createMockTransformResult(new Map()));
 
       await loadFiles({ baseDirectory, include: ['**/*.yaml'], exclude: [], transforms });
 
@@ -237,7 +248,7 @@ describe('fileLoader', () => {
       mockGlob.mockResolvedValue([`${baseDirectory}/file-uat.yaml`]);
       mockTransformFilename.mockReturnValue('file-prod.yaml');
       mockReadFile.mockResolvedValue('content' as unknown as Buffer);
-      mockTransformFilenameMap.mockImplementation((map) => map);
+      mockTransformFilenameMap.mockImplementation((map) => createMockTransformResult(map));
 
       await loadFiles({ baseDirectory, include: ['**/*-prod.yaml'], exclude: [], transforms });
 
@@ -250,11 +261,11 @@ describe('fileLoader', () => {
       mockGlob.mockResolvedValue([`${baseDirectory}/file-uat.yaml`, `${baseDirectory}/other.txt`]);
       mockTransformFilename.mockImplementation((path) => path.replace('uat', 'prod'));
       mockReadFile.mockResolvedValue('content' as unknown as Buffer);
-      mockTransformFilenameMap.mockImplementation((map) => map);
+      mockTransformFilenameMap.mockImplementation((map) => createMockTransformResult(map));
 
       const result = await loadFiles({ baseDirectory, include: ['**/*-prod.yaml'], exclude: [], transforms });
 
-      expect(result.size).toBe(1);
+      expect(result.fileMap.size).toBe(1);
       expect(mockReadFile).toHaveBeenCalledTimes(1);
     });
 
@@ -263,7 +274,7 @@ describe('fileLoader', () => {
       const transforms = { '**/*': { filename: [{ find: 'temp', replace: 'node_modules' }] } };
       mockGlob.mockResolvedValue([`${baseDirectory}/temp/file.yaml`]);
       mockTransformFilename.mockReturnValue('node_modules/file.yaml');
-      mockTransformFilenameMap.mockImplementation((map) => map);
+      mockTransformFilenameMap.mockImplementation((map) => createMockTransformResult(map));
 
       const result = await loadFiles({
         baseDirectory,
@@ -272,7 +283,7 @@ describe('fileLoader', () => {
         transforms
       });
 
-      expect(result.size).toBe(0);
+      expect(result.fileMap.size).toBe(0);
     });
   });
 
@@ -290,7 +301,7 @@ describe('fileLoader', () => {
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
       expect(mockReadFile).toHaveBeenCalledWith(filePath, 'utf8');
-      expect(result.get('file.yaml')).toBe('file content');
+      expect(result.fileMap.get('file.yaml')).toBe('file content');
     });
 
     it('should read multiple files in parallel', async () => {
@@ -315,7 +326,7 @@ describe('fileLoader', () => {
 
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
-      expect(result.get('empty.yaml')).toBe('');
+      expect(result.fileMap.get('empty.yaml')).toBe('');
     });
 
     it('should detect binary files by null byte', async () => {
@@ -370,7 +381,7 @@ describe('fileLoader', () => {
 
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
-      expect(result.has('file with spaces.yaml')).toBe(true);
+      expect(result.fileMap.has('file with spaces.yaml')).toBe(true);
     });
 
     it('should handle files in nested directories', async () => {
@@ -381,7 +392,7 @@ describe('fileLoader', () => {
 
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
-      expect(result.has('sub/dir/file.yaml')).toBe(true);
+      expect(result.fileMap.has('sub/dir/file.yaml')).toBe(true);
     });
   });
 
@@ -397,7 +408,7 @@ describe('fileLoader', () => {
 
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
-      const keys = [...result.keys()];
+      const keys = [...result.fileMap.keys()];
       expect(keys).toEqual(['a.yaml', 'b.yaml', 'c.yaml']);
     });
 
@@ -408,8 +419,8 @@ describe('fileLoader', () => {
 
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
-      expect(result.has('sub/file.yaml')).toBe(true);
-      expect(result.has('/base/path/sub/file.yaml')).toBe(false);
+      expect(result.fileMap.has('sub/file.yaml')).toBe(true);
+      expect(result.fileMap.has('/base/path/sub/file.yaml')).toBe(false);
     });
 
     it('should preserve file content', async () => {
@@ -423,8 +434,8 @@ describe('fileLoader', () => {
 
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
-      expect(result.get('file1.yaml')).toBe(content1);
-      expect(result.get('file2.yaml')).toBe(content2);
+      expect(result.fileMap.get('file1.yaml')).toBe(content1);
+      expect(result.fileMap.get('file2.yaml')).toBe(content2);
     });
   });
 
@@ -440,33 +451,36 @@ describe('fileLoader', () => {
       mockGlob.mockResolvedValue([`${baseDirectory}/file.yaml`]);
       mockTransformFilename.mockReturnValue('file.yaml');
       const mockMap = new Map([['file.yaml', 'content']]);
-      mockTransformFilenameMap.mockReturnValue(mockMap);
+      mockTransformFilenameMap.mockReturnValue(createMockTransformResult(mockMap));
 
       await loadFiles({ baseDirectory, include: ['**/*'], exclude: [], transforms });
 
       expect(mockTransformFilenameMap).toHaveBeenCalledWith(expect.any(Map), transforms);
     });
 
-    it('should not apply transformFilenameMap when no transforms', async () => {
+    it('should apply transformFilenameMap even when no transforms (passes undefined)', async () => {
       const baseDirectory = '/base';
       mockGlob.mockResolvedValue([`${baseDirectory}/file.yaml`]);
 
       await loadFiles({ baseDirectory, include: ['**/*'], exclude: [] });
 
-      expect(mockTransformFilenameMap).not.toHaveBeenCalled();
+      // transformFilenameMap is always called now; when no transforms, passes undefined
+      expect(mockTransformFilenameMap).toHaveBeenCalledWith(expect.any(Map), undefined);
     });
 
-    it('should return transformed map', async () => {
+    it('should return transformed map with originalPaths', async () => {
       const baseDirectory = '/base';
       const transforms = { '**/*.yaml': { filename: [{ find: 'uat', replace: 'prod' }] } };
       mockGlob.mockResolvedValue([`${baseDirectory}/uat-file.yaml`]);
       mockTransformFilename.mockReturnValue('uat-file.yaml');
       const transformedMap = new Map([['prod-file.yaml', 'content']]);
-      mockTransformFilenameMap.mockReturnValue(transformedMap);
+      const originalPaths = new Map([['prod-file.yaml', 'uat-file.yaml']]);
+      mockTransformFilenameMap.mockReturnValue(createMockTransformResult(transformedMap, originalPaths));
 
       const result = await loadFiles({ baseDirectory, include: ['**/*'], exclude: [], transforms });
 
-      expect(result).toStrictEqual(transformedMap);
+      expect(result.fileMap).toStrictEqual(transformedMap);
+      expect(result.originalPaths).toStrictEqual(originalPaths);
     });
   });
 

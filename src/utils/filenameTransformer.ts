@@ -125,18 +125,28 @@ export const transformFilename = (filePath: string, transforms?: TransformConfig
   return normalizedPath;
 };
 
+export interface TransformMapResult {
+  fileMap: Map<string, string>;
+  originalPaths: Map<string, string>; // Map<transformedPath, originalPath>
+}
+
 export const transformFilenameMap = (
   fileMap: Map<string, string>,
   transforms?: TransformConfig
-): Map<string, string> => {
-  if (!transforms) return fileMap;
+): TransformMapResult => {
+  const originalPaths = new Map<string, string>();
+
+  if (!transforms) return { fileMap, originalPaths };
 
   const transformed = new Map<string, string>();
 
   for (const [originalPath, content] of fileMap.entries()) {
     const transformedPath = transformFilename(originalPath, transforms);
     transformed.set(transformedPath, content);
+
+    // Track original path only if it was actually transformed
+    if (transformedPath !== originalPath) originalPaths.set(transformedPath, originalPath);
   }
 
-  return transformed;
+  return { fileMap: transformed, originalPaths };
 };
