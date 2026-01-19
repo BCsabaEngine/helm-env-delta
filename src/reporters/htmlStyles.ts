@@ -134,6 +134,10 @@ export const HTML_STYLES = `
     background: #eaeef2;
   }
 
+  .filename-transform {
+    color: #0969da;
+  }
+
   .diff-container {
     padding: 0;
   }

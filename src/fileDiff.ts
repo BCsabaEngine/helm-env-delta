@@ -20,6 +20,7 @@ export interface FileDiffResult {
 
 export interface ChangedFile {
   path: string;
+  originalPath?: string; // Original filename before transform (only set if transformed)
   sourceContent: string;
   destinationContent: string;
   processedSourceContent: unknown;
@@ -205,7 +206,8 @@ const processChangedFiles = (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
   skipPath?: Record<string, string[]>,
-  transforms?: TransformConfig
+  transforms?: TransformConfig,
+  originalPaths?: Map<string, string>
 ): { changedFiles: ChangedFile[]; unchangedFiles: string[] } => {
   const changedFiles: ChangedFile[] = [];
   const unchangedFiles: string[] = [];
@@ -214,6 +216,7 @@ const processChangedFiles = (
     if (!destinationFiles.has(path)) continue;
 
     const destinationContent = destinationFiles.get(path)!;
+    const originalPath = originalPaths?.get(path);
 
     const isYaml = isYamlFile(path);
 
@@ -226,12 +229,15 @@ const processChangedFiles = (
         transforms
       });
 
-      if (changed) changedFiles.push(changed);
-      else unchangedFiles.push(path);
+      if (changed) {
+        if (originalPath) changed.originalPath = originalPath;
+        changedFiles.push(changed);
+      } else unchangedFiles.push(path);
     } else if (sourceContent === destinationContent) unchangedFiles.push(path);
     else
       changedFiles.push({
         path,
+        originalPath,
         sourceContent,
         destinationContent: destinationContent,
         processedSourceContent: sourceContent,
@@ -250,7 +256,8 @@ export const computeFileDiff = (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
   config: Config,
-  logger?: import('./logger').Logger
+  logger?: import('./logger').Logger,
+  originalPaths?: Map<string, string>
 ): FileDiffResult => {
   // Add verbose debug output
   if (logger?.shouldShow('debug')) {
@@ -273,7 +280,8 @@ export const computeFileDiff = (
     sourceFiles,
     destinationFiles,
     config.skipPath,
-    config.transforms
+    config.transforms,
+    originalPaths
   );
 
   return { addedFiles, deletedFiles, changedFiles, unchangedFiles };

@@ -89,7 +89,7 @@ const main = async (): Promise<void> => {
     // Phase 2: File-based validation
     logger.log('\n' + formatProgressMessage('Loading files for validation...', 'loading'));
 
-    const sourceFiles = await loadFiles(
+    const sourceResult = await loadFiles(
       {
         baseDirectory: config.source,
         include: config.include,
@@ -98,8 +98,9 @@ const main = async (): Promise<void> => {
       },
       logger
     );
+    const sourceFiles = sourceResult.fileMap;
 
-    const destinationFiles = await loadFiles(
+    const destinationResult = await loadFiles(
       {
         baseDirectory: config.destination,
         include: config.include,
@@ -107,6 +108,7 @@ const main = async (): Promise<void> => {
       },
       logger
     );
+    const destinationFiles = destinationResult.fileMap;
 
     logger.progress(`Loaded ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`, 'success');
 
@@ -143,7 +145,7 @@ const main = async (): Promise<void> => {
 
   // Load source + destination files
   logger.log('\n' + formatProgressMessage('Loading files...', 'loading'));
-  const sourceFiles = await loadFiles(
+  const sourceResult = await loadFiles(
     {
       baseDirectory: config.source,
       include: config.include,
@@ -152,6 +154,8 @@ const main = async (): Promise<void> => {
     },
     logger
   );
+  const sourceFiles = sourceResult.fileMap;
+  const originalPaths = sourceResult.originalPaths;
   logger.progress(`Loaded ${sourceFiles.size} source file(s)`, 'success');
 
   // Detect filename collisions
@@ -160,7 +164,7 @@ const main = async (): Promise<void> => {
 
   if (logger.shouldShow('debug')) logger.debug('Filename collision check: passed');
 
-  const destinationFiles = await loadFiles(
+  const destinationResult = await loadFiles(
     {
       baseDirectory: config.destination,
       include: config.include,
@@ -168,6 +172,7 @@ const main = async (): Promise<void> => {
     },
     logger
   );
+  const destinationFiles = destinationResult.fileMap;
   logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
 
   // Early exit for list-files mode
@@ -187,7 +192,7 @@ const main = async (): Promise<void> => {
 
   // Compute file differences
   logger.log('\n' + formatProgressMessage('Computing differences...', 'info'));
-  const diffResult = computeFileDiff(sourceFiles, destinationFiles, config, logger);
+  const diffResult = computeFileDiff(sourceFiles, destinationFiles, config, logger, originalPaths);
 
   if (logger.shouldShow('debug')) logger.debug('Diff pipeline: parse → transforms → skipPath → normalize → compare');
 
