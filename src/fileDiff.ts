@@ -5,7 +5,7 @@ import { FileMap } from './fileLoader';
 import { deepEqual } from './utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
-import { parseJsonPath } from './utils/jsonPath';
+import { isFilterSegment, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
 import { normalizeForComparison } from './utils/serialization';
 import { applyTransforms } from './utils/transformer';
@@ -76,6 +76,34 @@ const deleteJsonPathRecursive = (object: unknown, parts: string[], index: number
 
   const currentPart = parts[index];
   if (!currentPart) return;
+
+  // Handle filter expression
+  if (isFilterSegment(currentPart)) {
+    if (!Array.isArray(object)) return;
+
+    const filter = parseFilterSegment(currentPart);
+    if (!filter) return;
+
+    if (index === parts.length - 1)
+      // Last segment - remove matching items from array
+      // Iterate backwards to maintain indices during removal
+      for (let index_ = object.length - 1; index_ >= 0; index_--) {
+        const item = object[index_];
+        if (item && typeof item === 'object') {
+          const itemValue = (item as Record<string, unknown>)[filter.property];
+          if (String(itemValue) === filter.value) object.splice(index_, 1);
+        }
+      }
+    else
+      // Middle of path - recurse into matching items
+      for (const item of object)
+        if (item && typeof item === 'object') {
+          const itemValue = (item as Record<string, unknown>)[filter.property];
+          if (String(itemValue) === filter.value) deleteJsonPathRecursive(item, parts, index + 1);
+        }
+
+    return;
+  }
 
   // Last part of path - perform deletion
   if (index === parts.length - 1) {
