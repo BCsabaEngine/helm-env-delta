@@ -131,7 +131,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
   let arrayDiffsHtml = '';
 
   if (arrayInfo.hasChanges) {
-    arrayDiffsHtml = '<div class="array-details"><h3>Array-specific details:</h3>';
+    arrayDiffsHtml = '<details class="array-details"><summary>Array-specific details:</summary>';
 
     for (const change of arrayInfo.changes) {
       const pathString = change.path.join('.');
@@ -140,7 +140,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
       arrayDiffsHtml += '</div>';
     }
 
-    arrayDiffsHtml += '</div>';
+    arrayDiffsHtml += '</details>';
   }
 
   return `
