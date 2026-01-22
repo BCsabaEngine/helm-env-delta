@@ -8,8 +8,20 @@ const pathCache = new Map<string, string[]>();
 // Filter segment marker prefix for internal representation
 const FILTER_PREFIX = 'filter:';
 
-// Regex to match filter expressions: [propertyName=value] or [propertyName="quoted value"]
-const FILTER_REGEX = /^\[([A-Z_a-z]\w*)=("([^"]*)"|([^\]]*))]/;
+// Filter operators: = (equals), ^= (startsWith), $= (endsWith), *= (contains)
+export type FilterOperator = 'eq' | 'startsWith' | 'endsWith' | 'contains';
+
+// Map from regex-captured operators to internal FilterOperator type
+const OPERATOR_MAP: Record<string, FilterOperator> = {
+  '=': 'eq',
+  '^=': 'startsWith',
+  '$=': 'endsWith',
+  '*=': 'contains'
+};
+
+// Regex to match filter expressions with operators: [prop=value], [prop^=value], etc.
+// Note: ^=, $=, *= must come before = to avoid partial matches
+const FILTER_REGEX = /^\[([A-Z_a-z]\w*)(\^=|\$=|\*=|=)("([^"]*)"|([^\]]*))]/;
 
 /**
  * Checks if a parsed path segment is a filter expression.
@@ -17,21 +29,56 @@ const FILTER_REGEX = /^\[([A-Z_a-z]\w*)=("([^"]*)"|([^\]]*))]/;
 export const isFilterSegment = (segment: string): boolean => segment.startsWith(FILTER_PREFIX);
 
 /**
- * Parses a filter segment into property and value.
- * @param segment - Segment like 'filter:name=value'
- * @returns { property, value } or undefined if invalid
+ * Parses a filter segment into property, value, and operator.
+ * @param segment - Segment like 'filter:name:eq:value' or 'filter:name:startsWith:prefix'
+ * @returns { property, value, operator } or undefined if invalid
  */
-export const parseFilterSegment = (segment: string): { property: string; value: string } | undefined => {
+export const parseFilterSegment = (
+  segment: string
+): { property: string; value: string; operator: FilterOperator } | undefined => {
   if (!isFilterSegment(segment)) return undefined;
 
   const content = segment.slice(FILTER_PREFIX.length);
-  const equalIndex = content.indexOf('=');
-  if (equalIndex === -1) return undefined;
+  // Internal format: property:operator:value
+  const firstColon = content.indexOf(':');
+  if (firstColon === -1) return undefined;
 
-  return {
-    property: content.slice(0, equalIndex),
-    value: content.slice(equalIndex + 1)
-  };
+  const property = content.slice(0, firstColon);
+  const rest = content.slice(firstColon + 1);
+
+  const secondColon = rest.indexOf(':');
+  if (secondColon === -1) return undefined;
+
+  const operator = rest.slice(0, secondColon) as FilterOperator;
+  const value = rest.slice(secondColon + 1);
+
+  // Validate operator is valid
+  if (!['eq', 'startsWith', 'endsWith', 'contains'].includes(operator)) return undefined;
+
+  return { property, value, operator };
+};
+
+/**
+ * Matches an item value against a filter expression.
+ * @param itemValue - The value from the array item
+ * @param filter - The parsed filter with property, value, and operator
+ * @returns true if the item matches the filter
+ */
+export const matchesFilter = (
+  itemValue: unknown,
+  filter: { property: string; value: string; operator: FilterOperator }
+): boolean => {
+  const stringValue = String(itemValue);
+  switch (filter.operator) {
+    case 'eq':
+      return stringValue === filter.value;
+    case 'startsWith':
+      return stringValue.startsWith(filter.value);
+    case 'endsWith':
+      return stringValue.endsWith(filter.value);
+    case 'contains':
+      return stringValue.includes(filter.value);
+  }
 };
 
 // Parses a JSON path string into array of parts
@@ -66,13 +113,16 @@ export const parseJsonPath = (path: string): string[] => {
 
       const remaining = path.slice(index);
 
-      // Try filter expression first: [prop=value] or [prop="value"]
+      // Try filter expression first: [prop=value], [prop^=value], [prop$=value], [prop*=value]
       const filterMatch = FILTER_REGEX.exec(remaining);
       if (filterMatch) {
         const property = filterMatch[1];
-        // filterMatch[3] is quoted content, filterMatch[4] is unquoted content
-        const value = filterMatch[3] === undefined ? filterMatch[4] : filterMatch[3];
-        result.push(`${FILTER_PREFIX}${property}=${value}`);
+        const operatorString = filterMatch[2] as string;
+        // filterMatch[4] is quoted content, filterMatch[5] is unquoted content
+        const value = filterMatch[4] === undefined ? filterMatch[5] : filterMatch[4];
+        const operator = OPERATOR_MAP[operatorString] ?? 'eq';
+        // Internal format: filter:property:operator:value
+        result.push(`${FILTER_PREFIX}${property}:${operator}:${value}`);
         index += filterMatch[0].length;
         continue;
       }
@@ -108,7 +158,8 @@ export const clearJsonPathCache = (): void => {
 
 // Gets value at specified path in an object
 // Returns undefined if path doesn't exist or traversal fails
-// Supports filter segments like 'filter:name=value' to match array items by property
+// Supports filter segments like 'filter:name:eq:value' to match array items by property
+// Filter operators: eq (=), startsWith (^=), endsWith ($=), contains (*=)
 export const getValueAtPath = (object: unknown, path: string[]): unknown => {
   let current = object;
 
@@ -122,11 +173,11 @@ export const getValueAtPath = (object: unknown, path: string[]): unknown => {
       const filter = parseFilterSegment(part);
       if (!filter) return undefined;
 
-      // Find first matching item
+      // Find first matching item using operator-aware comparison
       const matched = current.find((item) => {
         if (!item || typeof item !== 'object') return false;
         const itemValue = (item as Record<string, unknown>)[filter.property];
-        return String(itemValue) === filter.value;
+        return matchesFilter(itemValue, filter);
       });
 
       current = matched;

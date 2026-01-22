@@ -11,7 +11,15 @@ export { deepEqual } from './deepEqual';
 export { normalizeForComparison, serializeForDiff } from './serialization';
 
 // Path utilities
-export { clearJsonPathCache, getValueAtPath, isFilterSegment, parseFilterSegment, parseJsonPath } from './jsonPath';
+export type { FilterOperator } from './jsonPath';
+export {
+  clearJsonPathCache,
+  getValueAtPath,
+  isFilterSegment,
+  matchesFilter,
+  parseFilterSegment,
+  parseJsonPath
+} from './jsonPath';
 
 // File utilities
 export { isYamlFile } from './fileType';

@@ -2,7 +2,7 @@ import YAML from 'yaml';
 
 import type { FinalConfig, StopRule } from './configFile';
 import type { FileMap } from './fileLoader';
-import { isFilterSegment, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
+import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
 
 /**
@@ -196,6 +196,7 @@ const hasPathField = (rule: StopRule): rule is StopRule & { path?: string } =>
 /**
  * Checks if a JSONPath could potentially match in an object.
  * For filter segments, checks if the array contains items with the specified property.
+ * Supports filter operators: eq (=), startsWith (^=), endsWith ($=), contains (*=)
  */
 const pathCouldMatch = (object: unknown, pathParts: string[]): boolean => {
   let current = object;
@@ -209,11 +210,11 @@ const pathCouldMatch = (object: unknown, pathParts: string[]): boolean => {
       const filter = parseFilterSegment(part);
       if (!filter) return false;
 
-      // Check if any array item has the property with matching value
+      // Check if any array item has the property with matching value (operator-aware)
       const matched = current.find((item) => {
         if (!item || typeof item !== 'object') return false;
         const itemValue = (item as Record<string, unknown>)[filter.property];
-        return String(itemValue) === filter.value;
+        return matchesFilter(itemValue, filter);
       });
 
       if (!matched) return false;

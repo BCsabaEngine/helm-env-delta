@@ -373,4 +373,464 @@ describe('fileDiff', () => {
       expect(result.unchangedFiles).toContain('file.yaml');
     });
   });
+
+  describe('skipPath with CSS-style filter operators', () => {
+    describe('startsWith operator (^=)', () => {
+      it('should skip array items matching startsWith filter', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_HOST
+    value: localhost
+  - name: DB_PORT
+    value: "5432"
+  - name: API_KEY
+    value: secret`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_HOST
+    value: changed
+  - name: DB_PORT
+    value: "9999"
+  - name: API_KEY
+    value: secret`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['env[name^=DB_]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+
+      it('should detect changes in items not matching startsWith', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_HOST
+    value: localhost
+  - name: API_KEY
+    value: old-secret`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_HOST
+    value: localhost
+  - name: API_KEY
+    value: new-secret`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['env[name^=DB_]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.changedFiles).toHaveLength(1);
+      });
+
+      it('should handle nested paths with startsWith filter', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `containers:
+  - name: init-db
+    resources:
+      memory: 128Mi
+  - name: init-cache
+    resources:
+      memory: 64Mi
+  - name: app
+    resources:
+      memory: 512Mi`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `containers:
+  - name: init-db
+    resources:
+      memory: changed
+  - name: init-cache
+    resources:
+      memory: changed
+  - name: app
+    resources:
+      memory: 512Mi`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['containers[name^=init-].resources'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+    });
+
+    describe('endsWith operator ($=)', () => {
+      it('should skip array items matching endsWith filter', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: API_KEY
+    value: secret1
+  - name: SECRET_KEY
+    value: secret2
+  - name: DEBUG
+    value: "1"`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: API_KEY
+    value: changed1
+  - name: SECRET_KEY
+    value: changed2
+  - name: DEBUG
+    value: "1"`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['env[name$=_KEY]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+
+      it('should detect changes in items not matching endsWith', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: API_KEY
+    value: secret
+  - name: DEBUG
+    value: "1"`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: API_KEY
+    value: secret
+  - name: DEBUG
+    value: "0"`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['env[name$=_KEY]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.changedFiles).toHaveLength(1);
+      });
+
+      it('should handle nested value within endsWith filtered item', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `volumes:
+  - name: app-data
+    mountPath: /data
+    size: 10Gi
+  - name: cache-data
+    mountPath: /cache
+    size: 5Gi
+  - name: logs
+    mountPath: /logs`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `volumes:
+  - name: app-data
+    mountPath: /data
+    size: 100Gi
+  - name: cache-data
+    mountPath: /cache
+    size: 50Gi
+  - name: logs
+    mountPath: /logs`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['volumes[name$=-data].size'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+    });
+
+    describe('contains operator (*=)', () => {
+      it('should skip array items matching contains filter', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_PASSWORD
+    value: secret1
+  - name: PASSWORD_HASH
+    value: secret2
+  - name: MY_PASSWORD_SALT
+    value: secret3
+  - name: DEBUG
+    value: "1"`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_PASSWORD
+    value: changed1
+  - name: PASSWORD_HASH
+    value: changed2
+  - name: MY_PASSWORD_SALT
+    value: changed3
+  - name: DEBUG
+    value: "1"`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['env[name*=PASSWORD]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+
+      it('should detect changes in items not matching contains', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_PASSWORD
+    value: secret
+  - name: API_URL
+    value: http://old.com`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_PASSWORD
+    value: secret
+  - name: API_URL
+    value: http://new.com`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['env[name*=PASSWORD]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.changedFiles).toHaveLength(1);
+      });
+
+      it('should handle images with contains filter', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `containers:
+  - name: app
+    image: my-nginx:v1
+    ports:
+      - containerPort: 80
+  - name: sidecar
+    image: envoy:latest`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `containers:
+  - name: app
+    image: my-nginx:v2
+    ports:
+      - containerPort: 80
+  - name: sidecar
+    image: envoy:latest`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['containers[image*=nginx].image'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+    });
+
+    describe('mixed operators', () => {
+      it('should handle multiple skipPath rules with different operators', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_HOST
+    value: old-host
+  - name: API_KEY
+    value: old-key
+  - name: MY_SECRET_TOKEN
+    value: old-token
+  - name: DEBUG
+    value: "1"`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `env:
+  - name: DB_HOST
+    value: new-host
+  - name: API_KEY
+    value: new-key
+  - name: MY_SECRET_TOKEN
+    value: new-token
+  - name: DEBUG
+    value: "1"`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: {
+            '*.yaml': [
+              'env[name^=DB_]', // startsWith
+              'env[name$=_KEY]', // endsWith
+              'env[name*=SECRET]' // contains
+            ]
+          }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+
+      it('should handle nested path with mixed operator filters', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `containers:
+  - name: sidecar-metrics
+    env:
+      - name: API_KEY
+        value: old-key
+      - name: DEBUG
+        value: "1"`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `containers:
+  - name: sidecar-metrics
+    env:
+      - name: API_KEY
+        value: new-key
+      - name: DEBUG
+        value: "1"`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['containers[name^=sidecar-].env[name$=_KEY]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+
+      it('should correctly mix equals and CSS operators', () => {
+        const source = new Map([
+          [
+            'file.yaml',
+            `spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          env:
+            - name: DB_HOST
+              value: old
+            - name: API_URL
+              value: http://api.com`
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'file.yaml',
+            `spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          env:
+            - name: DB_HOST
+              value: new
+            - name: API_URL
+              value: http://api.com`
+          ]
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          skipPath: { '*.yaml': ['spec.template.spec.containers[name=app].env[name^=DB_]'] }
+        };
+
+        const result = computeFileDiff(source, destination, config);
+
+        expect(result.unchangedFiles).toContain('file.yaml');
+      });
+    });
+  });
 });

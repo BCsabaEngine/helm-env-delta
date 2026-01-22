@@ -5,7 +5,7 @@ import { FileMap } from './fileLoader';
 import { deepEqual } from './utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
-import { isFilterSegment, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
+import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
 import { normalizeForComparison } from './utils/serialization';
 import { applyTransforms } from './utils/transformer';
@@ -77,7 +77,7 @@ const deleteJsonPathRecursive = (object: unknown, parts: string[], index: number
   const currentPart = parts[index];
   if (!currentPart) return;
 
-  // Handle filter expression
+  // Handle filter expression with operator-aware matching
   if (isFilterSegment(currentPart)) {
     if (!Array.isArray(object)) return;
 
@@ -91,7 +91,7 @@ const deleteJsonPathRecursive = (object: unknown, parts: string[], index: number
         const item = object[index_];
         if (item && typeof item === 'object') {
           const itemValue = (item as Record<string, unknown>)[filter.property];
-          if (String(itemValue) === filter.value) object.splice(index_, 1);
+          if (matchesFilter(itemValue, filter)) object.splice(index_, 1);
         }
       }
     else
@@ -99,7 +99,7 @@ const deleteJsonPathRecursive = (object: unknown, parts: string[], index: number
       for (const item of object)
         if (item && typeof item === 'object') {
           const itemValue = (item as Record<string, unknown>)[filter.property];
-          if (String(itemValue) === filter.value) deleteJsonPathRecursive(item, parts, index + 1);
+          if (matchesFilter(itemValue, filter)) deleteJsonPathRecursive(item, parts, index + 1);
         }
 
     return;

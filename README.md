@@ -376,24 +376,48 @@ skipPath:
 
 #### Filter Expressions (Skip by Name)
 
-Skip specific array items by property value using filter syntax:
+Skip specific array items by property value using CSS-style filter operators:
+
+| Operator | Name       | Example          | Matches                   |
+| -------- | ---------- | ---------------- | ------------------------- |
+| `=`      | equals     | `[name=DEBUG]`   | Exact match               |
+| `^=`     | startsWith | `[name^=DB_]`    | `DB_HOST`, `DB_PORT`      |
+| `$=`     | endsWith   | `[name$=_KEY]`   | `API_KEY`, `SECRET_KEY`   |
+| `*=`     | contains   | `[name*=SECRET]` | `MY_SECRET_KEY`, `SECRET` |
 
 ```yaml
 skipPath:
   '**/*.yaml':
+    # Equals (=) - exact match
     - 'env[name=SECRET_KEY]' # Skip item where name=SECRET_KEY
-    - 'env[name=INTERNAL_TOKEN].value' # Skip nested field in matching item
     - 'containers[name=sidecar]' # Skip entire sidecar container
-    - 'spec.containers[name=app].env[name=DEBUG]' # Nested filters
+
+    # StartsWith (^=) - prefix match
+    - 'env[name^=DB_]' # Skip DB_HOST, DB_PORT, DB_USER
+    - 'containers[name^=init-]' # Skip init-db, init-cache
+
+    # EndsWith ($=) - suffix match
+    - 'env[name$=_SECRET]' # Skip API_SECRET, DB_SECRET
+    - 'volumes[name$=-data]' # Skip app-data, cache-data
+
+    # Contains (*=) - substring match
+    - 'env[name*=PASSWORD]' # Skip DB_PASSWORD, PASSWORD_HASH
+    - 'containers[image*=nginx]' # Skip any nginx image
+
+    # Nested paths with mixed operators
+    - 'spec.containers[name^=sidecar-].env[name$=_KEY]'
 ```
 
 **Syntax:**
 
 - `array[prop=value]` - Match items where property equals value
+- `array[prop^=prefix]` - Match items where property starts with prefix
+- `array[prop$=suffix]` - Match items where property ends with suffix
+- `array[prop*=substring]` - Match items where property contains substring
 - `array[prop="value with spaces"]` - Quoted values for special characters
 - Combine with wildcards: `containers[name=app].env[*].value`
 
-**Use cases:** Namespaces, replicas, resource limits, secrets, URLs, environment-specific array items.
+**Use cases:** Namespaces, replicas, resource limits, secrets, URLs, environment-specific array items, batch filtering by naming conventions.
 
 ---
 
@@ -957,7 +981,10 @@ spec:
 # ✅ Correct
 - 'spec.replicas' # No prefix
 - 'env[*].name' # Array wildcard
-- 'env[name=DEBUG]' # Filter by property value
+- 'env[name=DEBUG]' # Filter by exact value
+- 'env[name^=DB_]' # Filter by prefix (startsWith)
+- 'env[name$=_KEY]' # Filter by suffix (endsWith)
+- 'env[name*=SECRET]' # Filter by substring (contains)
 - 'containers[name=app].env[name=SECRET]' # Nested filters
 ```
 
