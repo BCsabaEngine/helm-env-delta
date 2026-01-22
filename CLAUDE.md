@@ -17,10 +17,10 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # CLI
-helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
+helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--format-only] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis and config suggestions), `--suggest-threshold` (min confidence 0-1, default: 0.3), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
+**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis and config suggestions), `--suggest-threshold` (min confidence 0-1, default: 0.3), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format destination files without syncing), `--skip-format` (skip formatting during sync), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
 
 ## Architecture
 
@@ -68,8 +68,8 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - **ESLint:** unicorn/no-null, prevent-abbreviations, consistent-function-scoping, simple-import-sort
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x, format → lint → build → test
-- **Status:** 31 test files, 917 tests, 84%+ coverage, 45-60% faster (v1.3.3)
-- **Current Branch:** feat/setting-validation - Unused pattern validation for exclude, skipPath, stopRules
+- **Status:** 31 test files, 920 tests, 84%+ coverage, 45-60% faster (v1.3.3)
+- **Current Branch:** feat/format-only - Standalone YAML formatting with --format-only flag
 - **Recent:** chore/opt branch - Simplified 8 arrow functions to use implicit returns (code style consistency)
 
 ## Utilities (`src/utils/`)
@@ -293,7 +293,7 @@ type PatternUsageWarning = {
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**31 test files, 871 tests:**
+**31 test files, 920 tests:**
 
 - Core: commandLine, configFile, configLoader, configMerger, configWarnings, patternUsageValidator, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
 - Reporters: consoleDiffReporter, jsonReporter, htmlReporter, consoleFormatter, logger

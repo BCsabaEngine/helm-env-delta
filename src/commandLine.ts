@@ -14,6 +14,7 @@ export type SyncCommand = {
   diffHtml: boolean;
   diffJson: boolean;
   skipFormat: boolean;
+  formatOnly: boolean;
   validate: boolean;
   verbose: boolean;
   quiet: boolean;
@@ -42,6 +43,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--diff-html', 'Generate and open HTML diff report in browser', false)
     .option('--diff-json', 'Output diff as JSON to stdout', false)
     .option('--skip-format', 'Skip YAML formatting (outputFormat section)', false)
+    .option('--format-only', 'Format YAML files in destination without syncing', false)
     .option('--validate', 'Validate configuration file and exit', false)
     .option('--list-files', 'List files that would be synced without processing diffs', false)
     .option('--show-config', 'Display resolved configuration after inheritance and exit', false)
@@ -85,6 +87,11 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     process.exit(1);
   }
 
+  if (options['formatOnly'] && options['skipFormat']) {
+    console.error('Error: --format-only and --skip-format flags are mutually exclusive');
+    process.exit(1);
+  }
+
   // Validate --suggest-threshold value
   const threshold = Number.parseFloat(options['suggestThreshold']);
   if (Number.isNaN(threshold) || threshold < 0 || threshold > 1) {
@@ -100,6 +107,7 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     diffHtml: options['diffHtml'],
     diffJson: options['diffJson'],
     skipFormat: options['skipFormat'],
+    formatOnly: options['formatOnly'],
     validate: options['validate'],
     listFiles: options['listFiles'],
     showConfig: options['showConfig'],

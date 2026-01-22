@@ -1251,6 +1251,36 @@ outputFormat:
 
 ---
 
+### Can I format files without syncing?
+
+**Yes!** Use `--format-only` to apply `outputFormat` rules to destination files without performing any sync:
+
+```bash
+# Preview what would be formatted
+helm-env-delta --config config.yaml --format-only --dry-run
+
+# Format destination files
+helm-env-delta --config config.yaml --format-only
+```
+
+**Use cases:**
+
+- Standardize YAML formatting across an existing environment
+- Apply formatting rules after manual edits
+- Enforce consistent style before committing
+
+**Behavior:**
+
+- Only processes files in the `destination` directory
+- Applies `outputFormat` rules (indent, keySeparator, keyOrders, arraySort, quoteValues)
+- Respects `include`/`exclude` patterns
+- Skips non-YAML files automatically
+- Works with `--dry-run` to preview changes
+
+**Note:** `--format-only` and `--skip-format` are mutually exclusive (error if both provided).
+
+---
+
 ### What's the difference between --diff, --diff-html, and --diff-json?
 
 **Different output formats for different needs:**
@@ -1330,4 +1360,4 @@ include:
 
 ---
 
-**Last Updated:** 2026-01-08 (feat/setting-validation: Unused pattern validation for exclude, skipPath, and stopRules)
+**Last Updated:** 2026-01-22 (feat/format-only: Added --format-only flag for standalone YAML formatting)

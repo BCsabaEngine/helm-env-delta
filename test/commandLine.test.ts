@@ -28,6 +28,7 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: false,
         skipFormat: false,
+        formatOnly: false,
         validate: false,
         listFiles: false,
         showConfig: false,
@@ -98,6 +99,7 @@ describe('commandLine', () => {
         diffHtml: true,
         diffJson: true,
         skipFormat: false,
+        formatOnly: false,
         validate: false,
         listFiles: false,
         showConfig: false,
@@ -161,6 +163,7 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: false,
         skipFormat: false,
+        formatOnly: false,
         validate: false,
         listFiles: false,
         showConfig: false,
@@ -236,6 +239,7 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: false,
         skipFormat: true,
+        formatOnly: false,
         validate: false,
         listFiles: false,
         showConfig: false,
@@ -245,6 +249,32 @@ describe('commandLine', () => {
         suggest: false,
         suggestThreshold: 0.3
       });
+    });
+
+    it('should parse command with --format-only', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--format-only']);
+
+      expect(result.formatOnly).toBe(true);
+      expect(result.skipFormat).toBe(false);
+    });
+
+    it('should default formatOnly to false when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.formatOnly).toBe(false);
+    });
+
+    it('should exit when both --format-only and --skip-format are provided', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--format-only', '--skip-format']);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error: --format-only and --skip-format flags are mutually exclusive'
+      );
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+
+      consoleErrorSpy.mockRestore();
     });
 
     it('should parse command with --validate', () => {
@@ -328,6 +358,7 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: false,
         skipFormat: false,
+        formatOnly: false,
         validate: false,
         listFiles: false,
         showConfig: false,
@@ -350,6 +381,7 @@ describe('commandLine', () => {
         diffHtml: false,
         diffJson: true,
         skipFormat: false,
+        formatOnly: false,
         validate: false,
         listFiles: false,
         showConfig: false,

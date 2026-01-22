@@ -642,7 +642,8 @@ hed --config <file> [options]  # Short alias
 | `--diff-json`               | Output JSON to stdout (pipe to jq)                 |
 | `--list-files`              | List source/destination files without processing   |
 | `--show-config`             | Display resolved config after inheritance          |
-| `--skip-format`             | Skip YAML formatting                               |
+| `--format-only`             | Format destination files without syncing           |
+| `--skip-format`             | Skip YAML formatting during sync                   |
 | `--no-color`                | Disable colored output (CI/accessibility)          |
 | `--verbose`                 | Show detailed debug info                           |
 | `--quiet`                   | Suppress output except errors                      |
@@ -679,6 +680,12 @@ hed --config config.yaml
 
 # Force override stop rules
 hed --config config.yaml --force
+
+# Format destination files only (no sync)
+hed --config config.yaml --format-only
+
+# Preview format changes
+hed --config config.yaml --format-only --dry-run
 ```
 
 ---
@@ -749,7 +756,7 @@ git push origin main
 
 ✅ **Flexibility** - Per-file patterns. Config inheritance. Regex transforms.
 
-✅ **Reliability** - 917 tests, 84% coverage. Battle-tested.
+✅ **Reliability** - 920 tests, 84% coverage. Battle-tested.
 
 ---
 
