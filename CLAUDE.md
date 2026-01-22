@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -16,11 +16,17 @@ npm run test:perf     # Performance benchmarks
 npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
+# Run single test file
+npx vitest run test/fileLoader.test.ts
+
+# Run tests matching pattern
+npx vitest run -t "skipExclude"
+
 # CLI
 helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--format-only] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis and config suggestions), `--suggest-threshold` (min confidence 0-1, default: 0.3), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format destination files without syncing), `--skip-format` (skip formatting during sync), `--list-files` (preview files), `--show-config` (display resolved config), `--no-color` (disable colors), `--verbose`/`--quiet` (output control)
+**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format without syncing), `--list-files` (preview files), `--show-config` (display resolved config)
 
 ## Architecture
 
@@ -31,14 +37,14 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `commandLine.ts` - CLI parsing (commander), help examples, flag validation
 - `configFile.ts` - Zod validation (BaseConfig/FinalConfig)
 - `configLoader.ts` / `configMerger.ts` - YAML loading, inheritance (max 5 levels)
-- `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts, empty arrays)
-- `patternUsageValidator.ts` - **NEW feat/setting-validation** - Unused pattern detection (validates exclude, skipPath, stopRules actually match files and paths exist)
-- `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map)
+- `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts)
+- `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules match files)
+- `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → skipPath → normalize → deepEqual)
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths)
-- `suggestionEngine.ts` - **NEW v1.5+** - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules using pattern recognition)
+- `suggestionEngine.ts` - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules)
 - Reporters: `htmlReporter.ts`, `consoleDiffReporter.ts`, `jsonReporter.ts`
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
 
@@ -47,14 +53,8 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - Core: `source`, `destination` (required), `include`/`exclude`, `prune`
 - Inheritance: Single parent via `extends`, max 5 levels, circular detection
 - `skipPath`: JSONPath patterns per-file (glob patterns), supports filter expressions `[prop=value]`
-- `transforms`: **BREAKING v1.1+** - Object with `content`/`filename` arrays (regex find/replace, sequential)
-  - **NEW v1.4+**: `contentFile`/`filenameFile` - Load transforms from external YAML files (single string or array)
-  - File-based transforms: Literal string replacement (keys escaped for regex safety)
-  - Execution order: File-based (literal) → Inline (regex)
-- `stopRules`: semverMajorUpgrade, semverDowngrade, versionFormat (vPrefix modes), numeric (min/max), regex
-  - **NEW v1.4+**: `regexFile` - Load patterns from YAML array file
-  - **NEW v1.4+**: `regexFileKey` - Use transform file keys as patterns
-  - **NEW v1.4+**: Optional `path` for regex rules - Omit for global value scanning
+- `transforms`: Object with `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
+- `stopRules`: semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey
 - `outputFormat`: indent, keySeparator, quoteValues, keyOrders, arraySort
 
 **Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk
@@ -62,15 +62,12 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 ## Code Style
 
 - **Functions:** Const arrow only: `const fn = (params): Type => { ... };`
-  - Single-line returns use implicit return: `const fn = (): Type => expression;` (no braces/return keyword)
-  - Multi-statement functions use explicit braces: `const fn = (): Type => { stmt1; return expr; };`
+  - Single-line returns use implicit return: `const fn = (): Type => expression;`
+  - Multi-statement functions use explicit braces
 - **TypeScript:** ES2023, CommonJS, strict, rootDir: "./src"
 - **ESLint:** unicorn/no-null, prevent-abbreviations, consistent-function-scoping, simple-import-sort
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x, format → lint → build → test
-- **Status:** 31 test files, 920 tests, 84%+ coverage, 45-60% faster (v1.3.3)
-- **Current Branch:** feat/format-only - Standalone YAML formatting with --format-only flag
-- **Recent:** chore/opt branch - Simplified 8 arrow functions to use implicit returns (code style consistency)
 
 ## Utilities (`src/utils/`)
 
@@ -81,34 +78,22 @@ Barrel exports via `index.ts`:
 - `diffGenerator.ts` - generateUnifiedDiff()
 - `serialization.ts` - serializeForDiff, normalizeForComparison (YAML.stringify cache)
 - `deepEqual.ts` - deepEqual (fast path for small objects)
-- `jsonPath.ts` - parseJsonPath, getValueAtPath, isFilterSegment, parseFilterSegment (memoization cache, filter expressions)
+- `jsonPath.ts` - parseJsonPath, getValueAtPath, isFilterSegment, parseFilterSegment (memoization)
 - `transformer.ts` - applyTransforms (regex on values, sequential)
 - `patternMatcher.ts` - PatternMatcher, globalMatcher (picomatch cache)
 - `versionChecker.ts` - checkForUpdates (npm registry, CI detection)
-- **NEW v1.4+**:
-  - `transformFileLoader.ts` - loadTransformFile, loadTransformFiles, escapeRegex (literal string replacements from YAML)
-  - `regexPatternFileLoader.ts` - loadRegexPatternArray, loadRegexPatternsFromKeys (pattern loading for stop rules)
+- `transformFileLoader.ts` - loadTransformFile, loadTransformFiles, escapeRegex
+- `regexPatternFileLoader.ts` - loadRegexPatternArray, loadRegexPatternsFromKeys
 
 **Error Pattern:** All modules use `errors.ts` factory for custom error classes with type guards, error codes, hints.
 
 ## YAML Processing Pipeline
 
 1. **File Loading** - tinyglobby + parallel → filename transforms → filtering (cached patterns) → Map
-2. **Diff** - parse → content transforms → skipPath (early return) → normalize (cached stringify) → deepEqual (fast path)
+2. **Diff** - parse → content transforms → skipPath (early return) → normalize (cached stringify) → deepEqual
 3. **Stop Rules** - Validate JSONPath values (memoized, semver, versionFormat, numeric, regex), fail unless --force
 4. **Update** - Deep merge → yamlFormatter (batched patterns) → write/dry-run
 5. **Format** - Parse AST → apply rules → serialize
-
-## Performance Optimizations (v1.3.3)
-
-**45-60% improvement via:**
-
-1. YAML.stringify caching - O(N²) → O(N) for array sorting
-2. Picomatch pattern caching - globalMatcher shared across 6 modules
-3. JSONPath memoization - cached parsing for repeated lookups
-4. Batched pattern matching - yamlFormatter single pass vs 3 passes
-5. Early returns - skip structuredClone, binary detection when unneeded
-6. Fast paths - deepEqual optimized for small objects, empty arrays
 
 ## SkipPath Filter Expressions
 
@@ -120,187 +105,40 @@ skipPath:
     - 'env[name=SECRET_KEY]' # Skip array item where name=SECRET_KEY
     - 'containers[name=sidecar].resources' # Skip nested field in matching item
     - 'spec.template.containers[name=app].env[name=DEBUG]' # Multiple nested filters
-    - 'items[id=123]' # Numeric values (converted to string)
-    - 'data[key="value with spaces"]' # Quoted values for spaces
 ```
 
-**Syntax:**
-
-- `array[prop=value]` - Match array items where property equals value
-- Values are compared as strings (numeric YAML values converted)
-- Supports quoted values: `[name="value with spaces"]`
-- Can be combined with wildcards: `containers[name=app].env[*].value`
-- Nested filters: `a[x=1].b[y=2].field`
-
-**Behavior:**
-
-- As last segment: Removes matching array items entirely
-- As middle segment: Navigates into matching items, continues path traversal
-
-## Filename Transforms
-
-Transform source paths during sync. Full relative path (folders + filename).
-
-```yaml
-transforms:
-  '**/*.yaml':
-    content: [{ find: 'uat-cluster', replace: 'prod-cluster' }]
-    filename: [{ find: 'envs/uat/', replace: 'envs/prod/' }]
-# envs/uat/app-uat.yaml → envs/prod/app-prod.yaml
-```
-
-- Applies BEFORE include/exclude, uses regex with capture groups, sequential
-- Content transforms ONLY YAML values (keys preserved)
-- Errors: empty path, traversal, invalid chars, collisions
+**Syntax:** `array[prop=value]` - Match items where property equals value. Supports quoted values for spaces.
 
 ## Stop Rules
 
 1. **semverMajorUpgrade** - Block major bumps (v1→v2)
 2. **semverDowngrade** - Block any downgrade
 3. **versionFormat** - Enforce `major.minor.patch`, vPrefix: required/allowed/forbidden
-   - Rejects: incomplete, pre-release, build metadata, leading zeros
 4. **numeric** - min/max constraints
 5. **regex** - Block forbidden patterns (path optional: targeted or global)
-6. **NEW v1.4+: regexFile** - Load patterns from YAML array file (path optional)
-7. **NEW v1.4+: regexFileKey** - Use transform file keys as patterns (path optional)
+6. **regexFile** - Load patterns from YAML array file
+7. **regexFileKey** - Use transform file keys as patterns
 
-**Path Modes (regex, regexFile, regexFileKey):**
+**Path Modes:** With `path` checks specific JSONPath field. Without `path` recursively scans ALL values.
 
-- **With `path`**: Check specific JSONPath field (targeted mode)
-- **Without `path`**: Recursively scan ALL values in file (global mode)
+## Pattern Usage Validation
 
-Example: Helm charts use `vPrefix: 'forbidden'` (1.2.3), Docker tags use `vPrefix: 'required'` (v1.2.3)
-
-## External Files (v1.4+)
-
-### Transform Files
-
-Load literal string replacements from external YAML files:
-
-```yaml
-transforms:
-  '**/*.yaml':
-    contentFile: './transforms/common.yaml' # Single file
-    # Or array: ['./common.yaml', './services.yaml']
-    filenameFile: './transforms/paths.yaml'
-```
-
-**File Format:** Simple key:value pairs (Record<string, string>)
-
-```yaml
-staging: production
-stg-db.internal: prod-db.internal
-```
-
-**Features:**
-
-- Keys escaped for regex safety (literal matching, case-sensitive)
-- Multiple files processed in order (last wins for duplicates)
-- Applied BEFORE inline regex transforms
-- Errors: file not found, parse error, invalid format (nested objects/arrays)
-
-### Pattern Files for Stop Rules
-
-**regexFile** - Array of regex patterns:
-
-```yaml
-# patterns/forbidden.yaml
-- ^0\..* # Block 0.x versions
-- .*-alpha.* # Block alphas
-```
-
-**regexFileKey** - Uses transform file keys as patterns:
-
-```yaml
-stopRules:
-  '**/*.yaml':
-    - type: regexFileKey
-      path: service.name
-      file: './transforms/common.yaml' # Keys become patterns
-```
-
-**File Format Validation:**
-
-- regexFile MUST be YAML array (error if not)
-- regexFileKey MUST be YAML object with keys (error if not)
-- Invalid regex patterns cause immediate error
-
-**Usage:**
-
-- Files loaded on-demand during validation (not during config merge)
-- Paths resolved relative to config file directory
-- Empty files return empty array (no error)
-
-## Pattern Usage Validation (feat/setting-validation)
-
-Validates that config patterns actually match files and JSONPaths exist. Helps catch typos, outdated patterns, and misconfigurations.
-
-**Module:** `src/patternUsageValidator.ts`
-
-**Triggered by:** `--validate` flag (runs after static config validation)
+Validates that config patterns actually match files and JSONPaths exist. Triggered by `--validate` flag.
 
 **Two-Phase Validation:**
 
 1. **Phase 1 (Static)** - `configWarnings.ts` validates syntax, inefficient patterns, duplicates
-2. **Phase 2 (File-Based)** - `patternUsageValidator.ts` validates pattern usage
+2. **Phase 2 (File-Based)** - `patternUsageValidator.ts` validates pattern usage against actual files
 
-**What Gets Validated:**
-
-- **exclude patterns**: Warn if matches no files in source or destination
-- **skipPath patterns**: Two-level validation:
-  - Glob pattern must match at least one file
-  - JSONPath must exist in at least one matched YAML file
-- **stopRules patterns**: Two-level validation:
-  - Glob pattern must match at least one file
-  - If rule has `path` field, JSONPath must exist in at least one matched YAML file
-
-**Implementation Details:**
-
-- Uses `globalMatcher.match()` for glob testing
-- Uses `parseJsonPath()` + `getValueAtPath()` for JSONPath validation
-- Lazy YAML parsing (only for skipPath and stopRule path validation)
-- Catches and skips YAML parse errors (reported elsewhere)
-- Returns structured warnings with type, pattern, message, context
-
-**Warning Types:**
-
-```typescript
-type PatternUsageWarning = {
-  type:
-    | 'unused-exclude'
-    | 'unused-skipPath'
-    | 'unused-skipPath-jsonpath'
-    | 'unused-stopRule-glob'
-    | 'unused-stopRule-path';
-  pattern: string;
-  message: string;
-  context?: string; // Additional info (e.g., rule count, matched files)
-};
-```
-
-**Performance:**
-
-- Only runs with `--validate` flag (no impact on normal operations)
-- Expected overhead: <500ms for typical configs (<100 files, <10 patterns)
-- Early exit (stops checking once path found in one file)
-
-**Test Coverage:**
-
-- 24 tests in `test/patternUsageValidator.test.ts`
-- Covers: unused patterns, valid patterns, skipPath JSONPath validation, edge cases, YAML parse errors, non-YAML files
+**What Gets Validated:** exclude patterns, skipPath patterns (glob + JSONPath), stopRules patterns (glob + path field)
 
 ## Testing
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**31 test files, 920 tests:**
+**31 test files, 925+ tests:** Core modules, reporters, utils, integration tests
 
-- Core: commandLine, configFile, configLoader, configMerger, configWarnings, patternUsageValidator, fileLoader, fileDiff, fileUpdater, arrayDiffer, yamlFormatter, stopRulesValidator
-- Reporters: consoleDiffReporter, jsonReporter, htmlReporter, consoleFormatter, logger
-- Utils: errors, fileType, diffGenerator, serialization, deepEqual, jsonPath, transformer, filenameTransformer, collisionDetector, versionChecker, index
-- Integration: index, ZodError
-
-**Performance:** 8 benchmark files in `test/perf/` (fileDiff, deepEqual, fileLoader, yamlFormatter, transformer, serialization, stopRulesValidator, fileUpdater). Uses Vitest `bench()` API, 10x safety margin thresholds. Run: `npm run test:perf`
+**Performance:** 8 benchmark files in `test/perf/`. Uses Vitest `bench()` API. Run: `npm run test:perf`
 
 ## Key Design Patterns
 
@@ -311,45 +149,6 @@ type PatternUsageWarning = {
 **Data:** `Map<string, string>` for O(1) lookup, sorted keys
 
 **Deep Merge:** Preserves destination structure, replaces arrays entirely, preserves skipped paths
-
-## User Experience Features
-
-**Discovery & Debugging:**
-
-- `--list-files` - Preview source/destination files without processing diffs
-- `--show-config` - Display resolved configuration after inheritance merging
-- `--validate` - Enhanced with non-fatal warnings (inefficient globs, duplicates, conflicts, empty arrays)
-
-**Safety:**
-
-- Pre-execution summary (2s pause before sync, shows added/changed/deleted counts)
-- First-run tips (shown once, saved to ~/.helm-env-delta/first-run)
-- Improved error messages with examples and hints for common issues
-
-**Output Control:**
-
-- `--no-color` - Disable colored output for CI/accessibility
-- Help text includes usage examples (4 common workflows)
-- Commander suggestion for typos (e.g., --dryrun → --dry-run)
-
-**Smart Suggestions (v1.5+) - Heuristic Operation:**
-
-- `--suggest` - Uses heuristic analysis to examine diffs and recommend config updates
-- `--suggest-threshold` - Control suggestion sensitivity (0-1, default: 0.3)
-  - Lower threshold (e.g., 0.2): More suggestions, less strict
-  - Higher threshold (e.g., 0.7): Fewer suggestions, higher confidence only
-- Intelligently detects transform patterns using semantic matching (uat→prod, staging→production)
-- Suggests stop rules based on pattern recognition (version bumps, numeric ranges)
-- Provides confidence scores (0-100%) and occurrence counts for each suggestion
-- Outputs copy-paste ready YAML configuration
-- **Enhanced Noise Filtering:**
-  - Ignores UUIDs, timestamps, single-char changes
-  - Filters antonym pairs (enable/disable, true/false, on/off, etc.)
-  - Filters regex special characters (unless semantic keywords present)
-  - Filters version-number-only changes (service-v1 → service-v2)
-  - Allows semantic patterns even with special chars (db.uat.com → db.prod.com)
-- Use case: Bootstrap config from existing files, discover missing patterns through intelligent analysis
-- **Note:** Suggestions are heuristic-based and should be reviewed before applying
 
 ## Key Notes
 

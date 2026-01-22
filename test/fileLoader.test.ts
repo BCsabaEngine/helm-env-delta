@@ -218,6 +218,54 @@ describe('fileLoader', () => {
 
       expect(mockGlob).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ onlyFiles: true }));
     });
+
+    it('should NOT apply exclude patterns when skipExclude is true', async () => {
+      const baseDirectory = '/base';
+      mockGlob.mockResolvedValue([]);
+
+      await loadFiles({ baseDirectory, include: ['**/*'], exclude: ['node_modules/**'], skipExclude: true });
+
+      // With skipExclude: true, exclude patterns should NOT be passed to glob
+      expect(mockGlob).toHaveBeenCalledWith(['**/*'], {
+        cwd: baseDirectory,
+        absolute: true,
+        onlyFiles: true,
+        dot: false,
+        followSymbolicLinks: false
+      });
+    });
+
+    it('should apply exclude patterns when skipExclude is false', async () => {
+      const baseDirectory = '/base';
+      mockGlob.mockResolvedValue([]);
+
+      await loadFiles({ baseDirectory, include: ['**/*'], exclude: ['node_modules/**'], skipExclude: false });
+
+      // With skipExclude: false (or undefined), exclude patterns SHOULD be passed to glob
+      expect(mockGlob).toHaveBeenCalledWith(['**/*', '!node_modules/**'], {
+        cwd: baseDirectory,
+        absolute: true,
+        onlyFiles: true,
+        dot: false,
+        followSymbolicLinks: false
+      });
+    });
+
+    it('should apply exclude patterns when skipExclude is undefined', async () => {
+      const baseDirectory = '/base';
+      mockGlob.mockResolvedValue([]);
+
+      await loadFiles({ baseDirectory, include: ['**/*'], exclude: ['templates/**'] });
+
+      // Without skipExclude, exclude patterns SHOULD be passed to glob
+      expect(mockGlob).toHaveBeenCalledWith(['**/*', '!templates/**'], {
+        cwd: baseDirectory,
+        absolute: true,
+        onlyFiles: true,
+        dot: false,
+        followSymbolicLinks: false
+      });
+    });
   });
 
   describe('loadFiles - glob matching with transforms', () => {
@@ -283,6 +331,45 @@ describe('fileLoader', () => {
         transforms
       });
 
+      expect(result.fileMap.size).toBe(0);
+    });
+
+    it('should NOT exclude files when skipExclude is true (with transforms)', async () => {
+      const baseDirectory = '/base';
+      const transforms = { '**/*': { filename: [{ find: 'temp', replace: 'node_modules' }] } };
+      mockGlob.mockResolvedValue([`${baseDirectory}/temp/file.yaml`]);
+      mockTransformFilename.mockReturnValue('node_modules/file.yaml');
+      mockReadFile.mockResolvedValue('content' as unknown as Buffer);
+      mockTransformFilenameMap.mockImplementation((map) => createMockTransformResult(map));
+
+      const result = await loadFiles({
+        baseDirectory,
+        include: ['**/*'],
+        exclude: ['node_modules/**'],
+        transforms,
+        skipExclude: true
+      });
+
+      // With skipExclude: true, the file should NOT be excluded even though it matches the exclude pattern
+      expect(result.fileMap.size).toBe(1);
+    });
+
+    it('should exclude files when skipExclude is false (with transforms)', async () => {
+      const baseDirectory = '/base';
+      const transforms = { '**/*': { filename: [{ find: 'temp', replace: 'node_modules' }] } };
+      mockGlob.mockResolvedValue([`${baseDirectory}/temp/file.yaml`]);
+      mockTransformFilename.mockReturnValue('node_modules/file.yaml');
+      mockTransformFilenameMap.mockImplementation((map) => createMockTransformResult(map));
+
+      const result = await loadFiles({
+        baseDirectory,
+        include: ['**/*'],
+        exclude: ['node_modules/**'],
+        transforms,
+        skipExclude: false
+      });
+
+      // With skipExclude: false, the file SHOULD be excluded
       expect(result.fileMap.size).toBe(0);
     });
   });

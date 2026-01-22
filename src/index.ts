@@ -97,7 +97,8 @@ const main = async (): Promise<void> => {
         baseDirectory: config.source,
         include: config.include,
         exclude: config.exclude,
-        transforms: config.transforms
+        transforms: config.transforms,
+        skipExclude: true
       },
       logger
     );
@@ -107,7 +108,8 @@ const main = async (): Promise<void> => {
       {
         baseDirectory: config.destination,
         include: config.include,
-        exclude: config.exclude
+        exclude: config.exclude,
+        skipExclude: true
       },
       logger
     );
