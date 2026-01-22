@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
@@ -24,7 +25,9 @@ import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
+import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
+import { formatYaml } from './yamlFormatter';
 import { isZodValidationError } from './ZodError';
 
 /**
@@ -186,6 +189,52 @@ const main = async (): Promise<void> => {
 
     console.log(chalk.yellow(`\nDestination files: ${destinationFilesList.length}`));
     for (const file of destinationFilesList) console.log(`  ${chalk.dim(file)}`);
+
+    return;
+  }
+
+  // Early exit for format-only mode
+  if (command.formatOnly) {
+    if (!config.outputFormat) {
+      logger.log(chalk.yellow('\n⚠️  No outputFormat configured. Nothing to format.'));
+      return;
+    }
+
+    logger.log('\n' + formatProgressMessage('Formatting files...', 'info'));
+
+    let formattedCount = 0;
+    const errors: Array<{ path: string; error: Error }> = [];
+
+    for (const [relativePath, content] of destinationFiles) {
+      if (!isYamlFile(relativePath)) continue;
+
+      try {
+        const formatted = formatYaml(content, relativePath, config.outputFormat);
+
+        if (formatted !== content) {
+          const absolutePath = path.join(config.destination, relativePath);
+
+          if (command.dryRun) logger.fileOp('format', relativePath, true);
+          else {
+            await writeFile(absolutePath, formatted, 'utf8');
+            logger.fileOp('format', relativePath, false);
+          }
+          formattedCount++;
+        }
+      } catch (error) {
+        errors.push({ path: relativePath, error: error as Error });
+      }
+    }
+
+    if (command.dryRun) logger.log(`\n[DRY RUN] Would format ${formattedCount} file(s)`);
+    else logger.log(`\n✓ Formatted ${formattedCount} file(s)`);
+
+    if (errors.length > 0) {
+      logger.error(`\n❌ Encountered ${errors.length} error(s):`, 'critical');
+      for (const { path: errorPath, error } of errors) logger.error(`  ${errorPath}: ${error.message}`, 'critical');
+
+      process.exit(1);
+    }
 
     return;
   }
