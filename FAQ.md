@@ -643,6 +643,47 @@ skipPath:
 
 ---
 
+### What filter operators are available for array matching?
+
+HelmEnvDelta supports **CSS-style filter operators** for flexible array item matching:
+
+| Operator | Name       | Example          | Matches                                   |
+| -------- | ---------- | ---------------- | ----------------------------------------- |
+| `=`      | equals     | `[name=DEBUG]`   | Exact match only                          |
+| `^=`     | startsWith | `[name^=DB_]`    | `DB_HOST`, `DB_PORT`, `DB_USER`           |
+| `$=`     | endsWith   | `[name$=_KEY]`   | `API_KEY`, `SECRET_KEY`                   |
+| `*=`     | contains   | `[name*=SECRET]` | `MY_SECRET_KEY`, `SECRET`, `SECRET_TOKEN` |
+
+**Examples:**
+
+```yaml
+skipPath:
+  '**/*.yaml':
+    # Skip all env vars starting with DB_
+    - 'env[name^=DB_]'
+
+    # Skip all secrets (ending with _SECRET or _KEY)
+    - 'env[name$=_SECRET]'
+    - 'env[name$=_KEY]'
+
+    # Skip anything containing PASSWORD
+    - 'env[name*=PASSWORD]'
+
+    # Combine with nested paths
+    - 'containers[name^=init-].resources'
+    - 'spec.containers[name*=sidecar].env[name$=_TOKEN]'
+```
+
+**Use cases:**
+
+- **startsWith (`^=`)**: Skip all `DB_*` environment variables, all `init-*` containers
+- **endsWith (`$=`)**: Skip all `*_KEY` secrets, all `*-data` volumes
+- **contains (`*=`)**: Skip anything with `PASSWORD`, `SECRET`, or `TOKEN` in the name
+
+**Note:** Values are converted to strings for comparison (numbers work too: `[id^=100]` matches `1001`, `1002`)
+
+---
+
 ## Stop Rules & Safety
 
 ### What are stop rules and when should I use them?
@@ -1360,4 +1401,4 @@ include:
 
 ---
 
-**Last Updated:** 2026-01-22 (feat/format-only: Added --format-only flag for standalone YAML formatting)
+**Last Updated:** 2026-01-22 (feat/jsonpath-startswith: Added CSS-style filter operators ^=, $=, \*= for JSONPath expressions)

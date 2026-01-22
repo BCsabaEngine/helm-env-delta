@@ -52,7 +52,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 
 - Core: `source`, `destination` (required), `include`/`exclude`, `prune`
 - Inheritance: Single parent via `extends`, max 5 levels, circular detection
-- `skipPath`: JSONPath patterns per-file (glob patterns), supports filter expressions `[prop=value]`
+- `skipPath`: JSONPath patterns per-file (glob patterns), supports CSS-style filter expressions `[prop=value]`, `[prop^=prefix]`, `[prop$=suffix]`, `[prop*=substring]`
 - `transforms`: Object with `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
 - `stopRules`: semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey
 - `outputFormat`: indent, keySeparator, quoteValues, keyOrders, arraySort
@@ -78,7 +78,7 @@ Barrel exports via `index.ts`:
 - `diffGenerator.ts` - generateUnifiedDiff()
 - `serialization.ts` - serializeForDiff, normalizeForComparison (YAML.stringify cache)
 - `deepEqual.ts` - deepEqual (fast path for small objects)
-- `jsonPath.ts` - parseJsonPath, getValueAtPath, isFilterSegment, parseFilterSegment (memoization)
+- `jsonPath.ts` - parseJsonPath, getValueAtPath, isFilterSegment, parseFilterSegment, matchesFilter (memoization, CSS-style operators)
 - `transformer.ts` - applyTransforms (regex on values, sequential)
 - `patternMatcher.ts` - PatternMatcher, globalMatcher (picomatch cache)
 - `versionChecker.ts` - checkForUpdates (npm registry, CI detection)
@@ -97,17 +97,39 @@ Barrel exports via `index.ts`:
 
 ## SkipPath Filter Expressions
 
-Skip specific array items by property value using filter syntax `[prop=value]`:
+Skip specific array items by property value using CSS-style filter operators:
+
+| Operator | Name       | Example          | Matches                   |
+| -------- | ---------- | ---------------- | ------------------------- |
+| `=`      | equals     | `[name=DEBUG]`   | Exact match               |
+| `^=`     | startsWith | `[name^=DB_]`    | `DB_HOST`, `DB_PORT`      |
+| `$=`     | endsWith   | `[name$=_KEY]`   | `API_KEY`, `SECRET_KEY`   |
+| `*=`     | contains   | `[name*=SECRET]` | `MY_SECRET_KEY`, `SECRET` |
 
 ```yaml
 skipPath:
   '**/*.yaml':
+    # Equals (=) - exact match
     - 'env[name=SECRET_KEY]' # Skip array item where name=SECRET_KEY
     - 'containers[name=sidecar].resources' # Skip nested field in matching item
-    - 'spec.template.containers[name=app].env[name=DEBUG]' # Multiple nested filters
+
+    # StartsWith (^=) - prefix match
+    - 'env[name^=DB_]' # Skip DB_HOST, DB_PORT, DB_USER
+    - 'containers[name^=init-].resources' # Skip init-db, init-cache resources
+
+    # EndsWith ($=) - suffix match
+    - 'env[name$=_SECRET]' # Skip API_SECRET, DB_SECRET
+    - 'volumes[name$=-data]' # Skip app-data, cache-data
+
+    # Contains (*=) - substring match
+    - 'env[name*=PASSWORD]' # Skip DB_PASSWORD, PASSWORD_HASH
+    - 'containers[image*=nginx]' # Skip any nginx image
+
+    # Nested paths with operators
+    - 'spec.containers[name^=sidecar-].env[name$=_KEY]'
 ```
 
-**Syntax:** `array[prop=value]` - Match items where property equals value. Supports quoted values for spaces.
+**Syntax:** `array[prop<op>value]` where `<op>` is `=`, `^=`, `$=`, or `*=`. Supports quoted values for spaces.
 
 ## Stop Rules
 
