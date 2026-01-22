@@ -14,6 +14,7 @@ export interface FileLoaderOptions {
   include: string[];
   exclude: string[];
   transforms?: TransformConfig;
+  skipExclude?: boolean;
 }
 
 export type FileMap = Map<string, string>;
@@ -95,11 +96,14 @@ const findMatchingFiles = async (
   baseDirectory: string,
   includePatterns: string[],
   excludePatterns: string[],
-  transforms?: TransformConfig
+  transforms?: TransformConfig,
+  skipExclude?: boolean
 ): Promise<string[]> => {
   try {
     if (!transforms) {
-      const allPatterns = [...includePatterns, ...excludePatterns.map((pattern) => `!${pattern}`)];
+      const allPatterns = skipExclude
+        ? [...includePatterns]
+        : [...includePatterns, ...excludePatterns.map((pattern) => `!${pattern}`)];
 
       const matchedFiles = await glob(allPatterns, {
         cwd: baseDirectory,
@@ -129,8 +133,10 @@ const findMatchingFiles = async (
       const included = includePatterns.some((pattern) => globalMatcher.match(transformedPath, pattern));
       if (!included) continue;
 
-      const excluded = excludePatterns.some((pattern) => globalMatcher.match(transformedPath, pattern));
-      if (excluded) continue;
+      if (!skipExclude) {
+        const excluded = excludePatterns.some((pattern) => globalMatcher.match(transformedPath, pattern));
+        if (excluded) continue;
+      }
 
       filtered.push(absolutePath);
     }
@@ -203,7 +209,13 @@ export const loadFiles = async (
   const includePatterns = options.include ?? ['**/*'];
   const excludePatterns = options.exclude ?? [];
 
-  const files = await findMatchingFiles(absoluteBaseDirectory, includePatterns, excludePatterns, options.transforms);
+  const files = await findMatchingFiles(
+    absoluteBaseDirectory,
+    includePatterns,
+    excludePatterns,
+    options.transforms,
+    options.skipExclude
+  );
 
   if (logger?.shouldShow('debug')) {
     logger.debug('Glob matching:');
