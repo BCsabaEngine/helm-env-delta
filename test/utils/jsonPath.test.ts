@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { getValueAtPath, isFilterSegment, parseFilterSegment, parseJsonPath } from '../../src/utils/jsonPath';
+import {
+  getValueAtPath,
+  isFilterSegment,
+  matchesFilter,
+  parseFilterSegment,
+  parseJsonPath
+} from '../../src/utils/jsonPath';
 
 describe('utils/jsonPath', () => {
   describe('parseJsonPath', () => {
@@ -188,31 +194,31 @@ describe('utils/jsonPath', () => {
             { name: 'PROD', value: '0' }
           ]
         };
-        expect(getValueAtPath(object, ['env', 'filter:name=DEBUG'])).toEqual({ name: 'DEBUG', value: '1' });
+        expect(getValueAtPath(object, ['env', 'filter:name:eq:DEBUG'])).toEqual({ name: 'DEBUG', value: '1' });
       });
 
       it('should return undefined when filter does not match', () => {
         const object = { env: [{ name: 'DEBUG', value: '1' }] };
-        expect(getValueAtPath(object, ['env', 'filter:name=MISSING'])).toBeUndefined();
+        expect(getValueAtPath(object, ['env', 'filter:name:eq:MISSING'])).toBeUndefined();
       });
 
       it('should handle nested filter navigation', () => {
         const object = {
           containers: [{ name: 'app', env: [{ name: 'SECRET', value: 'xxx' }] }]
         };
-        expect(getValueAtPath(object, ['containers', 'filter:name=app', 'env', 'filter:name=SECRET', 'value'])).toBe(
-          'xxx'
-        );
+        expect(
+          getValueAtPath(object, ['containers', 'filter:name:eq:app', 'env', 'filter:name:eq:SECRET', 'value'])
+        ).toBe('xxx');
       });
 
       it('should convert numeric values to string for comparison', () => {
         const object = { items: [{ id: 123, name: 'test' }] };
-        expect(getValueAtPath(object, ['items', 'filter:id=123'])).toEqual({ id: 123, name: 'test' });
+        expect(getValueAtPath(object, ['items', 'filter:id:eq:123'])).toEqual({ id: 123, name: 'test' });
       });
 
       it('should return undefined when filter applied to non-array', () => {
         const object = { data: { name: 'test' } };
-        expect(getValueAtPath(object, ['data', 'filter:name=test'])).toBeUndefined();
+        expect(getValueAtPath(object, ['data', 'filter:name:eq:test'])).toBeUndefined();
       });
 
       it('should return undefined for invalid filter segment', () => {
@@ -227,23 +233,35 @@ describe('utils/jsonPath', () => {
             { type: 'a', id: 2 }
           ]
         };
-        expect(getValueAtPath(object, ['items', 'filter:type=a'])).toEqual({ type: 'a', id: 1 });
+        expect(getValueAtPath(object, ['items', 'filter:type:eq:a'])).toEqual({ type: 'a', id: 1 });
       });
 
       it('should skip non-object items in array', () => {
         const object = { items: ['string', undefined, { name: 'test' }] };
-        expect(getValueAtPath(object, ['items', 'filter:name=test'])).toEqual({ name: 'test' });
+        expect(getValueAtPath(object, ['items', 'filter:name:eq:test'])).toEqual({ name: 'test' });
       });
     });
   });
 
   describe('isFilterSegment', () => {
-    it('should return true for filter segments', () => {
-      expect(isFilterSegment('filter:name=value')).toBe(true);
+    it('should return true for filter segments with eq operator', () => {
+      expect(isFilterSegment('filter:name:eq:value')).toBe(true);
+    });
+
+    it('should return true for filter segments with startsWith operator', () => {
+      expect(isFilterSegment('filter:name:startsWith:prefix')).toBe(true);
+    });
+
+    it('should return true for filter segments with endsWith operator', () => {
+      expect(isFilterSegment('filter:name:endsWith:suffix')).toBe(true);
+    });
+
+    it('should return true for filter segments with contains operator', () => {
+      expect(isFilterSegment('filter:name:contains:middle')).toBe(true);
     });
 
     it('should return true for filter with empty value', () => {
-      expect(isFilterSegment('filter:key=')).toBe(true);
+      expect(isFilterSegment('filter:key:eq:')).toBe(true);
     });
 
     it('should return false for regular segments', () => {
@@ -264,82 +282,407 @@ describe('utils/jsonPath', () => {
   });
 
   describe('parseFilterSegment', () => {
-    it('should parse valid filter segment', () => {
-      expect(parseFilterSegment('filter:name=DEBUG')).toEqual({ property: 'name', value: 'DEBUG' });
+    it('should parse valid filter segment with eq operator', () => {
+      expect(parseFilterSegment('filter:name:eq:DEBUG')).toEqual({ property: 'name', value: 'DEBUG', operator: 'eq' });
     });
 
-    it('should handle empty value', () => {
-      expect(parseFilterSegment('filter:key=')).toEqual({ property: 'key', value: '' });
-    });
-
-    it('should handle value with equals sign', () => {
-      expect(parseFilterSegment('filter:url=http://foo.com?a=b')).toEqual({
-        property: 'url',
-        value: 'http://foo.com?a=b'
+    it('should parse valid filter segment with startsWith operator', () => {
+      expect(parseFilterSegment('filter:name:startsWith:DB_')).toEqual({
+        property: 'name',
+        value: 'DB_',
+        operator: 'startsWith'
       });
     });
 
-    it('should return null for non-filter segment', () => {
+    it('should parse valid filter segment with endsWith operator', () => {
+      expect(parseFilterSegment('filter:name:endsWith:_KEY')).toEqual({
+        property: 'name',
+        value: '_KEY',
+        operator: 'endsWith'
+      });
+    });
+
+    it('should parse valid filter segment with contains operator', () => {
+      expect(parseFilterSegment('filter:name:contains:SECRET')).toEqual({
+        property: 'name',
+        value: 'SECRET',
+        operator: 'contains'
+      });
+    });
+
+    it('should handle empty value', () => {
+      expect(parseFilterSegment('filter:key:eq:')).toEqual({ property: 'key', value: '', operator: 'eq' });
+    });
+
+    it('should handle value with colons', () => {
+      expect(parseFilterSegment('filter:url:eq:http://foo.com:8080/path')).toEqual({
+        property: 'url',
+        value: 'http://foo.com:8080/path',
+        operator: 'eq'
+      });
+    });
+
+    it('should return undefined for non-filter segment', () => {
       expect(parseFilterSegment('name')).toBeUndefined();
     });
 
-    it('should return null for filter without equals', () => {
+    it('should return undefined for filter without operator', () => {
       expect(parseFilterSegment('filter:invalid')).toBeUndefined();
     });
 
-    it('should return null for empty string', () => {
+    it('should return undefined for filter with invalid operator', () => {
+      expect(parseFilterSegment('filter:name:invalid:value')).toBeUndefined();
+    });
+
+    it('should return undefined for empty string', () => {
       expect(parseFilterSegment('')).toBeUndefined();
     });
   });
 
   describe('parseJsonPath with filter expressions', () => {
-    it('should parse simple filter expression', () => {
-      expect(parseJsonPath('ENV[name=DEBUG]')).toEqual(['ENV', 'filter:name=DEBUG']);
+    describe('equals operator (=)', () => {
+      it('should parse simple filter expression', () => {
+        expect(parseJsonPath('ENV[name=DEBUG]')).toEqual(['ENV', 'filter:name:eq:DEBUG']);
+      });
+
+      it('should parse nested filter expression', () => {
+        expect(parseJsonPath('spec.containers[name=app]')).toEqual(['spec', 'containers', 'filter:name:eq:app']);
+      });
+
+      it('should parse multiple filters in path', () => {
+        expect(parseJsonPath('a[x=1].b[y=2]')).toEqual(['a', 'filter:x:eq:1', 'b', 'filter:y:eq:2']);
+      });
+
+      it('should parse quoted values with spaces', () => {
+        expect(parseJsonPath('ENV[name="value with spaces"]')).toEqual(['ENV', 'filter:name:eq:value with spaces']);
+      });
+
+      it('should parse mixed filters and wildcards', () => {
+        expect(parseJsonPath('items[*].data[key=secret]')).toEqual(['items', '*', 'data', 'filter:key:eq:secret']);
+      });
+
+      it('should parse mixed filters and indices', () => {
+        expect(parseJsonPath('items[0].env[name=DEBUG]')).toEqual(['items', '0', 'env', 'filter:name:eq:DEBUG']);
+      });
+
+      it('should handle special characters in unquoted values', () => {
+        expect(parseJsonPath('env[url=http://foo.com]')).toEqual(['env', 'filter:url:eq:http://foo.com']);
+      });
+
+      it('should handle empty value', () => {
+        expect(parseJsonPath('env[name=]')).toEqual(['env', 'filter:name:eq:']);
+      });
+
+      it('should handle underscore in property name', () => {
+        expect(parseJsonPath('data[my_key=value]')).toEqual(['data', 'filter:my_key:eq:value']);
+      });
+
+      it('should handle complex nested path with filters', () => {
+        expect(parseJsonPath('spec.template.spec.containers[name=app].env[name=SECRET].value')).toEqual([
+          'spec',
+          'template',
+          'spec',
+          'containers',
+          'filter:name:eq:app',
+          'env',
+          'filter:name:eq:SECRET',
+          'value'
+        ]);
+      });
     });
 
-    it('should parse nested filter expression', () => {
-      expect(parseJsonPath('spec.containers[name=app]')).toEqual(['spec', 'containers', 'filter:name=app']);
+    describe('startsWith operator (^=)', () => {
+      it('should parse startsWith filter', () => {
+        expect(parseJsonPath('env[name^=DB_]')).toEqual(['env', 'filter:name:startsWith:DB_']);
+      });
+
+      it('should parse nested startsWith filter', () => {
+        expect(parseJsonPath('spec.containers[name^=sidecar-].resources')).toEqual([
+          'spec',
+          'containers',
+          'filter:name:startsWith:sidecar-',
+          'resources'
+        ]);
+      });
+
+      it('should parse quoted startsWith value', () => {
+        expect(parseJsonPath('env[name^="prefix with space"]')).toEqual([
+          'env',
+          'filter:name:startsWith:prefix with space'
+        ]);
+      });
     });
 
-    it('should parse multiple filters in path', () => {
-      expect(parseJsonPath('a[x=1].b[y=2]')).toEqual(['a', 'filter:x=1', 'b', 'filter:y=2']);
+    describe('endsWith operator ($=)', () => {
+      it('should parse endsWith filter', () => {
+        expect(parseJsonPath('env[name$=_SECRET]')).toEqual(['env', 'filter:name:endsWith:_SECRET']);
+      });
+
+      it('should parse nested endsWith filter', () => {
+        expect(parseJsonPath('volumes[name$=-data].mountPath')).toEqual([
+          'volumes',
+          'filter:name:endsWith:-data',
+          'mountPath'
+        ]);
+      });
+
+      it('should parse quoted endsWith value', () => {
+        expect(parseJsonPath('env[name$="suffix with space"]')).toEqual([
+          'env',
+          'filter:name:endsWith:suffix with space'
+        ]);
+      });
     });
 
-    it('should parse quoted values with spaces', () => {
-      expect(parseJsonPath('ENV[name="value with spaces"]')).toEqual(['ENV', 'filter:name=value with spaces']);
+    describe('contains operator (*=)', () => {
+      it('should parse contains filter', () => {
+        expect(parseJsonPath('env[name*=PASSWORD]')).toEqual(['env', 'filter:name:contains:PASSWORD']);
+      });
+
+      it('should parse nested contains filter', () => {
+        expect(parseJsonPath('containers[image*=nginx].ports')).toEqual([
+          'containers',
+          'filter:image:contains:nginx',
+          'ports'
+        ]);
+      });
+
+      it('should parse quoted contains value', () => {
+        expect(parseJsonPath('env[name*="middle part"]')).toEqual(['env', 'filter:name:contains:middle part']);
+      });
     });
 
-    it('should parse mixed filters and wildcards', () => {
-      expect(parseJsonPath('items[*].data[key=secret]')).toEqual(['items', '*', 'data', 'filter:key=secret']);
+    describe('mixed operators', () => {
+      it('should parse path with mixed operators', () => {
+        expect(parseJsonPath('containers[name^=init-].env[name$=_KEY]')).toEqual([
+          'containers',
+          'filter:name:startsWith:init-',
+          'env',
+          'filter:name:endsWith:_KEY'
+        ]);
+      });
+
+      it('should parse path with all operator types', () => {
+        expect(parseJsonPath('a[x=1].b[y^=pre].c[z$=suf].d[w*=mid]')).toEqual([
+          'a',
+          'filter:x:eq:1',
+          'b',
+          'filter:y:startsWith:pre',
+          'c',
+          'filter:z:endsWith:suf',
+          'd',
+          'filter:w:contains:mid'
+        ]);
+      });
+    });
+  });
+
+  describe('matchesFilter', () => {
+    describe('eq operator', () => {
+      it('should match exact value', () => {
+        expect(matchesFilter('DEBUG', { property: 'name', value: 'DEBUG', operator: 'eq' })).toBe(true);
+      });
+
+      it('should not match different value', () => {
+        expect(matchesFilter('PROD', { property: 'name', value: 'DEBUG', operator: 'eq' })).toBe(false);
+      });
+
+      it('should match empty value', () => {
+        expect(matchesFilter('', { property: 'name', value: '', operator: 'eq' })).toBe(true);
+      });
+
+      it('should convert numeric value to string', () => {
+        expect(matchesFilter(123, { property: 'id', value: '123', operator: 'eq' })).toBe(true);
+      });
     });
 
-    it('should parse mixed filters and indices', () => {
-      expect(parseJsonPath('items[0].env[name=DEBUG]')).toEqual(['items', '0', 'env', 'filter:name=DEBUG']);
+    describe('startsWith operator', () => {
+      it('should match prefix', () => {
+        expect(matchesFilter('DB_HOST', { property: 'name', value: 'DB_', operator: 'startsWith' })).toBe(true);
+      });
+
+      it('should not match non-prefix', () => {
+        expect(matchesFilter('API_HOST', { property: 'name', value: 'DB_', operator: 'startsWith' })).toBe(false);
+      });
+
+      it('should match exact value as prefix', () => {
+        expect(matchesFilter('DB_', { property: 'name', value: 'DB_', operator: 'startsWith' })).toBe(true);
+      });
+
+      it('should match empty prefix', () => {
+        expect(matchesFilter('anything', { property: 'name', value: '', operator: 'startsWith' })).toBe(true);
+      });
+
+      it('should handle substring that is not prefix', () => {
+        expect(matchesFilter('MY_DB_HOST', { property: 'name', value: 'DB_', operator: 'startsWith' })).toBe(false);
+      });
     });
 
-    it('should handle special characters in unquoted values', () => {
-      expect(parseJsonPath('env[url=http://foo.com]')).toEqual(['env', 'filter:url=http://foo.com']);
+    describe('endsWith operator', () => {
+      it('should match suffix', () => {
+        expect(matchesFilter('API_KEY', { property: 'name', value: '_KEY', operator: 'endsWith' })).toBe(true);
+      });
+
+      it('should not match non-suffix', () => {
+        expect(matchesFilter('API_SECRET', { property: 'name', value: '_KEY', operator: 'endsWith' })).toBe(false);
+      });
+
+      it('should match exact value as suffix', () => {
+        expect(matchesFilter('_KEY', { property: 'name', value: '_KEY', operator: 'endsWith' })).toBe(true);
+      });
+
+      it('should match empty suffix', () => {
+        expect(matchesFilter('anything', { property: 'name', value: '', operator: 'endsWith' })).toBe(true);
+      });
+
+      it('should handle substring that is not suffix', () => {
+        expect(matchesFilter('API_KEY_VALUE', { property: 'name', value: '_KEY', operator: 'endsWith' })).toBe(false);
+      });
     });
 
-    it('should handle empty value', () => {
-      expect(parseJsonPath('env[name=]')).toEqual(['env', 'filter:name=']);
+    describe('contains operator', () => {
+      it('should match substring', () => {
+        expect(matchesFilter('MY_SECRET_KEY', { property: 'name', value: 'SECRET', operator: 'contains' })).toBe(true);
+      });
+
+      it('should not match when substring not present', () => {
+        expect(matchesFilter('API_KEY', { property: 'name', value: 'SECRET', operator: 'contains' })).toBe(false);
+      });
+
+      it('should match exact value', () => {
+        expect(matchesFilter('SECRET', { property: 'name', value: 'SECRET', operator: 'contains' })).toBe(true);
+      });
+
+      it('should match empty substring', () => {
+        expect(matchesFilter('anything', { property: 'name', value: '', operator: 'contains' })).toBe(true);
+      });
+
+      it('should match at beginning', () => {
+        expect(matchesFilter('SECRET_KEY', { property: 'name', value: 'SECRET', operator: 'contains' })).toBe(true);
+      });
+
+      it('should match at end', () => {
+        expect(matchesFilter('MY_SECRET', { property: 'name', value: 'SECRET', operator: 'contains' })).toBe(true);
+      });
     });
 
-    it('should handle underscore in property name', () => {
-      expect(parseJsonPath('data[my_key=value]')).toEqual(['data', 'filter:my_key=value']);
+    describe('edge cases', () => {
+      it('should handle special regex characters', () => {
+        expect(matchesFilter('test.value', { property: 'name', value: '.', operator: 'contains' })).toBe(true);
+      });
+
+      it('should handle undefined converted to string', () => {
+        expect(matchesFilter(undefined, { property: 'name', value: 'undefined', operator: 'eq' })).toBe(true);
+      });
+
+      it('should handle object converted to string', () => {
+        expect(matchesFilter({}, { property: 'name', value: '[object Object]', operator: 'eq' })).toBe(true);
+      });
+
+      it('should handle boolean converted to string', () => {
+        expect(matchesFilter(true, { property: 'flag', value: 'true', operator: 'eq' })).toBe(true);
+      });
+    });
+  });
+
+  describe('getValueAtPath with operators', () => {
+    describe('startsWith operator', () => {
+      it('should find value with startsWith filter', () => {
+        const object = {
+          env: [
+            { name: 'DB_HOST', value: 'localhost' },
+            { name: 'DB_PORT', value: '5432' },
+            { name: 'API_KEY', value: 'xxx' }
+          ]
+        };
+        expect(getValueAtPath(object, ['env', 'filter:name:startsWith:DB_'])).toEqual({
+          name: 'DB_HOST',
+          value: 'localhost'
+        });
+      });
+
+      it('should return undefined when no item matches startsWith', () => {
+        const object = { env: [{ name: 'API_KEY', value: '1' }] };
+        expect(getValueAtPath(object, ['env', 'filter:name:startsWith:DB_'])).toBeUndefined();
+      });
     });
 
-    it('should handle complex nested path with filters', () => {
-      expect(parseJsonPath('spec.template.spec.containers[name=app].env[name=SECRET].value')).toEqual([
-        'spec',
-        'template',
-        'spec',
-        'containers',
-        'filter:name=app',
-        'env',
-        'filter:name=SECRET',
-        'value'
-      ]);
+    describe('endsWith operator', () => {
+      it('should find value with endsWith filter', () => {
+        const object = {
+          env: [
+            { name: 'API_KEY', value: 'xxx' },
+            { name: 'SECRET_KEY', value: 'yyy' },
+            { name: 'DEBUG', value: '1' }
+          ]
+        };
+        expect(getValueAtPath(object, ['env', 'filter:name:endsWith:_KEY'])).toEqual({
+          name: 'API_KEY',
+          value: 'xxx'
+        });
+      });
+
+      it('should return undefined when no item matches endsWith', () => {
+        const object = { env: [{ name: 'DEBUG', value: '1' }] };
+        expect(getValueAtPath(object, ['env', 'filter:name:endsWith:_KEY'])).toBeUndefined();
+      });
+    });
+
+    describe('contains operator', () => {
+      it('should find value with contains filter', () => {
+        const object = {
+          env: [
+            { name: 'MY_SECRET_KEY', value: 'xxx' },
+            { name: 'DEBUG', value: '1' }
+          ]
+        };
+        expect(getValueAtPath(object, ['env', 'filter:name:contains:SECRET'])).toEqual({
+          name: 'MY_SECRET_KEY',
+          value: 'xxx'
+        });
+      });
+
+      it('should return undefined when no item matches contains', () => {
+        const object = { env: [{ name: 'DEBUG', value: '1' }] };
+        expect(getValueAtPath(object, ['env', 'filter:name:contains:SECRET'])).toBeUndefined();
+      });
+    });
+
+    describe('nested paths with operators', () => {
+      it('should navigate nested path with startsWith filter', () => {
+        const object = {
+          containers: [
+            { name: 'init-db', resources: { memory: '128Mi' } },
+            { name: 'app', resources: { memory: '512Mi' } }
+          ]
+        };
+        expect(getValueAtPath(object, ['containers', 'filter:name:startsWith:init-', 'resources', 'memory'])).toBe(
+          '128Mi'
+        );
+      });
+
+      it('should navigate nested path with multiple operators', () => {
+        const object = {
+          containers: [
+            {
+              name: 'sidecar-metrics',
+              env: [
+                { name: 'API_KEY', value: 'xxx' },
+                { name: 'DEBUG', value: '1' }
+              ]
+            }
+          ]
+        };
+        expect(
+          getValueAtPath(object, [
+            'containers',
+            'filter:name:startsWith:sidecar-',
+            'env',
+            'filter:name:endsWith:_KEY',
+            'value'
+          ])
+        ).toBe('xxx');
+      });
     });
   });
 });
