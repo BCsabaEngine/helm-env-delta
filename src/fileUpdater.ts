@@ -10,6 +10,7 @@ import { FileMap } from './fileLoader';
 import { Logger } from './logger';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
+import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
 import { applyTransforms } from './utils/transformer';
 import { formatYaml } from './yamlFormatter';
 
@@ -104,7 +105,139 @@ const ensureParentDirectory = async (filePath: string): Promise<void> => {
   }
 };
 
-const deepMerge = (fullTarget: unknown, filteredSource: unknown, filteredTarget: unknown): unknown => {
+// Types for skipPath filter handling
+interface ApplicableFilter {
+  filter: { property: string; value: string; operator: 'eq' | 'startsWith' | 'endsWith' | 'contains' };
+  remainingPath: string[];
+}
+
+/**
+ * Identifies which skipPath filters apply to arrays at the current path.
+ * Returns filters that have the current path as prefix and a filter segment as the next part.
+ */
+const getApplicableArrayFilters = (currentPath: string[], skipPaths: string[]): ApplicableFilter[] => {
+  const filters: ApplicableFilter[] = [];
+
+  for (const skipPath of skipPaths) {
+    const segments = parseJsonPath(skipPath);
+
+    // Check if currentPath is a prefix of the skipPath
+    if (segments.length <= currentPath.length) continue;
+
+    let isPrefix = true;
+    for (let index = 0; index < currentPath.length; index++)
+      if (segments[index] !== currentPath[index]) {
+        isPrefix = false;
+        break;
+      }
+
+    if (!isPrefix) continue;
+
+    // The next segment after currentPath should be a filter
+    const nextSegment = segments[currentPath.length];
+    if (!nextSegment || !isFilterSegment(nextSegment)) continue;
+
+    const filter = parseFilterSegment(nextSegment);
+    if (!filter) continue;
+
+    // Remaining path after the filter segment (for nested skipPaths)
+    const remainingPath = segments.slice(currentPath.length + 1);
+
+    filters.push({ filter, remainingPath });
+  }
+
+  return filters;
+};
+
+/**
+ * Checks if an item matches any of the applicable filters.
+ */
+const itemMatchesAnyFilter = (
+  item: unknown,
+  applicableFilters: ApplicableFilter[]
+): { matches: boolean; matchedFilter?: ApplicableFilter } => {
+  if (!item || typeof item !== 'object') return { matches: false };
+
+  const itemObject = item as Record<string, unknown>;
+
+  for (const applicableFilter of applicableFilters) {
+    const itemValue = itemObject[applicableFilter.filter.property];
+    if (itemValue !== undefined && matchesFilter(itemValue, applicableFilter.filter))
+      return { matches: true, matchedFilter: applicableFilter };
+  }
+
+  return { matches: false };
+};
+
+/**
+ * Finds a matching item in fullTargetArray for a source item based on filter properties.
+ */
+const findMatchingTargetItem = (
+  sourceItem: unknown,
+  fullTargetArray: unknown[],
+  applicableFilters: ApplicableFilter[]
+): unknown | undefined => {
+  if (!sourceItem || typeof sourceItem !== 'object') return undefined;
+
+  const sourceObject = sourceItem as Record<string, unknown>;
+
+  for (const targetItem of fullTargetArray) {
+    if (!targetItem || typeof targetItem !== 'object') continue;
+    const targetObject = targetItem as Record<string, unknown>;
+
+    // Check if items match on any filter property
+    for (const { filter } of applicableFilters)
+      if (sourceObject[filter.property] === targetObject[filter.property]) return targetItem;
+  }
+
+  return undefined;
+};
+
+/**
+ * Determines if an array item should be preserved from fullTarget.
+ * An item should be preserved if it matches any applicable filter AND
+ * is not already present in the result array.
+ */
+const shouldPreserveItem = (
+  item: unknown,
+  applicableFilters: ApplicableFilter[],
+  existingResult: unknown[]
+): boolean => {
+  if (!item || typeof item !== 'object') return false;
+
+  const itemObject = item as Record<string, unknown>;
+
+  // Check if item matches any applicable filter
+  const { matches } = itemMatchesAnyFilter(item, applicableFilters);
+  if (!matches) return false;
+
+  // Check if item is already in the result (avoid duplicates)
+  // We compare by the filter property values to detect duplicates
+  for (const existingItem of existingResult) {
+    if (!existingItem || typeof existingItem !== 'object') continue;
+    const existingObject = existingItem as Record<string, unknown>;
+
+    // Check if all filter properties match between items
+    let isDuplicate = true;
+    for (const { filter } of applicableFilters)
+      if (existingObject[filter.property] !== itemObject[filter.property]) {
+        isDuplicate = false;
+        break;
+      }
+
+    if (isDuplicate) return false;
+  }
+
+  return true;
+};
+
+const deepMerge = (
+  fullTarget: unknown,
+  filteredSource: unknown,
+  filteredTarget: unknown,
+  currentPath: string[] = [],
+  skipPaths: string[] = []
+): unknown => {
   // Handle null/undefined cases
   if (filteredSource === null || filteredSource === undefined) return fullTarget;
   if (fullTarget === null || fullTarget === undefined) return filteredSource;
@@ -112,8 +245,42 @@ const deepMerge = (fullTarget: unknown, filteredSource: unknown, filteredTarget:
   // Type mismatch: replace with source
   if (typeof fullTarget !== typeof filteredSource) return filteredSource;
 
-  // Arrays: Replace entirely (no element-by-element merge)
-  if (Array.isArray(filteredSource)) return filteredSource;
+  // Arrays: Merge with skipPath-aware preservation
+  if (Array.isArray(filteredSource)) {
+    const fullTargetArray = Array.isArray(fullTarget) ? (fullTarget as unknown[]) : [];
+    const filteredTargetArray = Array.isArray(filteredTarget) ? (filteredTarget as unknown[]) : [];
+    const applicableFilters = getApplicableArrayFilters(currentPath, skipPaths);
+
+    // No applicable filters - replace entirely
+    if (applicableFilters.length === 0) return filteredSource;
+
+    // Check if any filter has remaining path (nested skipPath like `env[name=DEBUG].value`)
+    const hasNestedFilters = applicableFilters.some((f) => f.remainingPath.length > 0);
+
+    // Process source items - merge with fullTarget items to preserve nested skipped fields
+    const result: unknown[] = [];
+    for (const sourceItem of filteredSource) {
+      if (hasNestedFilters && sourceItem && typeof sourceItem === 'object') {
+        const { matches, matchedFilter } = itemMatchesAnyFilter(sourceItem, applicableFilters);
+        if (matches && matchedFilter && matchedFilter.remainingPath.length > 0) {
+          // Find the matching item in fullTarget to merge nested fields
+          const matchingTargetItem = findMatchingTargetItem(sourceItem, fullTargetArray, applicableFilters);
+          const matchingFilteredTargetItem = findMatchingTargetItem(sourceItem, filteredTargetArray, applicableFilters);
+          if (matchingTargetItem) {
+            // Recursively merge to preserve nested skipped fields
+            result.push(deepMerge(matchingTargetItem, sourceItem, matchingFilteredTargetItem, currentPath, skipPaths));
+            continue;
+          }
+        }
+      }
+      result.push(sourceItem);
+    }
+
+    // Add back items from fullTarget that match skipPath filters but aren't in source
+    for (const item of fullTargetArray) if (shouldPreserveItem(item, applicableFilters, result)) result.push(item);
+
+    return result;
+  }
 
   // Objects: Merge with skipPath preservation
   if (typeof filteredSource === 'object' && typeof fullTarget === 'object') {
@@ -128,7 +295,14 @@ const deepMerge = (fullTarget: unknown, filteredSource: unknown, filteredTarget:
 
     // Recursively merge fields that exist in source
     for (const [key, value] of Object.entries(sourceObject))
-      if (key in fullTargetObject) result[key] = deepMerge(fullTargetObject[key], value, filteredTargetObject[key]);
+      if (key in fullTargetObject)
+        result[key] = deepMerge(
+          fullTargetObject[key],
+          value,
+          filteredTargetObject[key],
+          [...currentPath, key],
+          skipPaths
+        );
 
     return result;
   }
@@ -141,7 +315,8 @@ const mergeYamlContent = (
   destinationContent: string,
   processedSourceContent: unknown,
   filteredDestinationContent: unknown,
-  filePath: string
+  filePath: string,
+  skipPaths: string[] = []
 ): string => {
   // 1. Parse current destination (full, unfiltered)
   let destinationParsed: unknown;
@@ -165,7 +340,7 @@ const mergeYamlContent = (
   // 2. Deep merge source changes into destination
   let merged: unknown;
   try {
-    merged = deepMerge(destinationParsed, processedSourceContent, filteredDestinationContent);
+    merged = deepMerge(destinationParsed, processedSourceContent, filteredDestinationContent, [], skipPaths);
   } catch (error) {
     throw new FileUpdaterError('Failed to merge YAML content', {
       code: 'YAML_MERGE_ERROR',
@@ -247,7 +422,8 @@ const updateFile = async (options: UpdateFileOptions): Promise<void> => {
         changedFile.destinationContent,
         changedFile.rawParsedSource,
         changedFile.rawParsedDest,
-        changedFile.path
+        changedFile.path,
+        changedFile.skipPaths
       )
     : changedFile.sourceContent;
 
