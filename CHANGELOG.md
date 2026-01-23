@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-01-23
+
+### Added
+
+- New filter operators for skipPath expressions: In addition to exact match (`=`), you can now use `^=` (startsWith), `$=` (endsWith), and `*=` (contains) operators to match array items by property patterns. For example, `env[name^=DB_]` skips all environment variables starting with "DB\_", `env[name$=_SECRET]` skips variables ending with "\_SECRET", and `env[name*=PASSWORD]` skips any variable containing "PASSWORD". Perfect for batch filtering items by naming conventions without listing each one individually.
+
 ## [1.7.2] - 2026-01-22
 
 ### Added
