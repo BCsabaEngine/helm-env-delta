@@ -169,105 +169,166 @@ export const HTML_STYLES = `
     background: #f6f8fa;
   }
 
-  .array-details {
-    margin: 20px 0;
-    background: #f6f8fa;
-    border-radius: 6px;
-    border-left: 3px solid #0969da;
+  /* Treeview styles */
+  .tree-root {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
   }
 
-  .array-details summary {
-    padding: 12px 15px;
+  .tree-root ul {
+    list-style: none;
+    padding-left: 20px;
+    margin: 0;
+  }
+
+  .tree-folder,
+  .tree-file {
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: default;
+  }
+
+  .tree-folder:hover,
+  .tree-file:hover {
+    background: #f6f8fa;
+  }
+
+  .tree-toggle {
+    display: inline-block;
+    width: 16px;
     cursor: pointer;
+    color: #586069;
+    font-size: 10px;
+    user-select: none;
+  }
+
+  .tree-folder.collapsed > .tree-toggle {
+    transform: rotate(-90deg);
+  }
+
+  .tree-folder.collapsed > .tree-children {
+    display: none;
+  }
+
+  .tree-folder-name {
     color: #0969da;
-    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .tree-file-name {
+    color: #586069;
+    padding-left: 16px;
+  }
+
+  /* Sidebar styles */
+  .sidebar-container {
+    display: flex;
+    gap: 0;
+  }
+
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    border-right: 1px solid #d0d7de;
+    background: #f6f8fa;
+    overflow-y: auto;
+    max-height: calc(100vh - 250px);
+    position: sticky;
+    top: 20px;
+    align-self: flex-start;
+    transition: width 0.2s, min-width 0.2s, padding 0.2s, opacity 0.2s;
+  }
+
+  .sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    border-right: none;
+  }
+
+  .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #d0d7de;
+    background: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    color: #24292e;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .sidebar-toggle {
+    background: none;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 4px 8px;
+    color: #586069;
+    font-size: 12px;
+  }
+
+  .sidebar-toggle:hover {
+    background: #f6f8fa;
+    color: #24292e;
+  }
+
+  .sidebar-content {
+    padding: 8px;
+  }
+
+  .sidebar-tree .tree-file-link {
+    color: #586069;
+    text-decoration: none;
+    padding-left: 16px;
+    display: block;
+  }
+
+  .sidebar-tree .tree-file-link:hover {
+    color: #0969da;
+  }
+
+  .sidebar-tree .tree-file.active .tree-file-link {
+    color: #0969da;
     font-weight: 600;
   }
 
-  .array-details summary:hover {
-    background: #eaeef2;
+  .changed-content {
+    flex: 1;
+    min-width: 0;
+    padding-left: 20px;
   }
 
-  .array-details > .array-section {
-    margin: 0 15px 15px 15px;
-  }
-
-  .array-section {
-    margin: 15px 0;
-    padding: 10px;
-    background: white;
-    border-radius: 4px;
-    border: 1px solid #d0d7de;
-  }
-
-  .array-section h4 {
-    margin: 0 0 10px 0;
-    color: #24292e;
-    font-size: 14px;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  }
-
-  .array-unchanged {
-    padding: 8px;
-    color: #586069;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-    font-size: 12px;
-  }
-
-  .added-items, .removed-items {
-    margin: 10px 0;
-  }
-
-  .added-items h4 {
-    color: #1a7f37;
-    margin: 0 0 8px 0;
-    font-size: 13px;
-  }
-
-  .removed-items h4 {
-    color: #cf222e;
-    margin: 0 0 8px 0;
-    font-size: 13px;
-  }
-
-  .added-items ul, .removed-items ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .added-items li {
-    padding: 6px 10px;
-    background: #dafbe1;
-    border-left: 3px solid #1a7f37;
-    margin: 4px 0;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-    font-size: 12px;
-  }
-
-  .removed-items li {
-    padding: 6px 10px;
-    background: #ffebe9;
-    border-left: 3px solid #cf222e;
-    margin: 4px 0;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-    font-size: 12px;
-  }
-
-  .added-items pre, .removed-items pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-  }
-
-  .unchanged-count {
-    padding: 8px 10px;
-    color: #586069;
-    font-size: 12px;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  .sidebar-expand-btn {
+    display: none;
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
     background: #f6f8fa;
-    border-radius: 4px;
-    margin: 10px 0;
+    border: 1px solid #d0d7de;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    padding: 8px 4px;
+    cursor: pointer;
+    color: #586069;
+    z-index: 100;
+  }
+
+  .sidebar-expand-btn:hover {
+    background: #eaeef2;
+    color: #24292e;
+  }
+
+  .sidebar.collapsed ~ .sidebar-expand-btn {
+    display: block;
   }
 `;
 
@@ -281,7 +342,7 @@ export const HTML_STYLES = `
  * - Formatted files
  * - Unchanged files
  */
-export const TAB_SCRIPT = `
+export const TAB_SCRIPT = String.raw`
   // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -298,4 +359,76 @@ export const TAB_SCRIPT = `
       document.getElementById(tabName).classList.add('active');
     });
   });
+
+  // Tree folder toggle
+  document.querySelectorAll('.tree-folder > .tree-toggle, .tree-folder > .tree-folder-name').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const folder = e.target.closest('.tree-folder');
+      if (folder) {
+        folder.classList.toggle('collapsed');
+      }
+    });
+  });
+
+  // Sidebar toggle
+  const sidebarToggle = document.querySelector('.sidebar-toggle');
+  const sidebar = document.querySelector('.sidebar');
+  const expandBtn = document.querySelector('.sidebar-expand-btn');
+
+  if (sidebarToggle && sidebar) {
+    sidebarToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '\u25B6' : '\u25C0';
+    });
+  }
+
+  if (expandBtn && sidebar) {
+    expandBtn.addEventListener('click', () => {
+      sidebar.classList.remove('collapsed');
+      if (sidebarToggle) {
+        sidebarToggle.textContent = '\u25C0';
+      }
+    });
+  }
+
+  // Sidebar file click - scroll to diff
+  document.querySelectorAll('.sidebar-tree .tree-file-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const fileId = link.getAttribute('href').substring(1);
+      const target = document.getElementById(fileId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Open the details if closed
+        if (target.tagName === 'DETAILS' && !target.open) {
+          target.open = true;
+        }
+        // Highlight active file in sidebar
+        document.querySelectorAll('.sidebar-tree .tree-file').forEach(f => f.classList.remove('active'));
+        link.closest('.tree-file').classList.add('active');
+      }
+    });
+  });
+
+  // IntersectionObserver to highlight current file on scroll
+  const fileSections = document.querySelectorAll('.file-section[id]');
+  if (fileSections.length > 0 && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const fileId = entry.target.id;
+          document.querySelectorAll('.sidebar-tree .tree-file').forEach(f => {
+            const link = f.querySelector('.tree-file-link');
+            if (link && link.getAttribute('href') === '#' + fileId) {
+              f.classList.add('active');
+            } else {
+              f.classList.remove('active');
+            }
+          });
+        }
+      });
+    }, { threshold: 0.3, rootMargin: '-100px 0px -50% 0px' });
+
+    fileSections.forEach(section => observer.observe(section));
+  }
 `;

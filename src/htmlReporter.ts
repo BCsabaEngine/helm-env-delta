@@ -4,13 +4,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { html as diff2html } from 'diff2html';
-import YAML from 'yaml';
 
 import { Config } from './configFile';
 import { ChangedFile, FileDiffResult } from './fileDiff';
 import { openInBrowser } from './reporters/browserLauncher';
 import { generateHtmlTemplate, ReportMetadata } from './reporters/htmlTemplate';
-import { ArrayChange, detectArrayChanges } from './utils/arrayDiffProcessor';
 import { generateUnifiedDiff } from './utils/diffGenerator';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
@@ -38,14 +36,6 @@ const generateTemporaryFilePath = (): string => {
   return path.join(tmpdir(), filename);
 };
 
-const escapeHtml = (text: string): string =>
-  text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-
 const DIFF2HTML_OPTIONS = {
   drawFileList: false,
   matching: 'lines',
@@ -54,108 +44,25 @@ const DIFF2HTML_OPTIONS = {
 
 const generateDiffHtml = (unifiedDiff: string): string => diff2html(unifiedDiff, DIFF2HTML_OPTIONS);
 
-const generateArrayDiffHtml = (change: ArrayChange): string => {
-  let html = '<div class="array-diff">';
-
-  if (change.removed.length > 0) {
-    html += '<div class="removed-items">';
-    html += `<h4>Removed (${change.removed.length})</h4>`;
-    html += '<ul>';
-    for (const item of change.removed) {
-      const yaml = YAML.stringify(item, { indent: 2 });
-      html += `<li class="removed"><pre>${escapeHtml(yaml)}</pre></li>`;
-    }
-    html += '</ul></div>';
-  }
-
-  if (change.added.length > 0) {
-    html += '<div class="added-items">';
-    html += `<h4>Added (${change.added.length})</h4>`;
-    html += '<ul>';
-    for (const item of change.added) {
-      const yaml = YAML.stringify(item, { indent: 2 });
-      html += `<li class="added"><pre>${escapeHtml(yaml)}</pre></li>`;
-    }
-    html += '</ul></div>';
-  }
-
-  if (change.unchanged.length > 0)
-    html += `<div class="unchanged-count">Unchanged: ${change.unchanged.length} items</div>`;
-
-  html += '</div>';
-  return html;
-};
-
 const generateFileSummary = (file: ChangedFile): string => {
   if (!file.originalPath) return file.path;
 
   return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
 };
 
-const generateChangedFileSection = (file: ChangedFile): string => {
+const generateChangedFileSection = (file: ChangedFile, fileId: string): string => {
   const isYaml = isYamlFile(file.path);
   const summary = generateFileSummary(file);
-
-  if (!isYaml) {
-    const destinationContent = serializeForDiff(file.processedDestContent, false);
-    const sourceContent = serializeForDiff(file.processedSourceContent, false);
-    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-    const diffHtml = generateDiffHtml(unifiedDiff);
-
-    return `
-    <details class="file-section" open>
-      <summary>${summary}</summary>
-      <div class="diff-container">
-        ${diffHtml}
-      </div>
-    </details>
-  `;
-  }
-
-  const arrayInfo = detectArrayChanges(file);
-
-  if (!arrayInfo.hasArrays) {
-    const destinationContent = serializeForDiff(file.processedDestContent, true);
-    const sourceContent = serializeForDiff(file.processedSourceContent, true);
-    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-    const diffHtml = generateDiffHtml(unifiedDiff);
-
-    return `
-    <details class="file-section" open>
-      <summary>${summary}</summary>
-      <div class="diff-container">
-        ${diffHtml}
-      </div>
-    </details>
-  `;
-  }
-
-  const destinationContent = serializeForDiff(file.processedDestContent, true);
-  const sourceContent = serializeForDiff(file.processedSourceContent, true);
+  const destinationContent = serializeForDiff(file.processedDestContent, isYaml);
+  const sourceContent = serializeForDiff(file.processedSourceContent, isYaml);
   const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
   const diffHtml = generateDiffHtml(unifiedDiff);
 
-  let arrayDiffsHtml = '';
-
-  if (arrayInfo.hasChanges) {
-    arrayDiffsHtml = '<details class="array-details"><summary>Array-specific details:</summary>';
-
-    for (const change of arrayInfo.changes) {
-      const pathString = change.path.join('.');
-      arrayDiffsHtml += `<div class="array-section"><h4>${pathString}:</h4>`;
-      arrayDiffsHtml += generateArrayDiffHtml(change);
-      arrayDiffsHtml += '</div>';
-    }
-
-    arrayDiffsHtml += '</details>';
-  }
-
   return `
-    <details class="file-section" open>
+    <details class="file-section" id="${fileId}" data-file-id="${fileId}" open>
       <summary>${summary}</summary>
       <div class="diff-container">
         ${diffHtml}
-        ${arrayDiffsHtml}
       </div>
     </details>
   `;
@@ -210,11 +117,24 @@ export const generateHtmlReport = async (
   const formattedSet = new Set(formattedFiles);
   const trulyUnchangedFiles = diffResult.unchangedFiles.filter((file) => !formattedSet.has(file));
 
-  // Generate file sections
-  const changedSections = diffResult.changedFiles.map((file) => generateChangedFileSection(file));
+  // Generate file IDs map for sidebar navigation
+  const changedFileIds = new Map<string, string>();
+  for (const [index, file] of diffResult.changedFiles.entries()) changedFileIds.set(file.path, `file-${index}`);
+
+  // Generate file sections with IDs
+  const changedSections = diffResult.changedFiles.map((file, index) =>
+    generateChangedFileSection(file, `file-${index}`)
+  );
 
   // Generate complete HTML
-  const htmlContent = generateHtmlTemplate(diffResult, formattedFiles, trulyUnchangedFiles, metadata, changedSections);
+  const htmlContent = generateHtmlTemplate(
+    diffResult,
+    formattedFiles,
+    trulyUnchangedFiles,
+    metadata,
+    changedSections,
+    changedFileIds
+  );
 
   // Write HTML file
   await writeHtmlFile(htmlContent, reportPath);

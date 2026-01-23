@@ -45,7 +45,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
 - `suggestionEngine.ts` - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules)
-- Reporters: `htmlReporter.ts`, `consoleDiffReporter.ts`, `jsonReporter.ts`
+- Reporters: `htmlReporter.ts`, `consoleDiffReporter.ts`, `jsonReporter.ts`, `treeBuilder.ts`, `treeRenderer.ts`
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
 
 **Config Schema:**
@@ -158,7 +158,7 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**31 test files, 990+ tests:** Core modules, reporters, utils, integration tests
+**41 test files, 990+ tests:** Core modules, reporters, utils, integration tests
 
 **Performance:** 8 benchmark files in `test/perf/`. Uses Vitest `bench()` API. Run: `npm run test:perf`
 
