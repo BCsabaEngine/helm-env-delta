@@ -38,7 +38,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `configFile.ts` - Zod validation (BaseConfig/FinalConfig)
 - `configLoader.ts` / `configMerger.ts` - YAML loading, inheritance (max 5 levels)
 - `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts)
-- `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules match files)
+- `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
 - `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → skipPath → normalize → deepEqual)
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
@@ -55,6 +55,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `skipPath`: JSONPath patterns per-file (glob patterns), supports CSS-style filter expressions `[prop=value]`, `[prop^=prefix]`, `[prop$=suffix]`, `[prop*=substring]`
 - `transforms`: Object with `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
 - `stopRules`: semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey
+- `fixedValues`: Set JSONPath locations to constant values (glob pattern → array of {path, value}), applied after merge
 - `outputFormat`: indent, keySeparator, quoteValues, keyOrders, arraySort
 
 **Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk
@@ -84,6 +85,7 @@ Barrel exports via `index.ts`:
 - `versionChecker.ts` - checkForUpdates (npm registry, CI detection)
 - `transformFileLoader.ts` - loadTransformFile, loadTransformFiles, escapeRegex
 - `regexPatternFileLoader.ts` - loadRegexPatternArray, loadRegexPatternsFromKeys
+- `fixedValues.ts` - getFixedValuesForFile, applyFixedValues, setValueAtPath (constant value injection)
 
 **Error Pattern:** All modules use `errors.ts` factory for custom error classes with type guards, error codes, hints.
 
@@ -92,7 +94,7 @@ Barrel exports via `index.ts`:
 1. **File Loading** - tinyglobby + parallel → filename transforms → filtering (cached patterns) → Map
 2. **Diff** - parse → content transforms → skipPath (early return) → normalize (cached stringify) → deepEqual
 3. **Stop Rules** - Validate JSONPath values (memoized, semver, versionFormat, numeric, regex), fail unless --force
-4. **Update** - Deep merge → yamlFormatter (batched patterns) → write/dry-run
+4. **Update** - Deep merge → **fixedValues** → yamlFormatter (batched patterns) → write/dry-run
 5. **Format** - Parse AST → apply rules → serialize
 
 ## SkipPath Filter Expressions
@@ -131,6 +133,32 @@ skipPath:
 
 **Syntax:** `array[prop<op>value]` where `<op>` is `=`, `^=`, `$=`, or `*=`. Supports quoted values for spaces.
 
+## Fixed Values
+
+Set specific JSONPath locations to constant values, regardless of source/destination values. Applied after merge, before formatting.
+
+```yaml
+fixedValues:
+  '**/*.yaml':
+    - path: 'env[name=LOG_LEVEL].value'
+      value: 'info'
+    - path: 'spec.replicas'
+      value: 3
+  'values-prod.yaml':
+    - path: 'debug'
+      value: false
+```
+
+**Supports all filter operators:** `=`, `^=`, `$=`, `*=`
+
+**Value types:** string, number, boolean, null, object, array
+
+**Behavior:**
+
+- Non-existent paths silently skipped
+- Multiple rules for same path: last one wins
+- Works with skipPath (fixedValues wins, applied after skipPath restored)
+
 ## Stop Rules
 
 1. **semverMajorUpgrade** - Block major bumps (v1→v2)
@@ -152,7 +180,7 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 1. **Phase 1 (Static)** - `configWarnings.ts` validates syntax, inefficient patterns, duplicates
 2. **Phase 2 (File-Based)** - `patternUsageValidator.ts` validates pattern usage against actual files
 
-**What Gets Validated:** exclude patterns, skipPath patterns (glob + JSONPath), stopRules patterns (glob + path field)
+**What Gets Validated:** exclude patterns, skipPath patterns (glob + JSONPath), stopRules patterns (glob + path field), fixedValues patterns (glob + path field)
 
 ## Testing
 

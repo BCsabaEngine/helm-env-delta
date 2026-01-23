@@ -38,6 +38,8 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 🎯 **Path Filtering** - Preserve environment-specific values (namespaces, replicas, secrets) that should never sync.
 
+📌 **Fixed Values** - Set specific fields to constant values regardless of source/destination. Enforce production settings like `debug: false` or `replicas: 3` after every sync.
+
 🔄 **Powerful Transforms** - Regex find/replace for both file content and paths. Load transforms from external YAML files for reusability. Change `uat-db.internal` → `prod-db.internal` automatically.
 
 🛡️ **Safety Rules** - Block major version upgrades, scaling violations, and forbidden patterns. Load validation rules from external files. Scan globally or target specific fields.
@@ -252,6 +254,21 @@ helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
 - Pattern files (`regexFile`, `regexFileKey`)
 - Global vs targeted regex validation
 
+### 📌 Example 6: Fixed Values
+
+Set specific fields to constant values regardless of source/destination. Perfect for enforcing production settings.
+
+```bash
+helm-env-delta --config example/6-fixed-values/config.yaml --dry-run --diff
+```
+
+**Features shown:**
+
+- Simple path fixed values (`debug: false`, `logLevel: warn`)
+- Nested paths (`spec.replicas`)
+- Array filter operators (`env[name=LOG_LEVEL].value`)
+- Combining with skipPath and transforms
+
 ---
 
 ## 💡 Smart Configuration Suggestions (Heuristic)
@@ -418,6 +435,49 @@ skipPath:
 - Combine with wildcards: `containers[name=app].env[*].value`
 
 **Use cases:** Namespaces, replicas, resource limits, secrets, URLs, environment-specific array items, batch filtering by naming conventions.
+
+---
+
+### 📌 Fixed Values (fixedValues)
+
+Set specific JSONPath locations to constant values, regardless of source/destination values. Applied after merge, before formatting.
+
+```yaml
+fixedValues:
+  # Apply to all YAML files
+  '**/*.yaml':
+    - path: 'debug'
+      value: false
+    - path: 'logLevel'
+      value: 'warn'
+
+  # Specific file patterns
+  'deployment.yaml':
+    - path: 'spec.replicas'
+      value: 3
+    - path: 'spec.template.spec.containers[name=app].resources.limits.memory'
+      value: '512Mi'
+
+  # Array filter operators supported
+  'configmap.yaml':
+    - path: 'data.env[name=LOG_LEVEL].value'
+      value: 'info'
+    - path: 'data.env[name^=FEATURE_].value' # startsWith
+      value: 'stable'
+```
+
+**Supported filter operators:** `=` (equals), `^=` (startsWith), `$=` (endsWith), `*=` (contains)
+
+**Value types:** String, number, boolean, null, object, array
+
+**Behavior:**
+
+- Applied after merge, before formatting
+- Non-existent paths are silently skipped
+- Multiple rules for same path: last one wins
+- Works with skipPath (fixedValues applied after skipPath restoration)
+
+**Use cases:** Enforce production settings (`debug: false`), standardize resource limits, set mandatory environment variables, ensure consistent configuration across syncs.
 
 ---
 
