@@ -10,6 +10,7 @@ import { FileMap } from './fileLoader';
 import { Logger } from './logger';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
+import { applyFixedValues, getFixedValuesForFile } from './utils/fixedValues';
 import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
 import { applyTransforms } from './utils/transformer';
 import { formatYaml } from './yamlFormatter';
@@ -372,7 +373,7 @@ const addFile = async (options: FileOperationOptions): Promise<void> => {
 
   let contentToWrite = content;
 
-  // Apply transforms and formatting for YAML files
+  // Apply transforms, fixed values, and formatting for YAML files
   if (isYamlFile(relativePath))
     try {
       // Parse YAML
@@ -380,6 +381,10 @@ const addFile = async (options: FileOperationOptions): Promise<void> => {
 
       // Apply transforms
       const transformed = applyTransforms(parsed, relativePath, config.transforms);
+
+      // Apply fixed values
+      const fixedValueRules = getFixedValuesForFile(relativePath, config.fixedValues);
+      if (fixedValueRules.length > 0) applyFixedValues(transformed, fixedValueRules);
 
       // Serialize back to YAML
       contentToWrite = YAML.stringify(transformed);
@@ -428,6 +433,14 @@ const updateFile = async (options: UpdateFileOptions): Promise<void> => {
     : changedFile.sourceContent;
 
   if (isYamlFile(changedFile.path)) {
+    // Apply fixed values after merge, before formatting
+    const fixedValueRules = getFixedValuesForFile(changedFile.path, config.fixedValues);
+    if (fixedValueRules.length > 0) {
+      const parsed = YAML.parse(contentToWrite);
+      applyFixedValues(parsed, fixedValueRules);
+      contentToWrite = YAML.stringify(parsed);
+    }
+
     const effectiveOutputFormat = skipFormat ? undefined : config.outputFormat;
     contentToWrite = formatYaml(contentToWrite, changedFile.path, effectiveOutputFormat);
   }

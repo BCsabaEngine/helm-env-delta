@@ -704,5 +704,249 @@ describe('fileUpdater', () => {
         expect(writtenContent).toContain('1Gi');
       });
     });
+
+    describe('fixedValues', () => {
+      it('should apply fixedValues to changed files', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent: 'version: 1.0.0\nreplicas: 1',
+              destinationContent: 'version: 0.9.0\nreplicas: 1',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { version: '1.0.0', replicas: 1 },
+              rawParsedDest: { version: '0.9.0', replicas: 1 }
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([['values.yaml', 'version: 1.0.0\nreplicas: 1']]);
+        const destination = new Map([['values.yaml', 'version: 0.9.0\nreplicas: 1']]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          fixedValues: {
+            '*.yaml': [{ path: 'replicas', value: 3 }]
+          }
+        };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        expect(writtenContent).toContain('replicas: 3');
+        expect(writtenContent).toContain('version: 1.0.0');
+      });
+
+      it('should apply fixedValues to added files', async () => {
+        const diffResult = {
+          addedFiles: ['new.yaml'],
+          deletedFiles: [],
+          changedFiles: [],
+          unchangedFiles: []
+        };
+        const source = new Map([['new.yaml', 'debug: true\nlogLevel: debug']]);
+        const destination = new Map();
+        const config = {
+          source: './src',
+          destination: './dest',
+          fixedValues: {
+            '*.yaml': [
+              { path: 'debug', value: false },
+              { path: 'logLevel', value: 'info' }
+            ]
+          }
+        };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        expect(writtenContent).toContain('debug: false');
+        expect(writtenContent).toContain('logLevel: info');
+      });
+
+      it('should apply fixedValues with array filter', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent: 'env:\n  - name: LOG_LEVEL\n    value: debug',
+              destinationContent: 'env:\n  - name: LOG_LEVEL\n    value: warn',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { env: [{ name: 'LOG_LEVEL', value: 'debug' }] },
+              rawParsedDest: { env: [{ name: 'LOG_LEVEL', value: 'warn' }] }
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([['values.yaml', 'env:\n  - name: LOG_LEVEL\n    value: debug']]);
+        const destination = new Map([['values.yaml', 'env:\n  - name: LOG_LEVEL\n    value: warn']]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          fixedValues: {
+            '*.yaml': [{ path: 'env[name=LOG_LEVEL].value', value: 'info' }]
+          }
+        };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        expect(writtenContent).toContain('value: info');
+      });
+
+      it('should apply fixedValues after merge with skipPath', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent: 'version: 2.0.0\nenv:\n  - name: DEBUG\n    value: "1"\n  - name: LOG\n    value: new',
+              destinationContent:
+                'version: 1.0.0\nenv:\n  - name: DEBUG\n    value: prod-debug\n  - name: LOG\n    value: old',
+              processedSourceContent: {},
+              processedDestContent: {},
+              // DEBUG is filtered by skipPath
+              rawParsedSource: { version: '2.0.0', env: [{ name: 'LOG', value: 'new' }] },
+              rawParsedDest: { version: '1.0.0', env: [{ name: 'LOG', value: 'old' }] },
+              skipPaths: ['env[name=DEBUG]']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([
+          ['values.yaml', 'version: 2.0.0\nenv:\n  - name: DEBUG\n    value: "1"\n  - name: LOG\n    value: new']
+        ]);
+        const destination = new Map([
+          ['values.yaml', 'version: 1.0.0\nenv:\n  - name: DEBUG\n    value: prod-debug\n  - name: LOG\n    value: old']
+        ]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          fixedValues: {
+            '*.yaml': [{ path: 'env[name=LOG].value', value: 'fixed-log' }]
+          }
+        };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should preserve DEBUG from destination (skipPath)
+        expect(writtenContent).toContain('DEBUG');
+        expect(writtenContent).toContain('prod-debug');
+        // Should apply fixedValue to LOG
+        expect(writtenContent).toContain('fixed-log');
+        // Should update version from source
+        expect(writtenContent).toContain('version: 2.0.0');
+      });
+
+      it('should silently skip non-existent fixedValue paths', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent: 'existing: value',
+              destinationContent: 'existing: old-value',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { existing: 'value' },
+              rawParsedDest: { existing: 'old-value' }
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([['values.yaml', 'existing: value']]);
+        const destination = new Map([['values.yaml', 'existing: old-value']]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          fixedValues: {
+            '*.yaml': [{ path: 'nonexistent.nested.path', value: 'ignored' }]
+          }
+        };
+
+        // Should not throw
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        expect(writtenContent).toContain('existing: value');
+        expect(writtenContent).not.toContain('ignored');
+      });
+
+      it('should apply fixedValues only to matching file patterns', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values-prod.yaml',
+              sourceContent: 'debug: true',
+              destinationContent: 'debug: true',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { debug: true },
+              rawParsedDest: { debug: true }
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([['values-prod.yaml', 'debug: true']]);
+        const destination = new Map([['values-prod.yaml', 'debug: true']]);
+        const config = {
+          source: './src',
+          destination: './dest',
+          fixedValues: {
+            'values-prod.yaml': [{ path: 'debug', value: false }]
+          }
+        };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        expect(writtenContent).toContain('debug: false');
+      });
+
+      it('should apply multiple fixedValues rules in order', async () => {
+        const diffResult = {
+          addedFiles: ['test.yaml'],
+          deletedFiles: [],
+          changedFiles: [],
+          unchangedFiles: []
+        };
+        const source = new Map([['test.yaml', 'value: original']]);
+        const destination = new Map();
+        const config = {
+          source: './src',
+          destination: './dest',
+          fixedValues: {
+            '*.yaml': [
+              { path: 'value', value: 'first' },
+              { path: 'value', value: 'second' },
+              { path: 'value', value: 'final' }
+            ]
+          }
+        };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        expect(writtenContent).toContain('value: final');
+      });
+    });
   });
 });

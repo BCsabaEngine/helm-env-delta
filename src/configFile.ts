@@ -122,6 +122,17 @@ const arraySortRuleSchema = z.object({
   order: z.enum(['asc', 'desc']).default('asc')
 });
 
+// Fixed Value Schema
+/**
+ * Fixed value rule that sets a specific JSONPath location to a constant value.
+ * Applied after merge, before formatting.
+ * Supports all JSONPath filter operators: =, ^=, $=, *=
+ */
+const fixedValueRuleSchema = z.object({
+  path: z.string().min(1).describe('JSONPath to the value to set'),
+  value: z.unknown().describe('The constant value to set (any type: string, number, boolean, null, object, array)')
+});
+
 // ============================================================================
 // Transform Schema
 // ============================================================================
@@ -204,7 +215,9 @@ const baseConfigSchema = z.object({
 
   transforms: z.record(z.string(), transformRulesSchema).optional(),
 
-  stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional()
+  stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional(),
+
+  fixedValues: z.record(z.string(), z.array(fixedValueRuleSchema)).optional()
 });
 
 // Final Configuration Schema (requires source and destination, applies defaults)
@@ -244,6 +257,8 @@ export type TransformRule = z.infer<typeof transformRuleSchema>;
 export type TransformRules = z.infer<typeof transformRulesSchema>;
 export type TransformConfig = Record<string, TransformRules>;
 export type OutputFormat = BaseConfig['outputFormat'];
+export type FixedValueRule = z.infer<typeof fixedValueRuleSchema>;
+export type FixedValueConfig = Record<string, FixedValueRule[]>;
 
 //Parses and validates base configuration (allows partial configs)
 export const parseBaseConfig = (data: unknown, configPath?: string): BaseConfig => {

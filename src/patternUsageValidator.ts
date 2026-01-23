@@ -22,7 +22,9 @@ export interface PatternUsageWarning {
     | 'unused-skipPath'
     | 'unused-skipPath-jsonpath'
     | 'unused-stopRule-glob'
-    | 'unused-stopRule-path';
+    | 'unused-stopRule-path'
+    | 'unused-fixedValues'
+    | 'unused-fixedValues-jsonpath';
   pattern: string;
   message: string;
   context?: string;
@@ -45,7 +47,8 @@ export const validatePatternUsage = (
   const warnings: PatternUsageWarning[] = [
     ...validateExcludePatterns(config, sourceFiles, destinationFiles),
     ...validateSkipPathPatterns(config, sourceFiles, destinationFiles),
-    ...validateStopRulePatterns(config, sourceFiles, destinationFiles)
+    ...validateStopRulePatterns(config, sourceFiles, destinationFiles),
+    ...validateFixedValuesPatterns(config, sourceFiles, destinationFiles)
   ];
 
   return {
@@ -192,6 +195,57 @@ const validateStopRulePatterns = (
  */
 const hasPathField = (rule: StopRule): rule is StopRule & { path?: string } =>
   'path' in rule && typeof rule.path === 'string';
+
+/**
+ * Validates fixedValues patterns match at least one file.
+ * Also validates that JSONPaths exist in at least one matched file.
+ */
+const validateFixedValuesPatterns = (
+  config: FinalConfig,
+  sourceFiles: FileMap,
+  destinationFiles: FileMap
+): PatternUsageWarning[] => {
+  const warnings: PatternUsageWarning[] = [];
+
+  if (!config.fixedValues) return warnings;
+
+  const allFiles = new Set([...sourceFiles.keys(), ...destinationFiles.keys()]);
+
+  for (const [pattern, rules] of Object.entries(config.fixedValues)) {
+    // Check if glob matches any files
+    const matchedFiles = [...allFiles].filter((filePath) => globalMatcher.match(filePath, pattern));
+
+    if (matchedFiles.length === 0) {
+      warnings.push({
+        type: 'unused-fixedValues',
+        pattern,
+        message: `fixedValues pattern '${pattern}' matches no files`,
+        context: `${rules.length} rule(s) defined`
+      });
+      continue; // Skip JSONPath validation if glob doesn't match
+    }
+
+    // Only validate for YAML files
+    const yamlFiles = matchedFiles.filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
+
+    if (yamlFiles.length === 0) continue;
+
+    // For each rule's path, verify it exists in at least one matched file
+    for (const rule of rules) {
+      const pathExistsInAny = validateJsonPathInFiles(rule.path, yamlFiles, sourceFiles, destinationFiles);
+
+      if (!pathExistsInAny)
+        warnings.push({
+          type: 'unused-fixedValues-jsonpath',
+          pattern,
+          message: `fixedValues JSONPath '${rule.path}' not found in any matched files`,
+          context: `Pattern: ${pattern}, matches ${yamlFiles.length} file(s)`
+        });
+    }
+  }
+
+  return warnings;
+};
 
 /**
  * Checks if a JSONPath could potentially match in an object.
