@@ -500,5 +500,85 @@ describe('htmlReporter', () => {
       // Should not have the span with transform class wrapping the filename
       expect(htmlContent).not.toContain('<span class="filename-transform">');
     });
+
+    it('should include treeview classes in added files section', async () => {
+      const diffResult = createMockDiffResult({
+        addedFiles: ['src/new.yaml', 'config/app.yaml']
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('class="tree-root"');
+      expect(htmlContent).toContain('class="tree-folder"');
+      expect(htmlContent).toContain('class="tree-file"');
+    });
+
+    it('should include sidebar in changed files section', async () => {
+      const changedFile = createMockChangedFile({ path: 'test.yaml' });
+      const diffResult = createMockDiffResult({
+        changedFiles: [changedFile]
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('class="sidebar-container"');
+      expect(htmlContent).toContain('class="sidebar"');
+      expect(htmlContent).toContain('class="sidebar-header"');
+      expect(htmlContent).toContain('Changed Files');
+    });
+
+    it('should include data-file-id attributes on changed file sections', async () => {
+      const changedFile = createMockChangedFile({ path: 'test.yaml' });
+      const diffResult = createMockDiffResult({
+        changedFiles: [changedFile]
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('data-file-id="file-0"');
+      expect(htmlContent).toContain('id="file-0"');
+    });
+
+    it('should include tree toggle JavaScript', async () => {
+      const diffResult = createMockDiffResult();
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('tree-folder');
+      expect(htmlContent).toContain('tree-toggle');
+    });
+
+    it('should render treeview for unchanged files', async () => {
+      const diffResult = createMockDiffResult({
+        unchangedFiles: ['src/app.yaml', 'lib/utils.yaml']
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('tree-root');
+    });
+
+    it('should render treeview for formatted files', async () => {
+      const diffResult = createMockDiffResult({
+        unchangedFiles: ['src/app.yaml']
+      });
+      const formattedFiles = ['src/app.yaml'];
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, formattedFiles, config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('1 Formatted');
+    });
   });
 });

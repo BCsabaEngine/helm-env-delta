@@ -50,7 +50,7 @@ const generateFileSummary = (file: ChangedFile): string => {
   return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
 };
 
-const generateChangedFileSection = (file: ChangedFile): string => {
+const generateChangedFileSection = (file: ChangedFile, fileId: string): string => {
   const isYaml = isYamlFile(file.path);
   const summary = generateFileSummary(file);
   const destinationContent = serializeForDiff(file.processedDestContent, isYaml);
@@ -59,7 +59,7 @@ const generateChangedFileSection = (file: ChangedFile): string => {
   const diffHtml = generateDiffHtml(unifiedDiff);
 
   return `
-    <details class="file-section" open>
+    <details class="file-section" id="${fileId}" data-file-id="${fileId}" open>
       <summary>${summary}</summary>
       <div class="diff-container">
         ${diffHtml}
@@ -117,11 +117,24 @@ export const generateHtmlReport = async (
   const formattedSet = new Set(formattedFiles);
   const trulyUnchangedFiles = diffResult.unchangedFiles.filter((file) => !formattedSet.has(file));
 
-  // Generate file sections
-  const changedSections = diffResult.changedFiles.map((file) => generateChangedFileSection(file));
+  // Generate file IDs map for sidebar navigation
+  const changedFileIds = new Map<string, string>();
+  for (const [index, file] of diffResult.changedFiles.entries()) changedFileIds.set(file.path, `file-${index}`);
+
+  // Generate file sections with IDs
+  const changedSections = diffResult.changedFiles.map((file, index) =>
+    generateChangedFileSection(file, `file-${index}`)
+  );
 
   // Generate complete HTML
-  const htmlContent = generateHtmlTemplate(diffResult, formattedFiles, trulyUnchangedFiles, metadata, changedSections);
+  const htmlContent = generateHtmlTemplate(
+    diffResult,
+    formattedFiles,
+    trulyUnchangedFiles,
+    metadata,
+    changedSections,
+    changedFileIds
+  );
 
   // Write HTML file
   await writeHtmlFile(htmlContent, reportPath);

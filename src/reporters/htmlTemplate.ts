@@ -1,5 +1,7 @@
 import { FileDiffResult } from '../fileDiff';
 import { HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
+import { buildFileTree } from './treeBuilder';
+import { renderSidebarTree, renderTreeview } from './treeRenderer';
 
 // ============================================================================
 // Types
@@ -31,6 +33,7 @@ export interface ReportMetadata {
  * @param trulyUnchangedFiles - Files with no changes at all
  * @param metadata - Report metadata (timestamp, paths, etc.)
  * @param changedSections - Pre-rendered HTML sections for changed files
+ * @param changedFileIds - Map of changed file paths to their DOM element IDs
  * @returns Complete HTML document as a string
  *
  * @example
@@ -47,7 +50,8 @@ export interface ReportMetadata {
  *   formattedFiles,
  *   unchangedFiles,
  *   metadata,
- *   changedSections
+ *   changedSections,
+ *   changedFileIds
  * );
  * ```
  */
@@ -56,8 +60,16 @@ export const generateHtmlTemplate = (
   formattedFiles: string[],
   trulyUnchangedFiles: string[],
   metadata: ReportMetadata,
-  changedSections: string[]
+  changedSections: string[],
+  changedFileIds: Map<string, string> = new Map()
 ): string => {
+  // Build trees for all file lists
+  const changedFilePaths = diffResult.changedFiles.map((f) => f.path);
+  const changedTree = buildFileTree(changedFilePaths);
+  const addedTree = buildFileTree(diffResult.addedFiles);
+  const deletedTree = buildFileTree(diffResult.deletedFiles);
+  const formattedTree = buildFileTree(formattedFiles);
+  const unchangedTree = buildFileTree(trulyUnchangedFiles);
   return `
 <!DOCTYPE html>
 <html>
@@ -97,8 +109,27 @@ ${HTML_STYLES}
 
   <main>
     <section id="changed" class="tab-content active">
-      ${changedSections.join('\n')}
-      ${changedSections.length === 0 ? '<p style="color: #586069; text-align: center; padding: 40px;">No changed files</p>' : ''}
+      ${
+        changedSections.length > 0
+          ? `
+        <div class="sidebar-container">
+          <aside class="sidebar" id="changed-sidebar">
+            <div class="sidebar-header">
+              <span>Changed Files</span>
+              <button class="sidebar-toggle">&#9664;</button>
+            </div>
+            <div class="sidebar-content">
+              ${renderSidebarTree(changedTree, changedFileIds)}
+            </div>
+          </aside>
+          <button class="sidebar-expand-btn">&#9654;</button>
+          <div class="changed-content">
+            ${changedSections.join('\n')}
+          </div>
+        </div>
+      `
+          : '<p style="color: #586069; text-align: center; padding: 40px;">No changed files</p>'
+      }
     </section>
 
     <section id="added" class="tab-content">
@@ -106,9 +137,7 @@ ${HTML_STYLES}
         diffResult.addedFiles.length > 0
           ? `
         <div class="file-list">
-          <ul>
-            ${diffResult.addedFiles.map((file) => `<li>${file}</li>`).join('\n')}
-          </ul>
+          ${renderTreeview(addedTree)}
         </div>
       `
           : '<p style="color: #586069; text-align: center; padding: 40px;">No added files</p>'
@@ -120,9 +149,7 @@ ${HTML_STYLES}
         diffResult.deletedFiles.length > 0
           ? `
         <div class="file-list">
-          <ul>
-            ${diffResult.deletedFiles.map((file) => `<li>${file}</li>`).join('\n')}
-          </ul>
+          ${renderTreeview(deletedTree)}
         </div>
       `
           : '<p style="color: #586069; text-align: center; padding: 40px;">No deleted files</p>'
@@ -134,9 +161,7 @@ ${HTML_STYLES}
         formattedFiles.length > 0
           ? `
         <div class="file-list">
-          <ul>
-            ${formattedFiles.map((file) => `<li>${file}</li>`).join('\n')}
-          </ul>
+          ${renderTreeview(formattedTree)}
         </div>
       `
           : '<p style="color: #586069; text-align: center; padding: 40px;">No files with only formatting changes</p>'
@@ -148,9 +173,7 @@ ${HTML_STYLES}
         trulyUnchangedFiles.length > 0
           ? `
         <div class="file-list">
-          <ul>
-            ${trulyUnchangedFiles.map((file) => `<li>${file}</li>`).join('\n')}
-          </ul>
+          ${renderTreeview(unchangedTree)}
         </div>
       `
           : '<p style="color: #586069; text-align: center; padding: 40px;">No unchanged files</p>'
