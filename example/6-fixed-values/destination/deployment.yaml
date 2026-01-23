@@ -1,0 +1,27 @@
+# Destination: Production deployment (will be updated by sync)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: production
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: app
+          image: prod-registry/my-app:v1.1.0
+          resources:
+            limits:
+              memory: '256Mi'
+              cpu: '200m'
+            requests:
+              memory: '128Mi'
+              cpu: '100m'
+        - name: sidecar
+          image: prod-registry/sidecar:v1.0.0
+          resources:
+            limits:
+              memory: '64Mi'
+debug: false
+logLevel: 'info'
