@@ -43,7 +43,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → skipPath → normalize → deepEqual)
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
-- `fileUpdater.ts` - Deep merge sync (preserves skipped paths)
+- `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
 - `suggestionEngine.ts` - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules)
 - Reporters: `htmlReporter.ts`, `consoleDiffReporter.ts`, `jsonReporter.ts`
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
@@ -158,7 +158,7 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**31 test files, 925+ tests:** Core modules, reporters, utils, integration tests
+**31 test files, 990+ tests:** Core modules, reporters, utils, integration tests
 
 **Performance:** 8 benchmark files in `test/perf/`. Uses Vitest `bench()` API. Run: `npm run test:perf`
 
@@ -170,7 +170,7 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 
 **Data:** `Map<string, string>` for O(1) lookup, sorted keys
 
-**Deep Merge:** Preserves destination structure, replaces arrays entirely, preserves skipped paths
+**Deep Merge:** Preserves destination structure, skipPath-aware array merging (preserves items matching filters), preserves skipped paths
 
 ## Key Notes
 

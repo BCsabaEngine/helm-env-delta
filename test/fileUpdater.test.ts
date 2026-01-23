@@ -387,5 +387,322 @@ describe('fileUpdater', () => {
 
       expect(writeFile).toHaveBeenCalled();
     });
+
+    describe('skipPath array filter preservation', () => {
+      it('should preserve array items with [name=value] filter', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent: 'env:\n  - name: DEBUG\n    value: "1"\n  - name: API\n    value: new-value',
+              destinationContent: 'env:\n  - name: DEBUG\n    value: prod-debug\n  - name: API\n    value: old-value',
+              processedSourceContent: {},
+              processedDestContent: {},
+              // rawParsedSource has DEBUG filtered out (by skipPath)
+              rawParsedSource: { env: [{ name: 'API', value: 'new-value' }] },
+              // rawParsedDest has DEBUG filtered out (by skipPath)
+              rawParsedDest: { env: [{ name: 'API', value: 'old-value' }] },
+              skipPaths: ['env[name=DEBUG]']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([
+          ['values.yaml', 'env:\n  - name: DEBUG\n    value: "1"\n  - name: API\n    value: new-value']
+        ]);
+        const destination = new Map([
+          ['values.yaml', 'env:\n  - name: DEBUG\n    value: prod-debug\n  - name: API\n    value: old-value']
+        ]);
+        const config = { source: './src', destination: './dest' };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should preserve DEBUG from destination
+        expect(writtenContent).toContain('DEBUG');
+        expect(writtenContent).toContain('prod-debug');
+        // Should update API from source
+        expect(writtenContent).toContain('API');
+        expect(writtenContent).toContain('new-value');
+      });
+
+      it('should preserve array items with [name^=prefix] (startsWith) filter', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent:
+                'env:\n  - name: DB_HOST\n    value: new-host\n  - name: DB_PORT\n    value: "5432"\n  - name: API\n    value: new-api',
+              destinationContent:
+                'env:\n  - name: DB_HOST\n    value: prod-host\n  - name: DB_PORT\n    value: "3306"\n  - name: API\n    value: old-api',
+              processedSourceContent: {},
+              processedDestContent: {},
+              // rawParsedSource has DB_* filtered out (by skipPath)
+              rawParsedSource: { env: [{ name: 'API', value: 'new-api' }] },
+              rawParsedDest: { env: [{ name: 'API', value: 'old-api' }] },
+              skipPaths: ['env[name^=DB_]']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: DB_HOST\n    value: new-host\n  - name: DB_PORT\n    value: "5432"\n  - name: API\n    value: new-api'
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: DB_HOST\n    value: prod-host\n  - name: DB_PORT\n    value: "3306"\n  - name: API\n    value: old-api'
+          ]
+        ]);
+        const config = { source: './src', destination: './dest' };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should preserve DB_HOST and DB_PORT from destination
+        expect(writtenContent).toContain('DB_HOST');
+        expect(writtenContent).toContain('prod-host');
+        expect(writtenContent).toContain('DB_PORT');
+        expect(writtenContent).toContain('3306');
+        // Should update API from source
+        expect(writtenContent).toContain('API');
+        expect(writtenContent).toContain('new-api');
+      });
+
+      it('should preserve array items with [name$=suffix] (endsWith) filter', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent:
+                'env:\n  - name: API_SECRET\n    value: new-secret\n  - name: DB_SECRET\n    value: new-db-secret\n  - name: DEBUG\n    value: "1"',
+              destinationContent:
+                'env:\n  - name: API_SECRET\n    value: prod-secret\n  - name: DB_SECRET\n    value: prod-db-secret\n  - name: DEBUG\n    value: "0"',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { env: [{ name: 'DEBUG', value: '1' }] },
+              rawParsedDest: { env: [{ name: 'DEBUG', value: '0' }] },
+              skipPaths: ['env[name$=_SECRET]']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: API_SECRET\n    value: new-secret\n  - name: DB_SECRET\n    value: new-db-secret\n  - name: DEBUG\n    value: "1"'
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: API_SECRET\n    value: prod-secret\n  - name: DB_SECRET\n    value: prod-db-secret\n  - name: DEBUG\n    value: "0"'
+          ]
+        ]);
+        const config = { source: './src', destination: './dest' };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should preserve *_SECRET from destination
+        expect(writtenContent).toContain('API_SECRET');
+        expect(writtenContent).toContain('prod-secret');
+        expect(writtenContent).toContain('DB_SECRET');
+        expect(writtenContent).toContain('prod-db-secret');
+        // Should update DEBUG from source
+        expect(writtenContent).toContain('DEBUG');
+        expect(writtenContent).toMatch(/value:\s+["']?1/);
+      });
+
+      it('should preserve array items with [name*=substring] (contains) filter', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent:
+                'env:\n  - name: MY_PASSWORD_HASH\n    value: new-hash\n  - name: PASSWORD\n    value: new-pass\n  - name: API\n    value: new-api',
+              destinationContent:
+                'env:\n  - name: MY_PASSWORD_HASH\n    value: prod-hash\n  - name: PASSWORD\n    value: prod-pass\n  - name: API\n    value: old-api',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { env: [{ name: 'API', value: 'new-api' }] },
+              rawParsedDest: { env: [{ name: 'API', value: 'old-api' }] },
+              skipPaths: ['env[name*=PASSWORD]']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: MY_PASSWORD_HASH\n    value: new-hash\n  - name: PASSWORD\n    value: new-pass\n  - name: API\n    value: new-api'
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: MY_PASSWORD_HASH\n    value: prod-hash\n  - name: PASSWORD\n    value: prod-pass\n  - name: API\n    value: old-api'
+          ]
+        ]);
+        const config = { source: './src', destination: './dest' };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should preserve *PASSWORD* from destination
+        expect(writtenContent).toContain('MY_PASSWORD_HASH');
+        expect(writtenContent).toContain('prod-hash');
+        expect(writtenContent).toContain('PASSWORD');
+        expect(writtenContent).toContain('prod-pass');
+        // Should update API from source
+        expect(writtenContent).toContain('API');
+        expect(writtenContent).toContain('new-api');
+      });
+
+      it('should preserve multiple items matching same filter pattern', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent:
+                'env:\n  - name: SECRET_ONE\n    value: s1\n  - name: SECRET_TWO\n    value: s2\n  - name: PUBLIC\n    value: new',
+              destinationContent:
+                'env:\n  - name: SECRET_ONE\n    value: prod-s1\n  - name: SECRET_TWO\n    value: prod-s2\n  - name: PUBLIC\n    value: old',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { env: [{ name: 'PUBLIC', value: 'new' }] },
+              rawParsedDest: { env: [{ name: 'PUBLIC', value: 'old' }] },
+              skipPaths: ['env[name^=SECRET_]']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: SECRET_ONE\n    value: s1\n  - name: SECRET_TWO\n    value: s2\n  - name: PUBLIC\n    value: new'
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'values.yaml',
+            'env:\n  - name: SECRET_ONE\n    value: prod-s1\n  - name: SECRET_TWO\n    value: prod-s2\n  - name: PUBLIC\n    value: old'
+          ]
+        ]);
+        const config = { source: './src', destination: './dest' };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should preserve both SECRET_* from destination
+        expect(writtenContent).toContain('SECRET_ONE');
+        expect(writtenContent).toContain('prod-s1');
+        expect(writtenContent).toContain('SECRET_TWO');
+        expect(writtenContent).toContain('prod-s2');
+        // Should update PUBLIC from source
+        expect(writtenContent).toContain('PUBLIC');
+        expect(writtenContent).toContain('new');
+      });
+
+      it('should preserve item only in destination if matches filter', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent: 'env:\n  - name: API\n    value: new-api',
+              destinationContent:
+                'env:\n  - name: SECRET_KEY\n    value: prod-secret\n  - name: API\n    value: old-api',
+              processedSourceContent: {},
+              processedDestContent: {},
+              // Source doesn't have SECRET_KEY, rawParsedSource shows only API
+              rawParsedSource: { env: [{ name: 'API', value: 'new-api' }] },
+              rawParsedDest: { env: [{ name: 'API', value: 'old-api' }] },
+              skipPaths: ['env[name^=SECRET_]']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([['values.yaml', 'env:\n  - name: API\n    value: new-api']]);
+        const destination = new Map([
+          ['values.yaml', 'env:\n  - name: SECRET_KEY\n    value: prod-secret\n  - name: API\n    value: old-api']
+        ]);
+        const config = { source: './src', destination: './dest' };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should preserve SECRET_KEY from destination (even though not in source)
+        expect(writtenContent).toContain('SECRET_KEY');
+        expect(writtenContent).toContain('prod-secret');
+        // Should update API from source
+        expect(writtenContent).toContain('API');
+        expect(writtenContent).toContain('new-api');
+      });
+
+      it('should handle nested skipPath in array items', async () => {
+        const diffResult = {
+          addedFiles: [],
+          deletedFiles: [],
+          changedFiles: [
+            {
+              path: 'values.yaml',
+              sourceContent:
+                'containers:\n  - name: app\n    image: new-image\n    resources:\n      limits:\n        memory: 512Mi',
+              destinationContent:
+                'containers:\n  - name: app\n    image: old-image\n    resources:\n      limits:\n        memory: 1Gi',
+              processedSourceContent: {},
+              processedDestContent: {},
+              rawParsedSource: { containers: [{ name: 'app', image: 'new-image' }] },
+              rawParsedDest: { containers: [{ name: 'app', image: 'old-image' }] },
+              skipPaths: ['containers[name=app].resources']
+            }
+          ],
+          unchangedFiles: []
+        };
+        const source = new Map([
+          [
+            'values.yaml',
+            'containers:\n  - name: app\n    image: new-image\n    resources:\n      limits:\n        memory: 512Mi'
+          ]
+        ]);
+        const destination = new Map([
+          [
+            'values.yaml',
+            'containers:\n  - name: app\n    image: old-image\n    resources:\n      limits:\n        memory: 1Gi'
+          ]
+        ]);
+        const config = { source: './src', destination: './dest' };
+
+        await updateFiles(diffResult, source, destination, config, false, false, mockLogger);
+
+        expect(writeFile).toHaveBeenCalled();
+        const writtenContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+        // Should update image from source
+        expect(writtenContent).toContain('new-image');
+        // Should preserve resources from destination
+        expect(writtenContent).toContain('1Gi');
+      });
+    });
   });
 });
