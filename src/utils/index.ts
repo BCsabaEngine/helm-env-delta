@@ -100,3 +100,12 @@ export {
 
 // Fixed values utilities
 export { applyFixedValues, getFixedValuesForFile, setValueAtPath } from './fixedValues';
+
+// Array merger utilities
+export type { ApplicableFilter } from './arrayMerger';
+export {
+  findMatchingTargetItem,
+  getApplicableArrayFilters,
+  itemMatchesAnyFilter,
+  shouldPreserveItem
+} from './arrayMerger';

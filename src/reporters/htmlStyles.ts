@@ -234,11 +234,6 @@ export const HTML_STYLES = `
     min-width: 280px;
     border-right: 1px solid #d0d7de;
     background: #f6f8fa;
-    overflow-y: auto;
-    max-height: calc(100vh - 250px);
-    position: sticky;
-    top: 20px;
-    align-self: flex-start;
     transition: width 0.2s, min-width 0.2s, padding 0.2s, opacity 0.2s;
   }
 
