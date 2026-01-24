@@ -40,7 +40,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts)
 - `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
 - `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
-- `fileDiff.ts` - YAML diff pipeline (parse → transforms → skipPath → normalize → deepEqual)
+- `fileDiff.ts` - YAML diff pipeline (parse → transforms → fixedValues → skipPath → normalize → deepEqual)
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
@@ -92,9 +92,9 @@ Barrel exports via `index.ts`:
 ## YAML Processing Pipeline
 
 1. **File Loading** - tinyglobby + parallel → filename transforms → filtering (cached patterns) → Map
-2. **Diff** - parse → content transforms → skipPath (early return) → normalize (cached stringify) → deepEqual
+2. **Diff** - parse → content transforms → **fixedValues** → skipPath (early return) → normalize (cached stringify) → deepEqual
 3. **Stop Rules** - Validate JSONPath values (memoized, semver, versionFormat, numeric, regex), fail unless --force
-4. **Update** - Deep merge → **fixedValues** → yamlFormatter (batched patterns) → write/dry-run
+4. **Update** - Deep merge → fixedValues (safety net) → yamlFormatter (batched patterns) → write/dry-run
 5. **Format** - Parse AST → apply rules → serialize
 
 ## SkipPath Filter Expressions
@@ -149,14 +149,16 @@ fixedValues:
       value: false
 ```
 
-**Supports all filter operators:** `=`, `^=`, `$=`, `*=`
+**Supports all filter operators:** `=`, `^=`, `$=`, `*=` (updates ALL matching items)
 
 **Value types:** string, number, boolean, null, object, array
 
 **Behavior:**
 
+- Filter operators update ALL matching items (not just the first)
 - Non-existent paths silently skipped
 - Multiple rules for same path: last one wins
+- Changes visible in all diff reports (HTML, console, JSON)
 - Works with skipPath (fixedValues wins, applied after skipPath restored)
 
 ## Stop Rules
@@ -186,7 +188,7 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**41 test files, 990+ tests:** Core modules, reporters, utils, integration tests
+**34 test files, 1100+ tests:** Core modules, reporters, utils, integration tests
 
 **Performance:** 8 benchmark files in `test/perf/`. Uses Vitest `bench()` API. Run: `npm run test:perf`
 

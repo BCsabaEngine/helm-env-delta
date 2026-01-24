@@ -466,13 +466,14 @@ fixedValues:
       value: 'stable'
 ```
 
-**Supported filter operators:** `=` (equals), `^=` (startsWith), `$=` (endsWith), `*=` (contains)
+**Supported filter operators:** `=` (equals), `^=` (startsWith), `$=` (endsWith), `*=` (contains) - updates ALL matching items
 
 **Value types:** String, number, boolean, null, object, array
 
 **Behavior:**
 
-- Applied after merge, before formatting
+- **Filter operators update ALL matching items** (e.g., `env[name^=LOG_]` updates every item starting with `LOG_`)
+- Applied during diff computation, so changes are visible in all reports (HTML, console, JSON)
 - Non-existent paths are silently skipped
 - Multiple rules for same path: last one wins
 - Works with skipPath (fixedValues applied after skipPath restoration)
@@ -840,7 +841,7 @@ git push origin main
 
 ✅ **Flexibility** - Per-file patterns. Config inheritance. Regex transforms.
 
-✅ **Reliability** - 990+ tests, 84% coverage. Battle-tested.
+✅ **Reliability** - 1100+ tests, 84% coverage. Battle-tested.
 
 ---
 
