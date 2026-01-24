@@ -1,10 +1,11 @@
 import YAML from 'yaml';
 
-import { Config, TransformConfig } from './configFile';
+import { Config, FixedValueConfig, TransformConfig } from './configFile';
 import { FileMap } from './fileLoader';
 import { deepEqual } from './utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
+import { applyFixedValues, getFixedValuesForFile } from './utils/fixedValues';
 import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
 import { globalMatcher } from './utils/patternMatcher';
 import { normalizeForComparison } from './utils/serialization';
@@ -40,6 +41,7 @@ export interface ProcessYamlOptions {
   destinationContent: string;
   skipPath?: Record<string, string[]>;
   transforms?: TransformConfig;
+  fixedValues?: FixedValueConfig;
 }
 
 // Error Handling
@@ -156,7 +158,7 @@ export const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, 
 };
 
 const processYamlFile = (options: ProcessYamlOptions): ChangedFile | undefined => {
-  const { filePath, sourceContent, destinationContent, skipPath, transforms } = options;
+  const { filePath, sourceContent, destinationContent, skipPath, transforms, fixedValues } = options;
   let sourceParsed: unknown;
   let destinationParsed: unknown;
 
@@ -200,6 +202,10 @@ const processYamlFile = (options: ProcessYamlOptions): ChangedFile | undefined =
 
   const sourceTransformed = applyTransforms(sourceParsed, filePath, transforms);
 
+  // Apply fixed values after transforms, before skipPath filtering
+  const fixedValueRules = getFixedValuesForFile(filePath, fixedValues);
+  if (fixedValueRules.length > 0) applyFixedValues(sourceTransformed, fixedValueRules);
+
   const pathsToSkip = getSkipPathsForFile(filePath, skipPath);
 
   const sourceFiltered = pathsToSkip.length > 0 ? applySkipPaths(sourceTransformed, pathsToSkip) : sourceTransformed;
@@ -235,6 +241,7 @@ const processChangedFiles = (
   destinationFiles: FileMap,
   skipPath?: Record<string, string[]>,
   transforms?: TransformConfig,
+  fixedValues?: FixedValueConfig,
   originalPaths?: Map<string, string>
 ): { changedFiles: ChangedFile[]; unchangedFiles: string[] } => {
   const changedFiles: ChangedFile[] = [];
@@ -254,7 +261,8 @@ const processChangedFiles = (
         sourceContent,
         destinationContent,
         skipPath,
-        transforms
+        transforms,
+        fixedValues
       });
 
       if (changed) {
@@ -309,6 +317,7 @@ export const computeFileDiff = (
     destinationFiles,
     config.skipPath,
     config.transforms,
+    config.fixedValues,
     originalPaths
   );
 

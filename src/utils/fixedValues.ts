@@ -25,7 +25,8 @@ export const getFixedValuesForFile = (filePath: string, fixedValues?: FixedValue
 
 /**
  * Sets a value at a JSONPath in an object, handling filter segments.
- * Modifies the object in-place.
+ * Modifies the object in-place. When a filter matches multiple items,
+ * the value is set for ALL matching items.
  *
  * @param object - The object to modify
  * @param pathParts - Parsed JSONPath segments
@@ -36,78 +37,70 @@ export const setValueAtPath = (object: unknown, pathParts: string[], value: unkn
   if (pathParts.length === 0) return false;
   if (!object || typeof object !== 'object') return false;
 
-  let current: unknown = object;
-  const lastIndex = pathParts.length - 1;
+  const [currentPart, ...remainingParts] = pathParts;
+  if (!currentPart) return false;
 
-  // Navigate to parent of target
-  for (let index = 0; index < lastIndex; index++) {
-    const part = pathParts[index] as string;
+  // Final segment - set the value
+  if (remainingParts.length === 0) {
+    if (isFilterSegment(currentPart)) {
+      // Final segment is a filter - replace ALL matching array items
+      if (!Array.isArray(object)) return false;
 
-    if (!current || typeof current !== 'object') return false;
-
-    if (isFilterSegment(part)) {
-      if (!Array.isArray(current)) return false;
-
-      const filter = parseFilterSegment(part);
+      const filter = parseFilterSegment(currentPart);
       if (!filter) return false;
 
-      // Find first matching item
-      const matched = current.find((item) => {
-        if (!item || typeof item !== 'object') return false;
+      let updated = false;
+      for (let index = 0; index < object.length; index++) {
+        const item = object[index];
+        if (!item || typeof item !== 'object') continue;
         const itemValue = (item as Record<string, unknown>)[filter.property];
-        return matchesFilter(itemValue, filter);
-      });
-
-      if (!matched) return false;
-      current = matched;
-      continue;
+        if (matchesFilter(itemValue, filter)) {
+          object[index] = value;
+          updated = true;
+        }
+      }
+      return updated;
     }
 
-    if (Array.isArray(current)) {
-      const arrayIndex = Number(part);
-      if (Number.isNaN(arrayIndex) || arrayIndex < 0 || arrayIndex >= current.length) return false;
-      current = current[arrayIndex];
-    } else {
-      const objectCurrent = current as Record<string, unknown>;
-      if (!(part in objectCurrent)) return false;
-      current = objectCurrent[part];
+    if (Array.isArray(object)) {
+      const arrayIndex = Number(currentPart);
+      if (Number.isNaN(arrayIndex) || arrayIndex < 0 || arrayIndex >= object.length) return false;
+      object[arrayIndex] = value;
+      return true;
     }
+
+    // Set property on object
+    const objectCurrent = object as Record<string, unknown>;
+    objectCurrent[currentPart] = value;
+    return true;
   }
 
-  // Set value at final segment
-  const finalPart = pathParts[lastIndex] as string;
+  // Navigate deeper - handle filter segments specially to update ALL matching items
+  if (isFilterSegment(currentPart)) {
+    if (!Array.isArray(object)) return false;
 
-  if (!current || typeof current !== 'object') return false;
-
-  if (isFilterSegment(finalPart)) {
-    // Final segment is a filter - replace the matching array item
-    if (!Array.isArray(current)) return false;
-
-    const filter = parseFilterSegment(finalPart);
+    const filter = parseFilterSegment(currentPart);
     if (!filter) return false;
 
-    const matchedIndex = current.findIndex((item) => {
-      if (!item || typeof item !== 'object') return false;
+    // Recursively apply to ALL matching items
+    let updated = false;
+    for (const item of object) {
+      if (!item || typeof item !== 'object') continue;
       const itemValue = (item as Record<string, unknown>)[filter.property];
-      return matchesFilter(itemValue, filter);
-    });
-
-    if (matchedIndex === -1) return false;
-    current[matchedIndex] = value;
-    return true;
+      if (matchesFilter(itemValue, filter) && setValueAtPath(item, remainingParts, value)) updated = true;
+    }
+    return updated;
   }
 
-  if (Array.isArray(current)) {
-    const arrayIndex = Number(finalPart);
-    if (Number.isNaN(arrayIndex) || arrayIndex < 0 || arrayIndex >= current.length) return false;
-    current[arrayIndex] = value;
-    return true;
+  if (Array.isArray(object)) {
+    const arrayIndex = Number(currentPart);
+    if (Number.isNaN(arrayIndex) || arrayIndex < 0 || arrayIndex >= object.length) return false;
+    return setValueAtPath(object[arrayIndex], remainingParts, value);
   }
 
-  // Set property on object
-  const objectCurrent = current as Record<string, unknown>;
-  objectCurrent[finalPart] = value;
-  return true;
+  const objectCurrent = object as Record<string, unknown>;
+  if (!(currentPart in objectCurrent)) return false;
+  return setValueAtPath(objectCurrent[currentPart], remainingParts, value);
 };
 
 /**

@@ -205,6 +205,78 @@ describe('utils/fixedValues', () => {
         expect(result).toBe(false);
       });
 
+      it('should update ALL items matching startsWith filter', () => {
+        const object = {
+          env: [
+            { name: 'DB_HOST', value: 'localhost' },
+            { name: 'DB_PORT', value: '5432' },
+            { name: 'DB_USER', value: 'admin' },
+            { name: 'API_KEY', value: 'xxx' }
+          ]
+        };
+        const pathParts = parseJsonPath('env[name^=DB_]');
+        const result = setValueAtPath(object, pathParts, { name: 'REDACTED', value: 'hidden' });
+        expect(result).toBe(true);
+        expect(object.env[0]).toEqual({ name: 'REDACTED', value: 'hidden' });
+        expect(object.env[1]).toEqual({ name: 'REDACTED', value: 'hidden' });
+        expect(object.env[2]).toEqual({ name: 'REDACTED', value: 'hidden' });
+        expect(object.env[3]).toEqual({ name: 'API_KEY', value: 'xxx' }); // unchanged
+      });
+
+      it('should update ALL items matching endsWith filter', () => {
+        const object = {
+          env: [
+            { name: 'API_KEY', value: 'old1' },
+            { name: 'SECRET_KEY', value: 'old2' },
+            { name: 'DEBUG', value: '1' },
+            { name: 'AUTH_KEY', value: 'old3' }
+          ]
+        };
+        const pathParts = parseJsonPath('env[name$=_KEY]');
+        const result = setValueAtPath(object, pathParts, { name: 'HIDDEN', value: 'redacted' });
+        expect(result).toBe(true);
+        expect(object.env[0]).toEqual({ name: 'HIDDEN', value: 'redacted' });
+        expect(object.env[1]).toEqual({ name: 'HIDDEN', value: 'redacted' });
+        expect(object.env[2]).toEqual({ name: 'DEBUG', value: '1' }); // unchanged
+        expect(object.env[3]).toEqual({ name: 'HIDDEN', value: 'redacted' });
+      });
+
+      it('should update ALL items matching contains filter', () => {
+        const object = {
+          env: [
+            { name: 'DB_PASSWORD', value: 'secret1' },
+            { name: 'PASSWORD_HASH', value: 'secret2' },
+            { name: 'MY_PASSWORD_KEY', value: 'secret3' },
+            { name: 'DEBUG', value: '1' }
+          ]
+        };
+        const pathParts = parseJsonPath('env[name*=PASSWORD]');
+        const result = setValueAtPath(object, pathParts, { name: 'REDACTED', value: '***' });
+        expect(result).toBe(true);
+        expect(object.env[0]).toEqual({ name: 'REDACTED', value: '***' });
+        expect(object.env[1]).toEqual({ name: 'REDACTED', value: '***' });
+        expect(object.env[2]).toEqual({ name: 'REDACTED', value: '***' });
+        expect(object.env[3]).toEqual({ name: 'DEBUG', value: '1' }); // unchanged
+      });
+
+      it('should update nested value in ALL items matching filter', () => {
+        const object = {
+          env: [
+            { name: 'LOG_LEVEL_APP', value: 'debug' },
+            { name: 'LOG_LEVEL_DB', value: 'debug' },
+            { name: 'LOG_LEVEL_API', value: 'debug' },
+            { name: 'DEBUG', value: '1' }
+          ]
+        };
+        const pathParts = parseJsonPath('env[name^=LOG_LEVEL_].value');
+        const result = setValueAtPath(object, pathParts, 'info');
+        expect(result).toBe(true);
+        expect(object.env[0].value).toBe('info');
+        expect(object.env[1].value).toBe('info');
+        expect(object.env[2].value).toBe('info');
+        expect(object.env[3].value).toBe('1'); // unchanged
+      });
+
       it('should replace entire array item when filter is final segment', () => {
         const object = {
           env: [

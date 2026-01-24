@@ -833,4 +833,181 @@ describe('fileDiff', () => {
       });
     });
   });
+
+  describe('fixedValues integration', () => {
+    it('should apply fixedValues during diff computation', () => {
+      const source = new Map([['file.yaml', 'version: 1.0.0\nlevel: debug']]);
+      const destination = new Map([['file.yaml', 'version: 1.0.0\nlevel: info']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        fixedValues: { '*.yaml': [{ path: 'level', value: 'info' }] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      // Fixed value makes source match destination
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should detect changes when fixedValue differs from destination', () => {
+      const source = new Map([['file.yaml', 'version: 1.0.0\nlevel: debug']]);
+      const destination = new Map([['file.yaml', 'version: 1.0.0\nlevel: warn']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        fixedValues: { '*.yaml': [{ path: 'level', value: 'info' }] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      // Fixed value (info) differs from destination (warn)
+      expect(result.changedFiles).toHaveLength(1);
+      expect(result.changedFiles[0]?.path).toBe('file.yaml');
+    });
+
+    it('should include fixedValues in processedSourceContent', () => {
+      const source = new Map([['file.yaml', 'level: debug']]);
+      const destination = new Map([['file.yaml', 'level: warn']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        fixedValues: { '*.yaml': [{ path: 'level', value: 'info' }] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      expect(result.changedFiles).toHaveLength(1);
+      // processedSourceContent should have the fixed value
+      expect(result.changedFiles[0]?.processedSourceContent).toEqual({ level: 'info' });
+    });
+
+    it('should apply fixedValues with filter operators', () => {
+      const source = new Map([
+        [
+          'file.yaml',
+          `env:
+  - name: LOG_LEVEL
+    value: debug
+  - name: DEBUG
+    value: "1"`
+        ]
+      ]);
+      const destination = new Map([
+        [
+          'file.yaml',
+          `env:
+  - name: LOG_LEVEL
+    value: info
+  - name: DEBUG
+    value: "1"`
+        ]
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        fixedValues: { '*.yaml': [{ path: 'env[name=LOG_LEVEL].value', value: 'info' }] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      // Fixed value makes source match destination
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should apply fixedValues with startsWith filter to ALL matching items', () => {
+      const source = new Map([
+        [
+          'file.yaml',
+          `env:
+  - name: LOG_LEVEL_APP
+    value: debug
+  - name: LOG_LEVEL_DB
+    value: debug
+  - name: LOG_LEVEL_API
+    value: debug
+  - name: DEBUG
+    value: "1"`
+        ]
+      ]);
+      const destination = new Map([
+        [
+          'file.yaml',
+          `env:
+  - name: LOG_LEVEL_APP
+    value: info
+  - name: LOG_LEVEL_DB
+    value: info
+  - name: LOG_LEVEL_API
+    value: info
+  - name: DEBUG
+    value: "1"`
+        ]
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        fixedValues: { '*.yaml': [{ path: 'env[name^=LOG_LEVEL_].value', value: 'info' }] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      // Fixed value applied to ALL matching items makes source match destination
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should apply fixedValues after transforms', () => {
+      const source = new Map([['file.yaml', 'url: uat-db.internal\nlevel: debug']]);
+      const destination = new Map([['file.yaml', 'url: prod-db.internal\nlevel: info']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        transforms: { '*.yaml': { content: [{ find: 'uat-', replace: 'prod-' }] } },
+        fixedValues: { '*.yaml': [{ path: 'level', value: 'info' }] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      // Transform converts url, fixedValue sets level
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should apply fixedValues before skipPath filtering', () => {
+      const source = new Map([['file.yaml', 'level: debug\nversion: 1.0.0']]);
+      const destination = new Map([['file.yaml', 'level: info\nversion: 2.0.0']]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        fixedValues: { '*.yaml': [{ path: 'level', value: 'info' }] },
+        skipPath: { '*.yaml': ['version'] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      // Fixed value makes level match, skipPath ignores version difference
+      expect(result.unchangedFiles).toContain('file.yaml');
+    });
+
+    it('should only apply fixedValues to matching file patterns', () => {
+      const source = new Map([
+        ['prod/values.yaml', 'level: debug'],
+        ['dev/values.yaml', 'level: debug']
+      ]);
+      const destination = new Map([
+        ['prod/values.yaml', 'level: info'],
+        ['dev/values.yaml', 'level: debug']
+      ]);
+      const config = {
+        source: './src',
+        destination: './dest',
+        fixedValues: { 'prod/*.yaml': [{ path: 'level', value: 'info' }] }
+      };
+
+      const result = computeFileDiff(source, destination, config);
+
+      // Fixed value applied to prod, not to dev
+      expect(result.unchangedFiles).toContain('prod/values.yaml');
+      expect(result.unchangedFiles).toContain('dev/values.yaml');
+    });
+  });
 });
