@@ -97,3 +97,6 @@ export {
   SEMVER_PATTERN,
   UUID_PATTERN
 } from './suggestionConstants';
+
+// Fixed values utilities
+export { applyFixedValues, getFixedValuesForFile, setValueAtPath } from './fixedValues';

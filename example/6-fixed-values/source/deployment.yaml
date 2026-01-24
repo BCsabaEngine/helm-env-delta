@@ -1,0 +1,27 @@
+# Source: UAT deployment with debug settings
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: uat
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: app
+          image: uat-registry/my-app:v1.2.0
+          resources:
+            limits:
+              memory: '256Mi'
+              cpu: '100m'
+            requests:
+              memory: '128Mi'
+              cpu: '50m'
+        - name: sidecar
+          image: uat-registry/sidecar:latest
+          resources:
+            limits:
+              memory: '64Mi'
+debug: true
+logLevel: 'debug'

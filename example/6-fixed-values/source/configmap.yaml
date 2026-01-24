@@ -1,0 +1,16 @@
+# Source: UAT configmap with development settings
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: uat
+data:
+  env:
+    - name: LOG_LEVEL
+      value: 'debug'
+    - name: API_ENDPOINT
+      value: 'https://api.uat.example.com'
+    - name: FEATURE_FLAG
+      value: 'experimental'
+    - name: CACHE_TTL
+      value: '60'

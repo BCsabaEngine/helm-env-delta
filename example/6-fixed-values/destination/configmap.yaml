@@ -1,0 +1,16 @@
+# Destination: Production configmap (will be updated by sync)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: production
+data:
+  env:
+    - name: LOG_LEVEL
+      value: 'warn'
+    - name: API_ENDPOINT
+      value: 'https://api.prod.example.com'
+    - name: FEATURE_FLAG
+      value: 'beta'
+    - name: CACHE_TTL
+      value: '300'

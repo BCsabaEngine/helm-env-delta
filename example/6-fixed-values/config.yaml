@@ -1,0 +1,42 @@
+# Fixed Values Example
+# Demonstrates how to set constant values regardless of source/destination values
+
+source: './source'
+destination: './destination'
+
+# Skip environment-specific paths
+skipPath:
+  '**/*.yaml':
+    - 'metadata.namespace'
+
+# Transform environment-specific content
+transforms:
+  '**/*.yaml':
+    content:
+      - find: 'uat-'
+        replace: 'prod-'
+
+# Fixed values - set to constant regardless of source/destination
+fixedValues:
+  # Production safety settings - always apply these
+  '**/*.yaml':
+    - path: 'debug'
+      value: false
+    - path: 'logLevel'
+      value: 'warn'
+
+  # Kubernetes deployments - enforce production resource limits
+  'deployment.yaml':
+    - path: 'spec.replicas'
+      value: 3
+    - path: 'spec.template.spec.containers[name=app].resources.limits.memory'
+      value: '512Mi'
+    - path: 'spec.template.spec.containers[name=app].resources.limits.cpu'
+      value: '500m'
+
+  # ConfigMap - enforce specific environment variables
+  'configmap.yaml':
+    - path: 'data.env[name=LOG_LEVEL].value'
+      value: 'info'
+    - path: 'data.env[name=FEATURE_FLAG].value'
+      value: 'stable'

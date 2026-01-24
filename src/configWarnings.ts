@@ -43,6 +43,25 @@ export const validateConfigWarnings = (config: FinalConfig): WarningResult => {
       if ((rules.content?.length ?? 0) === 0 && (rules.filename?.length ?? 0) === 0)
         warnings.push(`Transform pattern '${pattern}' has empty content and filename arrays (will have no effect)`);
 
+  // Check for empty fixedValues arrays
+  if (config.fixedValues)
+    for (const [pattern, rules] of Object.entries(config.fixedValues))
+      if (rules.length === 0) warnings.push(`fixedValues pattern '${pattern}' has empty array (will have no effect)`);
+
+  // Check for fixedValues paths that conflict with skipPath (informational)
+  if (config.fixedValues && config.skipPath)
+    for (const [fixedPattern, fixedRules] of Object.entries(config.fixedValues))
+      for (const [skipPattern, skipPaths] of Object.entries(config.skipPath))
+        // Only warn if patterns could overlap (both are ** or one is subset)
+        if (fixedPattern === skipPattern || fixedPattern === '**/*' || skipPattern === '**/*')
+          for (const rule of fixedRules)
+            for (const skipPath of skipPaths)
+              // Check if fixedValue path starts with or equals skipPath
+              if (rule.path === skipPath || rule.path.startsWith(skipPath + '.'))
+                warnings.push(
+                  `fixedValues path '${rule.path}' overlaps with skipPath '${skipPath}' (fixedValues wins after skipPath restored)`
+                );
+
   return {
     warnings,
     hasWarnings: warnings.length > 0

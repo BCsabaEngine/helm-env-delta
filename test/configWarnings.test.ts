@@ -204,6 +204,108 @@ describe('validateConfigWarnings', () => {
     });
   });
 
+  describe('empty fixedValues arrays', () => {
+    it('should warn about fixedValues patterns with empty arrays', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'version', value: '1.0.0' }],
+        'empty.yaml': []
+      };
+
+      const result = validateConfigWarnings(config);
+
+      expect(result.warnings).toContain("fixedValues pattern 'empty.yaml' has empty array (will have no effect)");
+      expect(result.hasWarnings).toBe(true);
+    });
+
+    it('should not warn when fixedValues is undefined', () => {
+      const config = createBaseConfig();
+      config.fixedValues = undefined;
+
+      const result = validateConfigWarnings(config);
+
+      expect(result.warnings).not.toContain(expect.stringContaining('fixedValues'));
+      expect(result.hasWarnings).toBe(false);
+    });
+
+    it('should not warn when all fixedValues patterns have rules', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'version', value: '1.0.0' }],
+        'config.yaml': [{ path: 'replicas', value: 3 }]
+      };
+
+      const result = validateConfigWarnings(config);
+
+      expect(result.warnings).not.toContain(expect.stringContaining('fixedValues pattern'));
+      expect(result.hasWarnings).toBe(false);
+    });
+  });
+
+  describe('fixedValues and skipPath conflicts', () => {
+    it('should warn when fixedValue path equals skipPath', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'metadata.labels', value: { app: 'test' } }]
+      };
+      config.skipPath = {
+        '**/*.yaml': ['metadata.labels']
+      };
+
+      const result = validateConfigWarnings(config);
+
+      expect(result.warnings.some((w) => w.includes('fixedValues path') && w.includes('overlaps'))).toBe(true);
+      expect(result.hasWarnings).toBe(true);
+    });
+
+    it('should warn when fixedValue path is nested under skipPath', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'metadata.labels.app', value: 'test' }]
+      };
+      config.skipPath = {
+        '**/*.yaml': ['metadata.labels']
+      };
+
+      const result = validateConfigWarnings(config);
+
+      expect(
+        result.warnings.some((w) => w.includes("fixedValues path 'metadata.labels.app'") && w.includes('overlaps'))
+      ).toBe(true);
+      expect(result.hasWarnings).toBe(true);
+    });
+
+    it('should not warn when fixedValue and skipPath have different paths', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'version', value: '1.0.0' }]
+      };
+      config.skipPath = {
+        '**/*.yaml': ['metadata.labels']
+      };
+
+      const result = validateConfigWarnings(config);
+
+      expect(result.warnings).not.toContain(expect.stringContaining('overlaps'));
+      expect(result.hasWarnings).toBe(false);
+    });
+
+    it('should not warn when patterns do not overlap', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        'prod.yaml': [{ path: 'debug', value: false }]
+      };
+      config.skipPath = {
+        'dev.yaml': ['debug']
+      };
+
+      const result = validateConfigWarnings(config);
+
+      expect(result.warnings).not.toContain(expect.stringContaining('overlaps'));
+      expect(result.hasWarnings).toBe(false);
+    });
+  });
+
   describe('multiple warnings', () => {
     it('should return multiple warnings when multiple issues exist', () => {
       const config = createBaseConfig();

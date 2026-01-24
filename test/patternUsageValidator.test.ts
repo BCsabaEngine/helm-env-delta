@@ -756,4 +756,236 @@ describe('patternUsageValidator', () => {
       );
     });
   });
+
+  describe('validateFixedValuesPatterns', () => {
+    it('should warn when fixedValues pattern matches no files', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        'nonexistent/**/*.yaml': [{ path: 'version', value: '1.0.0' }],
+        'legacy/**/*.yml': [{ path: 'replicas', value: 3 }]
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'content: value'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'content: value'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.hasWarnings).toBe(true);
+      expect(result.warnings).toContainEqual({
+        type: 'unused-fixedValues',
+        pattern: 'nonexistent/**/*.yaml',
+        message: "fixedValues pattern 'nonexistent/**/*.yaml' matches no files",
+        context: '1 rule(s) defined'
+      });
+      expect(result.warnings).toContainEqual({
+        type: 'unused-fixedValues',
+        pattern: 'legacy/**/*.yml',
+        message: "fixedValues pattern 'legacy/**/*.yml' matches no files",
+        context: '1 rule(s) defined'
+      });
+    });
+
+    it('should not warn when fixedValues pattern matches at least one file', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'version', value: '1.0.0' }]
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues'
+        })
+      );
+    });
+
+    it('should warn when fixedValues JSONPath not found in any matched files', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [
+          { path: 'metadata.nonexistent', value: 'test' },
+          { path: 'spec.missing', value: 3 }
+        ]
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0\nmetadata:\n  name: app'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0\nmetadata:\n  name: app'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.hasWarnings).toBe(true);
+      expect(result.warnings).toContainEqual({
+        type: 'unused-fixedValues-jsonpath',
+        pattern: '**/*.yaml',
+        message: "fixedValues JSONPath 'metadata.nonexistent' not found in any matched files",
+        context: 'Pattern: **/*.yaml, matches 1 file(s)'
+      });
+      expect(result.warnings).toContainEqual({
+        type: 'unused-fixedValues-jsonpath',
+        pattern: '**/*.yaml',
+        message: "fixedValues JSONPath 'spec.missing' not found in any matched files",
+        context: 'Pattern: **/*.yaml, matches 1 file(s)'
+      });
+    });
+
+    it('should not warn when fixedValues JSONPath exists in at least one file', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [
+          { path: 'version', value: '2.0.0' },
+          { path: 'metadata.name', value: 'new-name' }
+        ]
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0\nmetadata:\n  name: app'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0\nmetadata:\n  name: app'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath'
+        })
+      );
+    });
+
+    it('should handle undefined fixedValues', () => {
+      const config = createBaseConfig();
+      config.fixedValues = undefined;
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.yaml': 'version: 1.0.0'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues'
+        })
+      );
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath'
+        })
+      );
+    });
+
+    it('should validate fixedValues with filter expressions', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'env[name=LOG_LEVEL].value', value: 'info' }]
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'env:\n  - name: LOG_LEVEL\n    value: debug'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, createFileMap({}));
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath'
+        })
+      );
+    });
+
+    it('should warn when filter value does not match any array item', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*.yaml': [{ path: 'env[name=NONEXISTENT].value', value: 'test' }]
+      };
+
+      const sourceFiles = createFileMap({
+        'app.yaml': 'env:\n  - name: DEBUG\n    value: "1"'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, createFileMap({}));
+
+      expect(result.hasWarnings).toBe(true);
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath',
+          message: expect.stringContaining('env[name=NONEXISTENT].value')
+        })
+      );
+    });
+
+    it('should skip JSONPath validation for non-YAML files', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        '**/*': [{ path: 'version', value: '1.0.0' }]
+      };
+
+      const sourceFiles = createFileMap({
+        'app.txt': 'version: 1.0.0'
+      });
+
+      const destinationFiles = createFileMap({
+        'app.txt': 'version: 1.0.0'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      // Should not warn about path since only non-YAML files matched
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath'
+        })
+      );
+    });
+
+    it('should validate multiple fixedValues patterns', () => {
+      const config = createBaseConfig();
+      config.fixedValues = {
+        'values-prod.yaml': [{ path: 'debug', value: false }],
+        '**/*.yaml': [{ path: 'version', value: '1.0.0' }]
+      };
+
+      const sourceFiles = createFileMap({
+        'values-prod.yaml': 'debug: true\nversion: 0.9.0'
+      });
+
+      const result = validatePatternUsage(config, sourceFiles, createFileMap({}));
+
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues'
+        })
+      );
+      expect(result.warnings).not.toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath'
+        })
+      );
+    });
+  });
 });
