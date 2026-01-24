@@ -12,7 +12,7 @@
  * - Array diff visualizations
  * - Status badges and metadata
  */
-export const HTML_STYLES = `
+export const HTML_STYLES = String.raw`
   /* Custom styles */
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -330,6 +330,247 @@ export const HTML_STYLES = `
   .sidebar.collapsed ~ .sidebar-expand-btn {
     display: block;
   }
+
+  /* Selection toolbar styles */
+  .hed-selection-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #d0d7de;
+  }
+
+  .hed-selection-mode-btn {
+    padding: 8px 16px;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #24292e;
+    transition: all 0.2s;
+  }
+
+  .hed-selection-mode-btn:hover {
+    background: #eaeef2;
+  }
+
+  .hed-selection-mode-btn.active {
+    background: #0969da;
+    border-color: #0969da;
+    color: white;
+  }
+
+  .hed-selection-count {
+    font-size: 14px;
+    color: #586069;
+    padding: 4px 8px;
+  }
+
+  .hed-export-btn,
+  .hed-clear-btn {
+    padding: 8px 16px;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #24292e;
+    transition: all 0.2s;
+  }
+
+  .hed-export-btn:hover:not(:disabled),
+  .hed-clear-btn:hover:not(:disabled) {
+    background: #eaeef2;
+  }
+
+  .hed-export-btn:disabled,
+  .hed-clear-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Selection mode cursor and highlighting */
+  body.hed-selection-mode .d2h-code-line-ctn {
+    cursor: pointer;
+  }
+
+  /* Highlight deletion lines (left side) on hover in selection mode */
+  body.hed-selection-mode .d2h-del .d2h-code-line-ctn:hover,
+  body.hed-selection-mode tr.d2h-del .d2h-code-line-ctn:hover,
+  body.hed-selection-mode td.d2h-del .d2h-code-line-ctn:hover {
+    background: #ffeeba !important;
+  }
+
+  .d2h-code-line-ctn.hed-selected {
+    background: #fff3cd !important;
+    position: relative;
+  }
+
+  .d2h-code-line-ctn.hed-selected::after {
+    content: "\2713";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #856404;
+    font-weight: bold;
+  }
+
+  /* Modal styles */
+  .hed-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+  }
+
+  .hed-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hed-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .hed-modal-content {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .hed-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #d0d7de;
+  }
+
+  .hed-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #24292e;
+  }
+
+  .hed-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #586069;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .hed-modal-close:hover {
+    color: #24292e;
+  }
+
+  .hed-export-tabs {
+    display: flex;
+    padding: 12px 20px 0;
+    gap: 8px;
+    border-bottom: 1px solid #d0d7de;
+  }
+
+  .hed-export-tab {
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #586069;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+
+  .hed-export-tab:hover {
+    color: #24292e;
+  }
+
+  .hed-export-tab.active {
+    color: #0969da;
+    border-bottom-color: #0969da;
+    font-weight: 600;
+  }
+
+  .hed-export-description {
+    padding: 12px 20px;
+    font-size: 13px;
+    color: #586069;
+    background: #f6f8fa;
+  }
+
+  .hed-export-description p {
+    margin: 0;
+  }
+
+  .hed-export-output {
+    flex: 1;
+    margin: 0 20px;
+    padding: 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    resize: none;
+    min-height: 250px;
+    background: #f6f8fa;
+  }
+
+  .hed-modal-actions {
+    display: flex;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid #d0d7de;
+  }
+
+  .hed-copy-btn,
+  .hed-download-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .hed-copy-btn {
+    background: #0969da;
+    border: 1px solid #0969da;
+    color: white;
+  }
+
+  .hed-copy-btn:hover {
+    background: #0860ca;
+  }
+
+  .hed-download-btn {
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    color: #24292e;
+  }
+
+  .hed-download-btn:hover {
+    background: #eaeef2;
+  }
 `;
 
 /**
@@ -431,4 +672,352 @@ export const TAB_SCRIPT = String.raw`
 
     fileSections.forEach(section => observer.observe(section));
   }
+`;
+
+/**
+ * JavaScript for selection mode functionality.
+ *
+ * Enables interactive line selection in the diff view:
+ * - Toggle selection mode
+ * - Click lines to mark as "do not change"
+ * - Export selections in various formats
+ */
+export const SELECTION_SCRIPT = String.raw`
+  // Selection state
+  const HedSelection = {
+    enabled: false,
+    selections: new Map(), // fileId -> Map<lineKey, { path, value }>
+    currentFormat: 'skipPath'
+  };
+
+  // DOM elements
+  const selectionModeBtn = document.querySelector('.hed-selection-mode-btn');
+  const selectionCount = document.querySelector('.hed-selection-count');
+  const exportBtn = document.querySelector('.hed-export-btn');
+  const clearBtn = document.querySelector('.hed-clear-btn');
+  const modal = document.getElementById('hed-export-modal');
+  const modalOverlay = modal?.querySelector('.hed-modal-overlay');
+  const modalClose = modal?.querySelector('.hed-modal-close');
+  const exportTabs = modal?.querySelectorAll('.hed-export-tab');
+  const exportOutput = modal?.querySelector('.hed-export-output');
+  const copyBtn = modal?.querySelector('.hed-copy-btn');
+  const downloadBtn = modal?.querySelector('.hed-download-btn');
+  const descriptions = {
+    skipPath: modal?.querySelector('.hed-desc-skipPath'),
+    fixedValues: modal?.querySelector('.hed-desc-fixedValues'),
+    json: modal?.querySelector('.hed-desc-json')
+  };
+
+  // Parse file metadata from embedded JSON
+  const getFileMetadata = (fileSection) => {
+    const script = fileSection.querySelector('.hed-file-metadata');
+    if (!script) return null;
+    try {
+      return JSON.parse(script.textContent);
+    } catch {
+      return null;
+    }
+  };
+
+  // Get line number from diff2html line element
+  const getLineInfo = (lineElement, fileSection) => {
+    // Find the line number from the parent row
+    const row = lineElement.closest('tr');
+    if (!row) return null;
+
+    // diff2html uses different class names in different modes:
+    // - d2h-code-linenumber (unified mode)
+    // - d2h-code-side-linenumber (side-by-side mode)
+    let lineNumCell = row.querySelector('.d2h-code-side-linenumber');
+    if (!lineNumCell) lineNumCell = row.querySelector('.d2h-code-linenumber');
+    if (!lineNumCell) lineNumCell = row.querySelector('[class*="linenumber"]');
+    if (!lineNumCell) return null;
+
+    const lineNumText = lineNumCell.textContent?.trim();
+    const lineNum = parseInt(lineNumText, 10);
+    if (isNaN(lineNum)) return null;
+
+    // Get file metadata
+    const metadata = getFileMetadata(fileSection);
+    if (!metadata || !metadata.lineToPath) return null;
+
+    // Look up path info for this line
+    const pathInfo = metadata.lineToPath[lineNum];
+    if (!pathInfo) return null;
+
+    return {
+      lineNum,
+      filePath: metadata.path,
+      jsonPath: pathInfo.path,
+      value: pathInfo.value,
+      lineKey: lineNum + ':' + pathInfo.path
+    };
+  };
+
+  // Update selection count display
+  const updateSelectionCount = () => {
+    let total = 0;
+    for (const fileSelections of HedSelection.selections.values()) {
+      total += fileSelections.size;
+    }
+
+    if (total > 0) {
+      selectionCount.textContent = total + ' line' + (total === 1 ? '' : 's') + ' selected';
+      exportBtn.disabled = false;
+      clearBtn.disabled = false;
+    } else {
+      selectionCount.textContent = '';
+      exportBtn.disabled = true;
+      clearBtn.disabled = true;
+    }
+  };
+
+  // Toggle selection mode
+  const toggleSelectionMode = () => {
+    HedSelection.enabled = !HedSelection.enabled;
+    document.body.classList.toggle('hed-selection-mode', HedSelection.enabled);
+    selectionModeBtn.classList.toggle('active', HedSelection.enabled);
+    selectionModeBtn.textContent = HedSelection.enabled ? 'Exit Selection Mode' : 'Enable Selection Mode';
+  };
+
+  // Handle line click in selection mode
+  const handleLineClick = (event) => {
+    if (!HedSelection.enabled) return;
+
+    // Find the code line container
+    const lineContainer = event.target.closest('.d2h-code-line-ctn');
+    if (!lineContainer) return;
+
+    // Check if this is a deletion line (left side / destination content we want to keep)
+    // The d2h-del class can be on the parent row, cell, or line element
+    const row = lineContainer.closest('tr');
+    const isDelLine = row && (
+      row.classList.contains('d2h-del') ||
+      row.querySelector('td.d2h-del') ||
+      lineContainer.closest('.d2h-del')
+    );
+    if (!isDelLine) return;
+
+    const fileSection = lineContainer.closest('.file-section');
+    if (!fileSection) return;
+
+    const fileId = fileSection.getAttribute('data-file-id');
+    const lineInfo = getLineInfo(lineContainer, fileSection);
+
+    if (!lineInfo) return;
+
+    // Initialize file selections map if needed
+    if (!HedSelection.selections.has(fileId)) {
+      HedSelection.selections.set(fileId, new Map());
+    }
+
+    const fileSelections = HedSelection.selections.get(fileId);
+
+    // Toggle selection
+    if (lineContainer.classList.contains('hed-selected')) {
+      lineContainer.classList.remove('hed-selected');
+      fileSelections.delete(lineInfo.lineKey);
+    } else {
+      lineContainer.classList.add('hed-selected');
+      fileSelections.set(lineInfo.lineKey, {
+        filePath: lineInfo.filePath,
+        path: lineInfo.jsonPath,
+        value: lineInfo.value
+      });
+    }
+
+    updateSelectionCount();
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  // Clear all selections
+  const clearSelections = () => {
+    document.querySelectorAll('.hed-selected').forEach(el => el.classList.remove('hed-selected'));
+    HedSelection.selections.clear();
+    updateSelectionCount();
+  };
+
+  // Generate skipPath YAML output
+  const generateSkipPathYaml = () => {
+    const pathsByFile = new Map();
+
+    for (const fileSelections of HedSelection.selections.values()) {
+      for (const sel of fileSelections.values()) {
+        if (!pathsByFile.has(sel.filePath)) {
+          pathsByFile.set(sel.filePath, new Set());
+        }
+        pathsByFile.get(sel.filePath).add(sel.path);
+      }
+    }
+
+    if (pathsByFile.size === 0) return '# No selections';
+
+    let yaml = 'skipPath:\n';
+    for (const [filePath, paths] of pathsByFile) {
+      yaml += '  ' + JSON.stringify(filePath) + ':\n';
+      for (const path of paths) {
+        yaml += '    - ' + JSON.stringify(path) + '\n';
+      }
+    }
+
+    return yaml;
+  };
+
+  // Generate fixedValues YAML output
+  const generateFixedValuesYaml = () => {
+    const valuesByFile = new Map();
+
+    for (const fileSelections of HedSelection.selections.values()) {
+      for (const sel of fileSelections.values()) {
+        if (!valuesByFile.has(sel.filePath)) {
+          valuesByFile.set(sel.filePath, []);
+        }
+        valuesByFile.get(sel.filePath).push({ path: sel.path, value: sel.value });
+      }
+    }
+
+    if (valuesByFile.size === 0) return '# No selections';
+
+    let yaml = 'fixedValues:\n';
+    for (const [filePath, entries] of valuesByFile) {
+      yaml += '  ' + JSON.stringify(filePath) + ':\n';
+      for (const entry of entries) {
+        yaml += '    - path: ' + JSON.stringify(entry.path) + '\n';
+        // Format value appropriately
+        const val = entry.value;
+        if (typeof val === 'string') {
+          yaml += '      value: ' + JSON.stringify(val) + '\n';
+        } else if (typeof val === 'number' || typeof val === 'boolean' || val === null) {
+          yaml += '      value: ' + String(val) + '\n';
+        } else {
+          yaml += '      value: ' + JSON.stringify(val) + '\n';
+        }
+      }
+    }
+
+    return yaml;
+  };
+
+  // Generate JSON output for --skip-selection
+  const generateJson = () => {
+    const selections = [];
+
+    for (const fileSelections of HedSelection.selections.values()) {
+      for (const sel of fileSelections.values()) {
+        selections.push({
+          file: sel.filePath,
+          path: sel.path,
+          value: sel.value
+        });
+      }
+    }
+
+    return JSON.stringify({ selections }, null, 2);
+  };
+
+  // Update export output based on current format
+  const updateExportOutput = () => {
+    if (!exportOutput) return;
+
+    switch (HedSelection.currentFormat) {
+      case 'skipPath':
+        exportOutput.value = generateSkipPathYaml();
+        break;
+      case 'fixedValues':
+        exportOutput.value = generateFixedValuesYaml();
+        break;
+      case 'json':
+        exportOutput.value = generateJson();
+        break;
+    }
+  };
+
+  // Show modal
+  const showModal = () => {
+    updateExportOutput();
+    modal?.classList.add('active');
+  };
+
+  // Hide modal
+  const hideModal = () => {
+    modal?.classList.remove('active');
+  };
+
+  // Switch export tab
+  const switchExportTab = (format) => {
+    HedSelection.currentFormat = format;
+
+    // Update tab active state
+    exportTabs?.forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.format === format);
+    });
+
+    // Update description visibility
+    Object.entries(descriptions).forEach(([key, el]) => {
+      if (el) el.style.display = key === format ? 'block' : 'none';
+    });
+
+    updateExportOutput();
+  };
+
+  // Copy to clipboard
+  const copyToClipboard = async () => {
+    if (!exportOutput) return;
+
+    try {
+      await navigator.clipboard.writeText(exportOutput.value);
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+    } catch {
+      // Fallback for older browsers
+      exportOutput.select();
+      document.execCommand('copy');
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+    }
+  };
+
+  // Download file
+  const downloadFile = () => {
+    if (!exportOutput) return;
+
+    const content = exportOutput.value;
+    const format = HedSelection.currentFormat;
+    const ext = format === 'json' ? 'json' : 'yaml';
+    const filename = 'hed-selections.' + ext;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Event listeners
+  selectionModeBtn?.addEventListener('click', toggleSelectionMode);
+  clearBtn?.addEventListener('click', clearSelections);
+  exportBtn?.addEventListener('click', showModal);
+  modalOverlay?.addEventListener('click', hideModal);
+  modalClose?.addEventListener('click', hideModal);
+  copyBtn?.addEventListener('click', copyToClipboard);
+  downloadBtn?.addEventListener('click', downloadFile);
+
+  exportTabs?.forEach(tab => {
+    tab.addEventListener('click', () => switchExportTab(tab.dataset.format));
+  });
+
+  // Handle clicks on diff content
+  document.addEventListener('click', handleLineClick);
+
+  // Close modal on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+      hideModal();
+    }
+  });
 `;

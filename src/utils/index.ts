@@ -100,3 +100,16 @@ export {
 
 // Fixed values utilities
 export { applyFixedValues, getFixedValuesForFile, setValueAtPath } from './fixedValues';
+
+// YAML line mapping utilities
+export type { LineMapping, LinePathInfo } from './yamlLineMapping';
+export { computeLineToJsonPath, serializeLineMapping } from './yamlLineMapping';
+
+// Skip selection loading utilities
+export type { SelectionEntry, SelectionFile } from './skipSelectionLoader';
+export {
+  isSkipSelectionLoaderError,
+  loadSkipSelection,
+  mergeSkipSelection,
+  SkipSelectionLoaderError
+} from './skipSelectionLoader';

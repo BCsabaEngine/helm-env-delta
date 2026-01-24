@@ -13,6 +13,7 @@ import { generateUnifiedDiff } from './utils/diffGenerator';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
 import { serializeForDiff } from './utils/serialization';
+import { computeLineToJsonPath, serializeLineMapping } from './utils/yamlLineMapping';
 
 // Re-export types for backward compatibility
 export type { ReportMetadata } from './reporters/htmlTemplate';
@@ -58,12 +59,29 @@ const generateChangedFileSection = (file: ChangedFile, fileId: string): string =
   const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
   const diffHtml = generateDiffHtml(unifiedDiff);
 
+  // Compute line-to-path mappings for selection mode
+  let metadataJson = '';
+  if (isYaml) {
+    const destinationLineMap = computeLineToJsonPath(destinationContent);
+    const metadata = {
+      path: file.path,
+      lineToPath: serializeLineMapping(destinationLineMap),
+      parsedDest: file.rawParsedDest
+    };
+    metadataJson = `
+      <script type="application/json" class="hed-file-metadata">
+        ${JSON.stringify(metadata)}
+      </script>
+    `;
+  }
+
   return `
     <details class="file-section" id="${fileId}" data-file-id="${fileId}" open>
       <summary>${summary}</summary>
       <div class="diff-container">
         ${diffHtml}
       </div>
+      ${metadataJson}
     </details>
   `;
 };

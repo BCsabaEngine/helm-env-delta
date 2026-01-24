@@ -23,6 +23,7 @@ export type SyncCommand = {
   noColor: boolean;
   suggest: boolean;
   suggestThreshold: number;
+  skipSelection?: string;
 };
 
 // ============================================================================
@@ -49,6 +50,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--show-config', 'Display resolved configuration after inheritance and exit', false)
     .option('--suggest', 'Analyze differences and suggest transforms and stop rules', false)
     .option('--suggest-threshold <number>', 'Minimum confidence for suggestions (0-1, default: 0.3)', '0.3')
+    .option('--skip-selection <file>', 'JSON file with selections to skip (from HTML report export)')
     .option('--no-color', 'Disable colored output')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
@@ -115,6 +117,7 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     verbose: options['verbose'],
     quiet: options['quiet'],
     suggest: options['suggest'],
-    suggestThreshold: threshold
+    suggestThreshold: threshold,
+    skipSelection: options['skipSelection']
   };
 };

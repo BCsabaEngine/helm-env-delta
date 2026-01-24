@@ -1,5 +1,5 @@
 import { FileDiffResult } from '../fileDiff';
-import { HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
+import { HTML_STYLES, SELECTION_SCRIPT, TAB_SCRIPT } from './htmlStyles';
 import { buildFileTree } from './treeBuilder';
 import { renderSidebarTree, renderTreeview } from './treeRenderer';
 
@@ -97,7 +97,39 @@ ${HTML_STYLES}
       <span class="stat formatted">${formattedFiles.length} Formatted</span>
       <span class="stat unchanged">${trulyUnchangedFiles.length} Unchanged</span>
     </div>
+    <div class="hed-selection-toolbar">
+      <button class="hed-selection-mode-btn" title="Enable selection mode to mark lines to keep">Enable Selection Mode</button>
+      <span class="hed-selection-count"></span>
+      <button class="hed-export-btn" disabled title="Export selected lines">Export Selections</button>
+      <button class="hed-clear-btn" disabled title="Clear all selections">Clear</button>
+    </div>
   </header>
+
+  <!-- Export Modal -->
+  <div id="hed-export-modal" class="hed-modal">
+    <div class="hed-modal-overlay"></div>
+    <div class="hed-modal-content">
+      <div class="hed-modal-header">
+        <h2>Export Selections</h2>
+        <button class="hed-modal-close">&times;</button>
+      </div>
+      <div class="hed-export-tabs">
+        <button class="hed-export-tab active" data-format="skipPath">skipPath</button>
+        <button class="hed-export-tab" data-format="fixedValues">fixedValues</button>
+        <button class="hed-export-tab" data-format="json">JSON (skip now)</button>
+      </div>
+      <div class="hed-export-description">
+        <p class="hed-desc-skipPath">Add to your config to permanently skip syncing these paths.</p>
+        <p class="hed-desc-fixedValues" style="display:none;">Add to your config to lock these values permanently.</p>
+        <p class="hed-desc-json" style="display:none;">Save as file and use with --skip-selection for one-time skip.</p>
+      </div>
+      <textarea class="hed-export-output" readonly></textarea>
+      <div class="hed-modal-actions">
+        <button class="hed-copy-btn">Copy to Clipboard</button>
+        <button class="hed-download-btn">Download</button>
+      </div>
+    </div>
+  </div>
 
   <nav class="tabs">
     <button class="tab active" data-tab="changed">Changed (${diffResult.changedFiles.length})</button>
@@ -183,6 +215,7 @@ ${HTML_STYLES}
 
   <script>
 ${TAB_SCRIPT}
+${SELECTION_SCRIPT}
   </script>
 </body>
 </html>

@@ -26,6 +26,7 @@ import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestion
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
+import { isSkipSelectionLoaderError, loadSkipSelection, mergeSkipSelection } from './utils/skipSelectionLoader';
 import { checkForUpdates } from './utils/versionChecker';
 import { formatYaml } from './yamlFormatter';
 import { isZodValidationError } from './ZodError';
@@ -68,6 +69,15 @@ const main = async (): Promise<void> => {
 
   // Load and validate config
   const config = loadConfigFile(command.config, command.quiet, logger);
+
+  // Load and merge skip-selection file if provided
+  if (command.skipSelection) {
+    logger.log(`Loading skip selections from: ${command.skipSelection}`);
+    const selectionSkipPath = loadSkipSelection(command.skipSelection);
+    config.skipPath = mergeSkipSelection(config.skipPath, selectionSkipPath);
+    const selectionCount = Object.values(selectionSkipPath).reduce((sum, paths) => sum + paths.length, 0);
+    logger.log(`Merged ${selectionCount} path(s) from selection file into skipPath`);
+  }
 
   // Early exit for show-config mode
   if (command.showConfig) {
@@ -356,6 +366,7 @@ const main = async (): Promise<void> => {
     else if (isHtmlReporterError(error)) console.error(error.message);
     else if (isJsonReporterError(error)) console.error(error.message);
     else if (isSuggestionEngineError(error)) console.error(error.message);
+    else if (isSkipSelectionLoaderError(error)) console.error(error.message);
     else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
