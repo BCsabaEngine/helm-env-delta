@@ -48,7 +48,7 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 📦 **Config Inheritance** - Reuse base configurations with environment-specific overrides.
 
-📊 **Multiple Reports** - Console, HTML (visual), and JSON (CI/CD) output formats.
+📊 **Multiple Reports** - Console, HTML (visual with interactive selection), and JSON (CI/CD) output formats.
 
 🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with comprehensive warnings including unused pattern detection.
 
@@ -714,24 +714,25 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag                        | Description                                        |
-| --------------------------- | -------------------------------------------------- |
-| `--config <path>`           | **Required** - Configuration file                  |
-| `--validate`                | Validate config and pattern usage (shows warnings) |
-| `--suggest`                 | Analyze differences and suggest config updates     |
-| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)  |
-| `--dry-run`                 | Preview changes without writing files              |
-| `--force`                   | Override stop rules                                |
-| `--diff`                    | Show console diff                                  |
-| `--diff-html`               | Generate HTML report (opens in browser)            |
-| `--diff-json`               | Output JSON to stdout (pipe to jq)                 |
-| `--list-files`              | List source/destination files without processing   |
-| `--show-config`             | Display resolved config after inheritance          |
-| `--format-only`             | Format destination files without syncing           |
-| `--skip-format`             | Skip YAML formatting during sync                   |
-| `--no-color`                | Disable colored output (CI/accessibility)          |
-| `--verbose`                 | Show detailed debug info                           |
-| `--quiet`                   | Suppress output except errors                      |
+| Flag                        | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| `--config <path>`           | **Required** - Configuration file                    |
+| `--validate`                | Validate config and pattern usage (shows warnings)   |
+| `--suggest`                 | Analyze differences and suggest config updates       |
+| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)    |
+| `--dry-run`                 | Preview changes without writing files                |
+| `--force`                   | Override stop rules                                  |
+| `--diff`                    | Show console diff                                    |
+| `--diff-html`               | Generate HTML report with interactive selection      |
+| `--diff-json`               | Output JSON to stdout (pipe to jq)                   |
+| `--list-files`              | List source/destination files without processing     |
+| `--show-config`             | Display resolved config after inheritance            |
+| `--skip-selection <file>`   | Load JSON file with paths to skip (from HTML export) |
+| `--format-only`             | Format destination files without syncing             |
+| `--skip-format`             | Skip YAML formatting during sync                     |
+| `--no-color`                | Disable colored output (CI/accessibility)            |
+| `--verbose`                 | Show detailed debug info                             |
+| `--quiet`                   | Suppress output except errors                        |
 
 ### Examples
 
@@ -902,6 +903,102 @@ jq '.stopRuleViolations' report.json
 
 # Changed files
 jq '.files.changed[].path' report.json
+```
+
+---
+
+## 🎯 Interactive Selection Mode
+
+The HTML diff report (`--diff-html`) includes an interactive selection feature that lets you mark specific changes as "do not change" directly in your browser.
+
+### How It Works
+
+1. **Generate HTML Report**
+
+   ```bash
+   helm-env-delta --config config.yaml --diff-html
+   ```
+
+2. **Enable Selection Mode** - Click "Enable Selection Mode" button in the toolbar
+
+3. **Select Lines** - Click on red (deleted) lines to mark them as "keep destination value"
+   - Selected lines show a yellow background with a checkmark ✓
+   - Counter shows how many lines are selected
+
+4. **Export Selections** - Click "Export Selections" and choose a format:
+
+| Format          | Purpose                      | Use Case                               |
+| --------------- | ---------------------------- | -------------------------------------- |
+| **skipPath**    | Permanently skip these paths | Copy/paste into config file            |
+| **fixedValues** | Lock values permanently      | Copy/paste into config file            |
+| **JSON**        | One-time skip                | Save file, use with `--skip-selection` |
+
+### Workflow A: Skip Now (One-Time)
+
+```bash
+# 1. Generate report, select lines, export as JSON, save to selections.json
+helm-env-delta --config config.yaml --diff-html
+
+# 2. Re-run with selections skipped
+helm-env-delta --config config.yaml --skip-selection selections.json --dry-run
+
+# 3. Execute when ready
+helm-env-delta --config config.yaml --skip-selection selections.json
+```
+
+### Workflow B: Skip Permanently
+
+```bash
+# 1. Generate report, select lines, export as skipPath YAML
+helm-env-delta --config config.yaml --diff-html
+
+# 2. Copy the exported YAML into your config file:
+```
+
+```yaml
+# Add to config.yaml
+skipPath:
+  values-prod.yaml:
+    - image.tag
+    - env[name=DEBUG].value
+```
+
+```bash
+# 3. Future runs automatically skip these paths
+helm-env-delta --config config.yaml
+```
+
+### Export Format Examples
+
+**skipPath output:**
+
+```yaml
+skipPath:
+  values-prod.yaml:
+    - image.tag
+    - env[name=LOG_LEVEL].value
+```
+
+**fixedValues output:**
+
+```yaml
+fixedValues:
+  values-prod.yaml:
+    - path: image.tag
+      value: v2.0.0
+    - path: env[name=LOG_LEVEL].value
+      value: info
+```
+
+**JSON output (for `--skip-selection`):**
+
+```json
+{
+  "selections": [
+    { "file": "values-prod.yaml", "path": "image.tag", "value": "v2.0.0" },
+    { "file": "values-prod.yaml", "path": "env[name=LOG_LEVEL].value", "value": "info" }
+  ]
+}
 ```
 
 ---

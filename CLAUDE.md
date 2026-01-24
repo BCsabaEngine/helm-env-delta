@@ -23,10 +23,10 @@ npx vitest run test/fileLoader.test.ts
 npx vitest run -t "skipExclude"
 
 # CLI
-helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--format-only] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
+helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--format-only] [--list-files] [--show-config] [--skip-selection <file>] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format without syncing), `--list-files` (preview files), `--show-config` (display resolved config)
+**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser with interactive selection), `--diff-json` (pipe to jq), `--format-only` (format without syncing), `--list-files` (preview files), `--show-config` (display resolved config), `--skip-selection` (load JSON selections to skip)
 
 ## Architecture
 
@@ -86,6 +86,8 @@ Barrel exports via `index.ts`:
 - `transformFileLoader.ts` - loadTransformFile, loadTransformFiles, escapeRegex
 - `regexPatternFileLoader.ts` - loadRegexPatternArray, loadRegexPatternsFromKeys
 - `fixedValues.ts` - getFixedValuesForFile, applyFixedValues, setValueAtPath (constant value injection)
+- `yamlLineMapping.ts` - computeLineToJsonPath, serializeLineMapping (maps YAML line numbers to JSONPaths for HTML selection)
+- `skipSelectionLoader.ts` - loadSkipSelection, mergeSkipSelection (loads JSON selection files for --skip-selection flag)
 
 **Error Pattern:** All modules use `errors.ts` factory for custom error classes with type guards, error codes, hints.
 
@@ -208,3 +210,35 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 - JSONPath: Omit `$.` prefix in stop rules (use `'version'` not `'$.version'`)
 - Async: Promise.all for parallel processing
 - Version check: Auto-notify on every run (skips CI, 3s timeout)
+
+## Interactive HTML Selection
+
+The HTML diff report (`--diff-html`) supports interactive line selection for marking changes as "do not change":
+
+1. **Enable Selection Mode** - Click button in toolbar
+2. **Select Lines** - Click red (deleted) lines to mark as "keep destination value"
+3. **Export Selections** - Choose export format:
+   - **skipPath YAML** - Paste into config to permanently skip paths
+   - **fixedValues YAML** - Paste into config to lock values permanently
+   - **JSON** - Save and use with `--skip-selection file.json` for one-time skip
+
+**Implementation:**
+
+- `htmlReporter.ts` embeds line-to-path metadata in `<script class="hed-file-metadata">` JSON blocks
+- `htmlStyles.ts` contains `SELECTION_SCRIPT` with selection state management and export generation
+- `htmlTemplate.ts` includes selection toolbar and export modal in the header
+- `yamlLineMapping.ts` computes line number → JSONPath mappings using YAML AST
+
+**Workflow A (One-time skip):**
+
+```bash
+helm-env-delta --config config.yaml --diff-html  # Select lines, export as JSON
+helm-env-delta --config config.yaml --skip-selection selections.json --dry-run
+```
+
+**Workflow B (Permanent skip):**
+
+```bash
+helm-env-delta --config config.yaml --diff-html  # Select lines, export as skipPath YAML
+# Copy output into config.yaml's skipPath section
+```
