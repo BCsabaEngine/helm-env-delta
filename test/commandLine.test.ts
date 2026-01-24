@@ -36,7 +36,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        skipSelection: undefined
       });
     });
 
@@ -107,7 +108,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        skipSelection: undefined
       });
     });
 
@@ -171,7 +173,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        skipSelection: undefined
       });
     });
 
@@ -247,7 +250,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        skipSelection: undefined
       });
     });
 
@@ -366,7 +370,8 @@ describe('commandLine', () => {
         verbose: true,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        skipSelection: undefined
       });
     });
 
@@ -389,7 +394,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: true,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        skipSelection: undefined
       });
     });
 
@@ -445,6 +451,61 @@ describe('commandLine', () => {
       expect(result.listFiles).toBe(true);
       expect(result.showConfig).toBe(true);
       expect(result.noColor).toBe(true);
+    });
+
+    it('should parse command with --skip-selection', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--skip-selection', 'selections.json']);
+
+      expect(result.skipSelection).toBe('selections.json');
+    });
+
+    it('should default skipSelection to undefined when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.skipSelection).toBeUndefined();
+    });
+
+    it('should parse command with --skip-selection and other flags', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        '--config',
+        'test.yaml',
+        '--skip-selection',
+        'my-selections.json',
+        '--dry-run',
+        '--diff-html'
+      ]);
+
+      expect(result.skipSelection).toBe('my-selections.json');
+      expect(result.dryRun).toBe(true);
+      expect(result.diffHtml).toBe(true);
+    });
+
+    it('should parse command with --skip-selection with path containing spaces', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        '--config',
+        'test.yaml',
+        '--skip-selection',
+        'path with spaces/selections.json'
+      ]);
+
+      expect(result.skipSelection).toBe('path with spaces/selections.json');
+    });
+
+    it('should parse command with --skip-selection with absolute path', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        '--config',
+        'test.yaml',
+        '--skip-selection',
+        '/absolute/path/selections.json'
+      ]);
+
+      expect(result.skipSelection).toBe('/absolute/path/selections.json');
     });
   });
 });

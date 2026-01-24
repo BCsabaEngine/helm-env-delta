@@ -36,6 +36,11 @@ vi.mock('../src/utils/serialization', () => ({
   normalizeForComparison: vi.fn()
 }));
 
+vi.mock('../src/utils/yamlLineMapping', () => ({
+  computeLineToJsonPath: vi.fn(),
+  serializeLineMapping: vi.fn()
+}));
+
 vi.mock('../src/utils/deepEqual', () => ({
   deepEqual: vi.fn()
 }));
@@ -60,6 +65,7 @@ import { generateUnifiedDiff } from '../src/utils/diffGenerator';
 import { isYamlFile } from '../src/utils/fileType';
 import { getValueAtPath } from '../src/utils/jsonPath';
 import { normalizeForComparison, serializeForDiff } from '../src/utils/serialization';
+import { computeLineToJsonPath, serializeLineMapping } from '../src/utils/yamlLineMapping';
 
 // Helper to create a mock logger
 const createMockLogger = (): Logger => {
@@ -120,6 +126,11 @@ describe('htmlReporter', () => {
     vi.mocked(normalizeForComparison).mockImplementation((value) => value);
     vi.mocked(deepEqual).mockReturnValue(true);
     vi.mocked(getValueAtPath).mockReturnValue();
+    vi.mocked(computeLineToJsonPath).mockReturnValue({
+      lineToPath: new Map([[1, { path: 'version', value: '1.0.0' }]]),
+      pathToLine: new Map([['version', 1]])
+    });
+    vi.mocked(serializeLineMapping).mockReturnValue({ 1: { path: 'version', value: '1.0.0' } });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'));
@@ -579,6 +590,87 @@ describe('htmlReporter', () => {
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('1 Formatted');
+    });
+
+    it('should embed file metadata for YAML files', async () => {
+      const changedFile = createMockChangedFile({ path: 'test.yaml' });
+      const diffResult = createMockDiffResult({
+        changedFiles: [changedFile]
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      expect(computeLineToJsonPath).toHaveBeenCalled();
+      expect(serializeLineMapping).toHaveBeenCalled();
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('class="hed-file-metadata"');
+      expect(htmlContent).toContain('"path":"test.yaml"');
+    });
+
+    it('should not embed metadata for non-YAML files', async () => {
+      vi.mocked(isYamlFile).mockReturnValueOnce(false);
+      const changedFile = createMockChangedFile({ path: 'test.json' });
+      const diffResult = createMockDiffResult({
+        changedFiles: [changedFile]
+      });
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      // Check that the line mapping function wasn't called for non-YAML files
+      expect(computeLineToJsonPath).not.toHaveBeenCalled();
+    });
+
+    it('should include selection mode toolbar in header', async () => {
+      const diffResult = createMockDiffResult();
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('hed-selection-toolbar');
+      expect(htmlContent).toContain('hed-selection-mode-btn');
+      expect(htmlContent).toContain('Enable Selection Mode');
+    });
+
+    it('should include export modal in HTML', async () => {
+      const diffResult = createMockDiffResult();
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('hed-export-modal');
+      expect(htmlContent).toContain('hed-export-tabs');
+      expect(htmlContent).toContain('data-format="skipPath"');
+      expect(htmlContent).toContain('data-format="fixedValues"');
+      expect(htmlContent).toContain('data-format="json"');
+    });
+
+    it('should include selection mode CSS styles', async () => {
+      const diffResult = createMockDiffResult();
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('.hed-selection-toolbar');
+      expect(htmlContent).toContain('.hed-modal');
+      expect(htmlContent).toContain('.hed-selected');
+    });
+
+    it('should include selection mode JavaScript', async () => {
+      const diffResult = createMockDiffResult();
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('HedSelection');
+      expect(htmlContent).toContain('toggleSelectionMode');
+      expect(htmlContent).toContain('generateSkipPathYaml');
     });
   });
 });
