@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-01-25
+
+### Added
+
+- Fixed values: New `fixedValues` configuration option lets you set specific fields to constant values regardless of what's in source or destination files. Perfect for enforcing production settings like `debug: false`, `logLevel: warn`, or `replicas: 3` after every sync. Supports all filter operators (`=`, `^=`, `$=`, `*=`) to update multiple matching array items at once. Changes are visible in all diff reports (console, HTML, JSON).
+
+### Changed
+
+- Cleaner HTML diff report: Array sections now show a simplified unified diff view instead of separate added/removed/unchanged sections, making it easier to see what actually changed.
+
+### Fixed
+
+- HTML report layout: The side-by-side tree view now properly fills the available height, preventing unnecessary scrolling and improving readability for large reports.
+
 ## [1.8.1] - 2026-01-23
 
 ### Fixed

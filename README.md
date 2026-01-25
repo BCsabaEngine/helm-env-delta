@@ -841,7 +841,7 @@ git push origin main
 
 ✅ **Flexibility** - Per-file patterns. Config inheritance. Regex transforms.
 
-✅ **Reliability** - 1100+ tests, 84% coverage. Battle-tested.
+✅ **Reliability** - 1150+ tests, 84% coverage. Battle-tested.
 
 ---
 

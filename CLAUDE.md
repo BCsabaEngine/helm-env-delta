@@ -44,6 +44,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
+- `arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)
 - `suggestionEngine.ts` - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules)
 - Reporters: `htmlReporter.ts`, `consoleDiffReporter.ts`, `jsonReporter.ts`, `treeBuilder.ts`, `treeRenderer.ts`
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
@@ -86,6 +87,7 @@ Barrel exports via `index.ts`:
 - `transformFileLoader.ts` - loadTransformFile, loadTransformFiles, escapeRegex
 - `regexPatternFileLoader.ts` - loadRegexPatternArray, loadRegexPatternsFromKeys
 - `fixedValues.ts` - getFixedValuesForFile, applyFixedValues, setValueAtPath (constant value injection)
+- `arrayMerger.ts` - getApplicableArrayFilters, mergeArraysWithFilters (skipPath-aware array merging)
 
 **Error Pattern:** All modules use `errors.ts` factory for custom error classes with type guards, error codes, hints.
 
@@ -188,7 +190,7 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 
 **Structure:** Vitest, describe/it, Arrange-Act-Assert
 
-**34 test files, 1100+ tests:** Core modules, reporters, utils, integration tests
+**35 test files, 1150+ tests:** Core modules, reporters, utils, integration tests
 
 **Performance:** 8 benchmark files in `test/perf/`. Uses Vitest `bench()` API. Run: `npm run test:perf`
 
