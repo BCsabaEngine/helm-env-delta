@@ -13,7 +13,6 @@ import { isConfigMergerError } from './configMerger';
 import { validateConfigWarnings } from './configWarnings';
 import { showConsoleDiff } from './consoleDiffReporter';
 import { formatProgressMessage } from './consoleFormatter';
-import { SYNC_CONFIRMATION_DELAY_MS } from './constants';
 import { computeFileDiff, isFileDiffError } from './fileDiff';
 import { isFileLoaderError, loadFiles } from './fileLoader';
 import { isFileUpdaterError, updateFiles } from './fileUpdater';
@@ -315,8 +314,8 @@ const main = async (): Promise<void> => {
 
     console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
 
-    // Pause to let user cancel
-    await new Promise((resolve) => setTimeout(resolve, SYNC_CONFIRMATION_DELAY_MS));
+    // Pause to let user cancel (skip if delay is 0)
+    if (config.confirmationDelay > 0) await new Promise((resolve) => setTimeout(resolve, config.confirmationDelay));
   }
 
   // Update files

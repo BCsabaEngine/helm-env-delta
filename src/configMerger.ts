@@ -72,6 +72,9 @@ export const mergeConfigs = (parent: BaseConfig, child: BaseConfig): BaseConfig 
   if (child.prune !== undefined) merged.prune = child.prune;
   else if (parent.prune !== undefined) merged.prune = parent.prune;
 
+  if (child.confirmationDelay !== undefined) merged.confirmationDelay = child.confirmationDelay;
+  else if (parent.confirmationDelay !== undefined) merged.confirmationDelay = parent.confirmationDelay;
+
   // Arrays - concatenate parent and child
   const parentInclude = parent.include ?? [];
   const childInclude = child.include ?? [];
