@@ -201,6 +201,8 @@ const baseConfigSchema = z.object({
 
   prune: z.boolean().optional(),
 
+  confirmationDelay: z.number().int().min(0).optional(),
+
   skipPath: z.record(z.string(), z.array(z.string())).optional(),
 
   outputFormat: z
@@ -228,6 +230,7 @@ const finalConfigSchema = baseConfigSchema
     include: z.array(z.string().min(1)).default(['**/*']),
     exclude: z.array(z.string().min(1)).default([]),
     prune: z.boolean().default(false),
+    confirmationDelay: z.number().int().min(0).default(3000),
     outputFormat: z
       .object({
         indent: z.number().int().min(1).max(10).default(2),
