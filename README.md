@@ -371,6 +371,7 @@ exclude: # Optional: Exclude patterns
   - '**/test*.yaml'
 
 prune: false # Optional: Delete dest files not in source
+confirmationDelay: 3000 # Optional: Delay in ms before sync (default: 3000, 0 to disable)
 ```
 
 ---

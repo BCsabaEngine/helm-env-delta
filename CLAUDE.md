@@ -51,7 +51,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 
 **Config Schema:**
 
-- Core: `source`, `destination` (required), `include`/`exclude`, `prune`
+- Core: `source`, `destination` (required), `include`/`exclude`, `prune`, `confirmationDelay`
 - Inheritance: Single parent via `extends`, max 5 levels, circular detection
 - `skipPath`: JSONPath patterns per-file (glob patterns), supports CSS-style filter expressions `[prop=value]`, `[prop^=prefix]`, `[prop$=suffix]`, `[prop*=substring]`
 - `transforms`: Object with `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
