@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-01-26
+
+### Added
+
+- Configurable confirmation delay: New `confirmationDelay` config option lets you control the pre-sync countdown timer (in milliseconds). Set to `0` to disable the delay entirely for automated workflows, or increase it for extra review time. Default remains 3 seconds.
+
+### Fixed
+
+- Fixed values now properly inherited via `extends`: When using config inheritance, `fixedValues` from parent configs are now correctly merged into child configs. Previously, `fixedValues` defined in a base config would be lost when extending it.
+
 ## [1.9.0] - 2026-01-25
 
 ### Added

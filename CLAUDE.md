@@ -59,6 +59,14 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `fixedValues`: Set JSONPath locations to constant values (glob pattern → array of {path, value}), applied after merge
 - `outputFormat`: indent, keySeparator, quoteValues, keyOrders, arraySort
 
+**Config Inheritance Merging (`configMerger.ts`):**
+
+1. Primitives (`source`, `destination`, `prune`, `confirmationDelay`): Child overrides parent
+2. Arrays (`include`, `exclude`): Concatenate `[...parent, ...child]`
+3. Per-file Records (`skipPath`, `transforms`, `stopRules`, `fixedValues`): Merge keys, concatenate arrays per key
+4. `outputFormat`: Shallow merge (child fields override parent fields)
+5. `extends` field removed from merged result
+
 **Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk
 
 ## Code Style
