@@ -698,8 +698,10 @@ stopRules: # Add production safety rules
 
 **Merging:**
 
-- Arrays: Concatenated (child adds to parent)
-- Objects: Deep merged (child overrides parent)
+- Primitives (`source`, `destination`, `prune`, `confirmationDelay`): Child overrides parent
+- Arrays (`include`, `exclude`): Concatenated (parent + child)
+- Per-file Records (`skipPath`, `transforms`, `stopRules`, `fixedValues`): Keys merged, arrays concatenated
+- `outputFormat`: Shallow merged (child fields override parent)
 - Max depth: 5 levels
 
 ---
