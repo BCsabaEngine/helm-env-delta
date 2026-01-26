@@ -55,7 +55,7 @@ export const isConfigMergerError = createErrorTypeGuard(ConfigMergerError);
  * Merge rules:
  * 1. Primitive fields: child overrides parent
  * 2. Arrays (include, exclude): concatenate [...parent, ...child]
- * 3. Per-file Records (skipPath, transforms, stopRules): merge keys, concatenate arrays
+ * 3. Per-file Records (skipPath, transforms, stopRules, fixedValues): merge keys, concatenate arrays
  * 4. outputFormat: shallow merge (child fields override parent fields)
  * 5. Remove 'extends' field from merged result
  */
@@ -95,6 +95,7 @@ export const mergeConfigs = (parent: BaseConfig, child: BaseConfig): BaseConfig 
   merged.skipPath = mergePerFileRecords(parent.skipPath, child.skipPath);
   merged.transforms = mergeTransformRecords(parent.transforms, child.transforms);
   merged.stopRules = mergePerFileRecords(parent.stopRules, child.stopRules);
+  merged.fixedValues = mergePerFileRecords(parent.fixedValues, child.fixedValues);
 
   // Note: 'extends' field is intentionally NOT included in merged result
 

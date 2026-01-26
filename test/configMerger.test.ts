@@ -167,6 +167,30 @@ describe('configMerger', () => {
       });
     });
 
+    it('should merge per-file fixedValues', () => {
+      const parent: BaseConfig = {
+        fixedValues: {
+          'apps/*.yaml': [{ path: 'spec.replicas', value: 3 }]
+        }
+      };
+      const child: BaseConfig = {
+        fixedValues: {
+          'apps/*.yaml': [{ path: 'env[name=LOG_LEVEL].value', value: 'info' }],
+          'svc/*.yaml': [{ path: 'debug', value: false }]
+        }
+      };
+
+      const result = mergeConfigs(parent, child);
+
+      expect(result.fixedValues).toEqual({
+        'apps/*.yaml': [
+          { path: 'spec.replicas', value: 3 },
+          { path: 'env[name=LOG_LEVEL].value', value: 'info' }
+        ],
+        'svc/*.yaml': [{ path: 'debug', value: false }]
+      });
+    });
+
     it('should remove extends field from merged result', () => {
       const parent: BaseConfig = {
         extends: './grandparent.yaml',
@@ -483,6 +507,49 @@ describe('configMerger', () => {
       expect(result.skipPath).toEqual({
         'apps/*.yaml': ['spec.secrets', 'spec.env'],
         'svc/*.yaml': ['metadata.labels']
+      });
+    });
+
+    it('should merge fixedValues from multiple levels', () => {
+      const grandparentConfig: BaseConfig = {
+        fixedValues: {
+          '**/*.yaml': [{ path: 'spec.replicas', value: 1 }]
+        }
+      };
+      const parentConfig: BaseConfig = {
+        extends: './grandparent.yaml',
+        fixedValues: {
+          '**/*.yaml': [{ path: 'debug', value: false }],
+          'apps/*.yaml': [{ path: 'env[name=LOG_LEVEL].value', value: 'warn' }]
+        }
+      };
+      const childConfig: BaseConfig = {
+        extends: './parent.yaml',
+        source: './source',
+        destination: './dest',
+        fixedValues: {
+          'apps/*.yaml': [{ path: 'env[name=LOG_LEVEL].value', value: 'info' }]
+        }
+      };
+
+      vi.mocked(readFileSync)
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(childConfig))
+        .mockReturnValueOnce(YAML.stringify(parentConfig))
+        .mockReturnValueOnce(YAML.stringify(parentConfig))
+        .mockReturnValueOnce(YAML.stringify(grandparentConfig));
+
+      const result = resolveConfigWithExtends('/path/to/config.yaml');
+
+      expect(result.fixedValues).toEqual({
+        '**/*.yaml': [
+          { path: 'spec.replicas', value: 1 },
+          { path: 'debug', value: false }
+        ],
+        'apps/*.yaml': [
+          { path: 'env[name=LOG_LEVEL].value', value: 'warn' },
+          { path: 'env[name=LOG_LEVEL].value', value: 'info' }
+        ]
       });
     });
   });
