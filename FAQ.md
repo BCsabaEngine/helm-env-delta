@@ -10,6 +10,9 @@ Common questions and answers about HelmEnvDelta.
 - [Usage & Workflow](#usage--workflow)
 - [Transforms & Path Filtering](#transforms--path-filtering)
 - [Stop Rules & Safety](#stop-rules--safety)
+- [Team & Collaboration](#team--collaboration)
+- [Performance & Scaling](#performance--scaling)
+- [Adoption & Migration](#adoption--migration)
 - [Troubleshooting](#troubleshooting)
 - [Advanced Topics](#advanced-topics)
 
@@ -69,6 +72,63 @@ The tool focuses on YAML structure and environment synchronization, regardless o
 3. **Your GitOps tool** (ArgoCD/Flux) detects the commit and deploys
 
 HelmEnvDelta handles the file synchronization, while your GitOps tool handles the deployment. They work together seamlessly.
+
+---
+
+### Is this a Helm plugin or a generic YAML tool?
+
+**HelmEnvDelta is a standalone CLI tool, not a Helm plugin.** It works with any YAML files:
+
+- **Not a Helm plugin**: No Helm installation required, doesn't integrate with `helm` CLI
+- **Not limited to Helm**: Works with any YAML configuration (Kubernetes manifests, ArgoCD apps, CI configs)
+- **Name origin**: Originally designed for Helm values files, but the underlying technology is YAML-agnostic
+
+**Think of it as:** A specialized diff/sync tool that understands YAML structure, with features tailored for GitOps environment promotion workflows.
+
+---
+
+### When should I not use HelmEnvDelta?
+
+**HelmEnvDelta may not be the right fit when:**
+
+- **Real-time sync needed**: HelmEnvDelta is a batch tool, not a continuous sync daemon
+- **Non-YAML configs**: JSON, TOML, INI files won't benefit from YAML-aware features
+- **Identical environments**: If source and destination should be exact copies, `rsync` or `cp` is simpler
+- **Complex templating**: If you need Helm's `{{ .Values }}` templating, use Helm itself
+- **Single-file changes**: For one-off edits, manual changes may be faster
+- **No environment differences**: If there are no transforms or skipPath needs, plain file copy works
+
+**Better alternatives for specific cases:**
+
+| Scenario            | Consider Instead         |
+| ------------------- | ------------------------ |
+| Helm templating     | `helm template`          |
+| Identical file copy | `rsync`, `cp -r`         |
+| JSON config sync    | Custom scripts with `jq` |
+| Real-time GitOps    | ArgoCD ApplicationSets   |
+
+---
+
+### How does this compare to Helmfile / Kustomize / plain scripts?
+
+**Different tools for different purposes:**
+
+| Tool              | Purpose                                     | When to Use                                   |
+| ----------------- | ------------------------------------------- | --------------------------------------------- |
+| **HelmEnvDelta**  | Environment-aware YAML sync with validation | Promoting configs between environments safely |
+| **Helmfile**      | Declarative Helm release management         | Managing multiple Helm releases               |
+| **Kustomize**     | Kubernetes manifest patching                | Overlaying environment-specific patches       |
+| **Plain scripts** | Custom automation                           | Simple or highly unique requirements          |
+
+**HelmEnvDelta complements these tools:**
+
+```bash
+# Kustomize generates manifests, HelmEnvDelta syncs them between environments
+kustomize build overlays/uat > uat/
+helm-env-delta --config config.yaml  # Sync uat/ → prod/
+```
+
+**See [README.md](README.md#comparison-with-alternatives) for detailed comparisons.**
 
 ---
 
@@ -846,6 +906,638 @@ cat report.json | jq '.files.changed[].changes[] | select(.path == "$.image.tag"
 
 ---
 
+### What happens if something goes wrong, how do I roll back?
+
+**HelmEnvDelta only modifies files in your Git repository—rollback is simple:**
+
+```bash
+# Option 1: Discard uncommitted changes
+git checkout -- .
+
+# Option 2: Revert after commit
+git revert HEAD
+
+# Option 3: Reset to previous commit
+git reset --hard HEAD~1
+```
+
+**Best practices for safe rollback:**
+
+1. **Always use `--dry-run` first** to preview changes
+2. **Commit before syncing** so you have a clean rollback point
+3. **Review `git diff`** after sync before committing
+4. **Use feature branches** for risky syncs
+
+**Recovery scenarios:**
+
+| Situation                  | Recovery                           |
+| -------------------------- | ---------------------------------- |
+| Sync ran but not committed | `git checkout -- .`                |
+| Committed but not pushed   | `git reset --hard HEAD~1`          |
+| Pushed to remote           | `git revert HEAD` + push           |
+| GitOps deployed bad config | Revert commit, let GitOps redeploy |
+
+**Note:** HelmEnvDelta never directly modifies your Kubernetes cluster—only Git files.
+
+---
+
+### Can HelmEnvDelta break my production cluster?
+
+**No—HelmEnvDelta cannot directly break your cluster.** It only modifies files in your local Git repository:
+
+1. **HelmEnvDelta** syncs files locally (Git working directory)
+2. **You** review and commit the changes
+3. **You** push to remote
+4. **Your GitOps tool** (ArgoCD/Flux) deploys the changes
+
+**Multiple safety layers:**
+
+- `--dry-run` lets you preview without any file changes
+- Stop rules block dangerous changes (version downgrades, forbidden patterns)
+- Git diff shows exactly what changed before commit
+- GitOps tools often have their own sync/approval workflows
+
+**The worst case scenario:** Bad config files get committed and deployed. Recovery is a `git revert` away.
+
+**To maximize safety:**
+
+```bash
+# 1. Preview changes
+helm-env-delta --config config.yaml --dry-run --diff-html
+
+# 2. Run with stop rules enabled
+helm-env-delta --config config.yaml  # Will fail on violations
+
+# 3. Review git diff before committing
+git diff
+
+# 4. Use protected branches with PR reviews
+```
+
+---
+
+### How do I enforce mandatory dry-run / approvals in teams?
+
+**Use CI/CD pipelines to enforce process:**
+
+**GitHub Actions example:**
+
+```yaml
+name: Sync Validation
+
+on:
+  pull_request:
+    paths: ['environments/**']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install HelmEnvDelta
+        run: npm install -g helm-env-delta
+
+      - name: Dry-run validation (mandatory)
+        run: |
+          helm-env-delta --config config.yaml --dry-run --diff-json > report.json
+
+          # Fail on stop rule violations
+          VIOLATIONS=$(jq '.stopRuleViolations | length' report.json)
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "❌ Stop rule violations detected!"
+            jq '.stopRuleViolations' report.json
+            exit 1
+          fi
+
+      - name: Post diff as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const report = require('./report.json');
+            // Format and post as PR comment
+```
+
+**Enforcement strategies:**
+
+| Strategy           | Implementation                       |
+| ------------------ | ------------------------------------ |
+| Mandatory dry-run  | CI job must pass before merge        |
+| Required approvals | GitHub branch protection rules       |
+| Audit trail        | `--diff-json` artifacts stored in CI |
+| No direct pushes   | Protected branches, PR-only workflow |
+
+**Team workflow:**
+
+1. Developer creates PR with sync changes
+2. CI runs `--dry-run --validate` automatically
+3. Team reviews diff in PR comments
+4. Approval required before merge
+5. Merge triggers actual sync + GitOps deployment
+
+---
+
+## Team & Collaboration
+
+### How should multiple teams share transforms and stop rule presets?
+
+**Use external files and config inheritance:**
+
+**Shared transform library:**
+
+```
+configs/
+├── shared/
+│   ├── transforms/
+│   │   ├── common-env.yaml      # uat→prod, staging→prod
+│   │   ├── database-urls.yaml   # DB connection patterns
+│   │   └── service-names.yaml   # Service naming conventions
+│   ├── stop-rules/
+│   │   ├── forbidden-versions.yaml
+│   │   └── security-patterns.yaml
+│   └── base-config.yaml         # Shared base configuration
+├── team-a/
+│   └── config.yaml              # extends: ../shared/base-config.yaml
+└── team-b/
+    └── config.yaml              # extends: ../shared/base-config.yaml
+```
+
+**Shared base config:**
+
+```yaml
+# configs/shared/base-config.yaml
+transforms:
+  '**/*.yaml':
+    contentFile:
+      - './transforms/common-env.yaml'
+      - './transforms/database-urls.yaml'
+
+stopRules:
+  '**/*.yaml':
+    - type: 'regexFile'
+      file: './stop-rules/forbidden-versions.yaml'
+    - type: 'semverDowngrade'
+      path: 'image.tag'
+```
+
+**Team-specific config:**
+
+```yaml
+# configs/team-a/config.yaml
+extends: '../shared/base-config.yaml'
+
+source: '../../services/team-a/uat'
+destination: '../../services/team-a/prod'
+
+# Team-specific additions
+transforms:
+  '**/*.yaml':
+    content:
+      - find: 'team-a-uat'
+        replace: 'team-a-prod'
+```
+
+**Benefits:**
+
+- Consistent patterns across teams
+- Central updates propagate automatically
+- Teams can still customize as needed
+- Version control tracks shared config changes
+
+---
+
+### Can different teams use different configs in the same mono-repo?
+
+**Yes!** Each team maintains their own config file:
+
+**Mono-repo structure:**
+
+```
+mono-repo/
+├── services/
+│   ├── team-alpha/
+│   │   ├── uat/
+│   │   ├── prod/
+│   │   └── hed-config.yaml
+│   ├── team-beta/
+│   │   ├── uat/
+│   │   ├── prod/
+│   │   └── hed-config.yaml
+│   └── team-gamma/
+│       ├── uat/
+│       ├── prod/
+│       └── hed-config.yaml
+└── shared/
+    └── base-config.yaml
+```
+
+**Team-specific execution:**
+
+```bash
+# Team Alpha syncs their services
+helm-env-delta --config services/team-alpha/hed-config.yaml
+
+# Team Beta syncs their services
+helm-env-delta --config services/team-beta/hed-config.yaml
+
+# Or script for all teams
+for config in services/*/hed-config.yaml; do
+  helm-env-delta --config "$config" --dry-run --diff
+done
+```
+
+**CI/CD with path filtering:**
+
+```yaml
+# GitHub Actions - only run for changed team
+on:
+  push:
+    paths: ['services/team-alpha/**']
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - run: helm-env-delta --config services/team-alpha/hed-config.yaml
+```
+
+---
+
+### How do I review HelmEnvDelta changes in pull requests?
+
+**Generate diff reports for PR review:**
+
+**Option 1: JSON diff as PR comment**
+
+```yaml
+- name: Generate diff
+  run: |
+    helm-env-delta --config config.yaml --dry-run --diff-json > diff.json
+
+- name: Post PR comment
+  uses: actions/github-script@v7
+  with:
+    script: |
+      const fs = require('fs');
+      const diff = JSON.parse(fs.readFileSync('diff.json', 'utf8'));
+
+      let comment = '## HelmEnvDelta Sync Preview\n\n';
+      comment += `**Files changed:** ${diff.files.changed.length}\n`;
+      comment += `**Files added:** ${diff.files.added.length}\n`;
+      comment += `**Stop rule violations:** ${diff.stopRuleViolations.length}\n`;
+
+      github.rest.issues.createComment({
+        issue_number: context.issue.number,
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        body: comment
+      });
+```
+
+**Option 2: HTML report as artifact**
+
+```yaml
+- name: Generate HTML report
+  run: |
+    helm-env-delta --config config.yaml --dry-run --diff-html
+    mv helm-env-delta-report.html report.html
+
+- name: Upload artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: sync-diff-report
+    path: report.html
+```
+
+**Option 3: Inline diff in PR**
+
+````yaml
+- name: Show console diff
+  run: |
+    echo '```diff' >> $GITHUB_STEP_SUMMARY
+    helm-env-delta --config config.yaml --dry-run --diff >> $GITHUB_STEP_SUMMARY
+    echo '```' >> $GITHUB_STEP_SUMMARY
+````
+
+**Review checklist for PRs:**
+
+- [ ] All stop rule violations explained/approved
+- [ ] Transforms applied correctly (check diff)
+- [ ] No unexpected files changed
+- [ ] skipPath working as expected
+
+---
+
+## Performance & Scaling
+
+### How does it perform on large repos?
+
+**HelmEnvDelta is optimized for large repositories:**
+
+**Performance characteristics:**
+
+| Repo Size  | Files    | Typical Runtime |
+| ---------- | -------- | --------------- |
+| Small      | 10-50    | < 1 second      |
+| Medium     | 50-200   | 1-3 seconds     |
+| Large      | 200-1000 | 3-10 seconds    |
+| Very large | 1000+    | 10-30 seconds   |
+
+**Optimization strategies used:**
+
+- **Parallel file loading**: Uses `Promise.all` for concurrent I/O
+- **Pattern caching**: Glob patterns compiled once and reused
+- **Memoization**: JSONPath parsing, serialization cached
+- **Early exit**: Files with no differences skip further processing
+- **Lazy loading**: External transform/rule files loaded on-demand
+
+**Tips for large repos:**
+
+```yaml
+# Be specific with patterns (faster than **/*)
+include:
+  - 'services/*/values.yaml'
+  - 'apps/*/deployment.yaml'
+
+# Exclude large/irrelevant directories
+exclude:
+  - '**/node_modules/**'
+  - '**/vendor/**'
+  - '**/test/**'
+```
+
+**Run performance benchmarks:**
+
+```bash
+npm run test:perf  # Shows detailed timing
+```
+
+---
+
+### Can I limit runs to a subset of services?
+
+**Yes!** Use specific include patterns or multiple config files:
+
+**Option 1: Targeted include patterns**
+
+```yaml
+# config-frontend-only.yaml
+source: './uat'
+destination: './prod'
+
+include:
+  - 'services/frontend/**/*.yaml'
+  - 'services/web-app/**/*.yaml'
+```
+
+**Option 2: Command-line glob override (not supported)**
+
+HelmEnvDelta doesn't support CLI pattern overrides—use separate config files instead.
+
+**Option 3: Multiple configs per service group**
+
+```bash
+# Sync only critical services
+helm-env-delta --config config.critical.yaml
+
+# Sync non-critical later
+helm-env-delta --config config.non-critical.yaml
+```
+
+**Option 4: Directory-scoped configs**
+
+```yaml
+# services/api/config.yaml
+source: './uat'
+destination: './prod'
+include:
+  - '*.yaml' # Only files in this directory
+```
+
+Run from service directory:
+
+```bash
+cd services/api
+helm-env-delta --config config.yaml
+```
+
+**CI/CD with changed-file detection:**
+
+```yaml
+- name: Detect changed services
+  id: changes
+  run: |
+    CHANGED=$(git diff --name-only HEAD~1 | grep -o 'services/[^/]*' | sort -u)
+    echo "services=$CHANGED" >> $GITHUB_OUTPUT
+
+- name: Sync only changed
+  run: |
+    for svc in ${{ steps.changes.outputs.services }}; do
+      if [ -f "$svc/hed-config.yaml" ]; then
+        helm-env-delta --config "$svc/hed-config.yaml"
+      fi
+    done
+```
+
+---
+
+## Adoption & Migration
+
+### How do I introduce HelmEnvDelta into an existing GitOps setup?
+
+**Gradual adoption strategy:**
+
+**Week 1: Discovery (read-only)**
+
+```bash
+# Create minimal config
+cat > config.yaml <<EOF
+source: './uat'
+destination: './prod'
+EOF
+
+# Discover differences
+helm-env-delta --config config.yaml --dry-run --diff-html
+
+# Get transform suggestions
+helm-env-delta --config config.yaml --suggest > suggestions.yaml
+```
+
+**Week 2: Configure & validate**
+
+```bash
+# Add transforms and skipPath based on suggestions
+# Test thoroughly with dry-run
+helm-env-delta --config config.yaml --dry-run --diff
+
+# Validate config
+helm-env-delta --config config.yaml --validate
+```
+
+**Week 3: Pilot with non-critical service**
+
+```bash
+# Narrow scope to one service
+# config.yaml: include: ['services/low-risk-app/**']
+
+helm-env-delta --config config.yaml
+git diff  # Review
+git commit -m "Pilot: HelmEnvDelta sync for low-risk-app"
+```
+
+**Week 4+: Expand gradually**
+
+- Add more services to include patterns
+- Refine transforms based on real usage
+- Add stop rules for safety
+- Integrate into CI/CD
+
+**Coexistence with existing processes:**
+
+- HelmEnvDelta doesn't require exclusive control
+- Continue manual syncs for services not yet migrated
+- Mix automated and manual approaches during transition
+
+---
+
+### Can I import my existing scripts/regexes?
+
+**Yes!** HelmEnvDelta supports external files for transforms and stop rules:
+
+**Importing existing regex patterns:**
+
+If you have existing scripts with patterns like:
+
+```bash
+# Old script
+sed -i 's/uat-db/prod-db/g' "$file"
+sed -i 's/staging/production/g' "$file"
+```
+
+Convert to HelmEnvDelta transform file:
+
+```yaml
+# transforms/migrated.yaml
+uat-db: prod-db
+staging: production
+```
+
+**Importing from shell scripts:**
+
+```bash
+# Extract patterns from existing sed commands
+grep -oP "s/\K[^/]+(?=/[^/]+/)" sync-script.sh > patterns.txt
+
+# Convert to YAML format
+while IFS= read -r pattern; do
+  read -r replacement
+  echo "$pattern: $replacement"
+done < patterns.txt > transforms/extracted.yaml
+```
+
+**Using in config:**
+
+```yaml
+transforms:
+  '**/*.yaml':
+    contentFile: './transforms/migrated.yaml'
+
+    # Or combine with inline patterns
+    content:
+      - find: 'complex-(.+)-pattern'
+        replace: 'new-$1-pattern'
+```
+
+**Importing forbidden patterns:**
+
+```yaml
+# stop-rules/forbidden.yaml (array format)
+- localhost
+- '127\.0\.0\.1'
+- '-debug$'
+- '^test-'
+```
+
+```yaml
+stopRules:
+  '**/*.yaml':
+    - type: 'regexFile'
+      file: './stop-rules/forbidden.yaml'
+```
+
+---
+
+### What is a sensible first week adoption plan?
+
+**Day 1-2: Assessment**
+
+```bash
+# Install globally
+npm install -g helm-env-delta
+
+# Create discovery config
+cat > config.yaml <<EOF
+source: './uat'        # Adjust paths
+destination: './prod'
+EOF
+
+# Run discovery
+helm-env-delta --config config.yaml --dry-run --diff-html
+helm-env-delta --config config.yaml --suggest > suggestions.yaml
+
+# Review: How many files? What patterns? What differences?
+```
+
+**Day 3: Basic configuration**
+
+```bash
+# Add transforms from suggestions (review first!)
+# Add skipPath for environment-specific fields
+# Add stop rules for safety
+
+helm-env-delta --config config.yaml --validate
+helm-env-delta --config config.yaml --dry-run --diff
+```
+
+**Day 4-5: Testing**
+
+```bash
+# Test on a copy of your repo
+git checkout -b test-helm-env-delta
+helm-env-delta --config config.yaml
+git diff  # Review all changes
+
+# If good, create PR for review
+# If issues, refine config and repeat
+```
+
+**Day 6-7: Documentation & CI**
+
+```bash
+# Document your config choices
+# Set up CI validation (--dry-run in PRs)
+# Train team on workflow
+```
+
+**Success metrics for week 1:**
+
+- [ ] Config file created and validated
+- [ ] Dry-run produces expected results
+- [ ] At least one successful sync (even small scope)
+- [ ] Team understands basic workflow
+- [ ] CI validation job created (optional but recommended)
+
+**Common first-week pitfalls:**
+
+| Pitfall            | Solution                            |
+| ------------------ | ----------------------------------- |
+| Too broad scope    | Start with 1-2 services             |
+| Missing transforms | Use `--suggest`, refine iteratively |
+| Over-engineering   | Start minimal, add rules as needed  |
+| Skipping dry-run   | Always preview first!               |
+
+---
+
 ## Troubleshooting
 
 ### Why are my glob patterns not matching files?
@@ -1401,4 +2093,4 @@ include:
 
 ---
 
-**Last Updated:** 2026-01-22 (feat/jsonpath-startswith: Added CSS-style filter operators ^=, $=, \*= for JSONPath expressions)
+**Last Updated:** 2026-01-26 (Added Team & Collaboration, Performance & Scaling, and Adoption & Migration sections)
