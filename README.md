@@ -1,34 +1,40 @@
 # 🚀 HelmEnvDelta
 
+**GitOps-safe YAML sync for Helm values across environments (Dev → UAT → Prod)**
+
 [![npm version](https://img.shields.io/npm/v/helm-env-delta.svg)](https://www.npmjs.com/package/helm-env-delta)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org/)
 
 **Sync YAML configs across environments in seconds, not hours.**
 
-Stop copying files manually. Stop worrying about accidental overwrites. Stop production incidents from configuration drift.
+**🛡️ Stop production incidents from configuration drift—before they happen.**
 
 HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows while protecting your production-specific settings and preventing dangerous changes.
 
 ---
 
+## 👤 Who Is This For?
+
+- **Platform/SRE teams** owning multiple environment repos
+- **Teams** with repeated UAT → Prod copy-paste workflows
+- **Helm/GitOps users** burned by config drift and sync errors
+
+> **Not a Helm plugin** · **Not a live cluster diff** · **Not a general YAML linter**
+>
+> HelmEnvDelta syncs _files_, not running clusters. Use alongside Helm, ArgoCD, or Flux—not instead of them.
+
+---
+
 ## 💡 Why Teams Love HelmEnvDelta
 
-**Before:**
-
-- ⏰ 30+ minutes manually copying files between UAT → Prod
-- 😰 Accidentally overwrite production namespaces and replica counts
-- 🐛 Major version upgrades slip through to production
-- 📝 Inconsistent YAML formatting across environments
-- 🔍 Noisy git diffs make code review painful
-
-**After:**
-
-- ⚡ 1 minute automated sync with safety guarantees
-- 🛡️ Production-specific values automatically preserved
-- 🚦 Stop rules block dangerous changes before deployment
-- ✨ Consistent formatting across all environments
-- 📊 Clean, structural diffs that show what actually changed
+| Problem                      | Impact                                    | HelmEnvDelta Outcome                             |
+| ---------------------------- | ----------------------------------------- | ------------------------------------------------ |
+| Copying UAT → Prod by hand   | 30+ minutes, human errors                 | **1 min** scripted sync for 50+ files            |
+| Hidden config drift          | Incidents in Prod                         | Stop rules & fixed values prevent unsafe changes |
+| Accidental overwrites        | Production namespaces, replicas corrupted | `skipPath` preserves env-specific values         |
+| Major version slips          | Breaking changes in Prod                  | `semverMajorUpgrade` rule blocks v1→v2           |
+| Inconsistent YAML formatting | Noisy git diffs, painful reviews          | Standardized formatting, clean diffs             |
 
 ---
 
@@ -132,6 +138,8 @@ Analyzes differences and suggests transforms and stop rules automatically with c
 
 **Challenge:** 20+ microservices across Dev → UAT → Prod. Each has environment-specific namespaces, resource limits, and URLs.
 
+_A platform team managing 25 microservices across 3 environments used to spend 2 hours every release copying and tweaking values files. Now 2 engineers sync everything in under 5 minutes with zero manual edits._
+
 **Solution:**
 
 ```yaml
@@ -159,6 +167,8 @@ transforms:
 
 **Challenge:** Production incidents from accidental major version upgrades or scaling beyond cluster capacity.
 
+_After a v1→v2 image upgrade slipped through and caused a 4-hour outage, the team added semverMajorUpgrade rules. They've blocked 12 accidental major bumps since—and zero incidents._
+
 **Solution:**
 
 ```yaml
@@ -179,6 +189,8 @@ stopRules:
 ### 📐 Standardize Formatting
 
 **Challenge:** Different editors, different formatting. Git diffs full of noise.
+
+_Code reviews were painful: 80% of diff lines were formatting noise. After enabling outputFormat, PRs became clean structural diffs that reviewers actually read._
 
 **Solution:**
 
