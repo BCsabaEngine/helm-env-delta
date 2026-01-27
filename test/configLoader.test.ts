@@ -380,4 +380,59 @@ describe('configLoader', () => {
       expect(result.outputFormat?.indent).toBe(4);
     });
   });
+
+  describe('formatOnly option', () => {
+    it('should load format-only config without source', () => {
+      const formatOnlyConfig = {
+        destination: './path/to/destination',
+        outputFormat: { indent: 4 }
+      };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(formatOnlyConfig));
+
+      const result = loadConfigFile('format-only.yaml', false, undefined, { formatOnly: true });
+
+      expect(result.destination).toBe('./path/to/destination');
+      expect(result.source).toBeUndefined();
+      expect(result.outputFormat?.indent).toBe(4);
+    });
+
+    it('should accept format-only config with optional source', () => {
+      const formatOnlyConfig = {
+        source: './optional/source',
+        destination: './path/to/destination'
+      };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(formatOnlyConfig));
+
+      const result = loadConfigFile('format-only.yaml', false, undefined, { formatOnly: true });
+
+      expect(result.source).toBe('./optional/source');
+      expect(result.destination).toBe('./path/to/destination');
+    });
+
+    it('should throw error for format-only config missing destination', () => {
+      const invalidConfig = { outputFormat: { indent: 4 } };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(invalidConfig));
+
+      expect(() => loadConfigFile('format-only.yaml', false, undefined, { formatOnly: true })).toThrow();
+    });
+
+    it('should log config without source arrow when source is missing', () => {
+      const formatOnlyConfig = { destination: './dest' };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(formatOnlyConfig));
+
+      loadConfigFile('format-only.yaml', false, undefined, { formatOnly: true });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('./dest'));
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('->'));
+    });
+
+    it('should log config with source arrow when source is present', () => {
+      const formatOnlyConfig = { source: './src', destination: './dest' };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(formatOnlyConfig));
+
+      loadConfigFile('format-only.yaml', false, undefined, { formatOnly: true });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('./src -> ./dest'));
+    });
+  });
 });
