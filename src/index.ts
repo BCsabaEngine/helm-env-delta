@@ -24,6 +24,7 @@ import { validatePatternUsage } from './patternUsageValidator';
 import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
+import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
@@ -176,6 +177,15 @@ const main = async (): Promise<void> => {
     const destinationFiles = destinationResult.fileMap;
     logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
 
+    // Early exit for list-files mode in format-only context
+    if (command.listFiles) {
+      const filesList = [...destinationFiles.keys()].toSorted();
+      console.log(chalk.cyan('\n📋 Files to be formatted:\n'));
+      console.log(chalk.yellow(`Destination files: ${filesList.length}`));
+      for (const file of filesList) console.log(`  ${chalk.dim(file)}`);
+      return;
+    }
+
     logger.log('\n' + formatProgressMessage('Formatting files...', 'info'));
 
     let formattedCount = 0;
@@ -183,6 +193,7 @@ const main = async (): Promise<void> => {
 
     for (const [relativePath, content] of destinationFiles) {
       if (!isYamlFile(relativePath)) continue;
+      if (isCommentOnlyContent(content)) continue;
 
       try {
         const formatted = formatYaml(content, relativePath, config.outputFormat);

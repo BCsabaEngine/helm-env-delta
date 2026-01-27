@@ -82,6 +82,23 @@ kind: Application`;
 
       expect(result).not.toMatch(/\n\n/);
     });
+
+    it('should filter whitespace-only lines to prevent consecutive blank lines', () => {
+      // Simulate input that might have whitespace-only lines after processing
+      const input = `microservice:
+  image:
+    repository: test
+  resources:
+    memory: 512Mi`;
+
+      const result = formatYaml(input, 'test.yaml', { indent: 2, keySeparator: true });
+
+      // Should have exactly one blank line between second-level keys, not multiple
+      expect(result).not.toMatch(/\n{3}/); // No triple newlines (two consecutive blank lines)
+      // Should have proper structure with single blank lines
+      expect(result).toMatch(/microservice:\n {2}image:/);
+      expect(result).toMatch(/repository: test\n\n {2}resources:/);
+    });
   });
 
   describe('keyOrders', () => {

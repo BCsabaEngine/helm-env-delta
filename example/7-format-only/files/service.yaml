@@ -1,0 +1,21 @@
+# Another file with inconsistent key ordering
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+    - name: https
+      port: 443
+      targetPort: 8443
+  selector:
+    app: web
+kind: Service
+apiVersion: v1
+metadata:
+  name: web-service
+  namespace: production
+  annotations:
+    description: Web service endpoint
+  labels:
+    app: web
+    tier: frontend

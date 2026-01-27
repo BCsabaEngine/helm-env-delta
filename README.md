@@ -281,6 +281,28 @@ helm-env-delta --config example/6-fixed-values/config.yaml --dry-run --diff
 - Array filter operators (`env[name=LOG_LEVEL].value`)
 - Combining with skipPath and transforms
 
+### 🎨 Example 7: Format-Only Mode
+
+Format YAML files without syncing. No source directory required - perfect for standardizing existing files.
+
+```bash
+# Preview which files would be formatted
+helm-env-delta --config example/7-format-only/config.yaml --format-only --list-files
+
+# Preview formatting changes
+helm-env-delta --config example/7-format-only/config.yaml --format-only --dry-run
+
+# Apply formatting
+helm-env-delta --config example/7-format-only/config.yaml --format-only
+```
+
+**Features shown:**
+
+- Format-only mode (no source required)
+- Combining `--format-only` with `--list-files` to preview files
+- Key ordering, array sorting, indentation standardization
+- Minimal config for formatting existing files
+
 ---
 
 ## 💡 Smart Configuration Suggestions (Heuristic)
@@ -647,7 +669,7 @@ Standardize YAML across all environments.
 ```yaml
 outputFormat:
   indent: 2 # Indentation size
-  keySeparator: true # Blank line between top-level keys
+  keySeparator: true # Blank line between top-level keys (or second-level keys when single top-level key)
 
   keyOrders: # Custom key ordering
     'apps/*.yaml':
@@ -731,24 +753,24 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag                        | Description                                         |
-| --------------------------- | --------------------------------------------------- |
-| `--config <path>`           | **Required** - Configuration file                   |
-| `--validate`                | Validate config and pattern usage (shows warnings)  |
-| `--suggest`                 | Analyze differences and suggest config updates      |
-| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)   |
-| `--dry-run`                 | Preview changes without writing files               |
-| `--force`                   | Override stop rules                                 |
-| `--diff`                    | Show console diff                                   |
-| `--diff-html`               | Generate HTML report (opens in browser)             |
-| `--diff-json`               | Output JSON to stdout (pipe to jq)                  |
-| `--list-files`              | List source/destination files without processing    |
-| `--show-config`             | Display resolved config after inheritance           |
-| `--format-only`             | Format destination files only (source not required) |
-| `--skip-format`             | Skip YAML formatting during sync                    |
-| `--no-color`                | Disable colored output (CI/accessibility)           |
-| `--verbose`                 | Show detailed debug info                            |
-| `--quiet`                   | Suppress output except errors                       |
+| Flag                        | Description                                                         |
+| --------------------------- | ------------------------------------------------------------------- |
+| `--config <path>`           | **Required** - Configuration file                                   |
+| `--validate`                | Validate config and pattern usage (shows warnings)                  |
+| `--suggest`                 | Analyze differences and suggest config updates                      |
+| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)                   |
+| `--dry-run`                 | Preview changes without writing files                               |
+| `--force`                   | Override stop rules                                                 |
+| `--diff`                    | Show console diff                                                   |
+| `--diff-html`               | Generate HTML report (opens in browser)                             |
+| `--diff-json`               | Output JSON to stdout (pipe to jq)                                  |
+| `--list-files`              | List files without processing (takes precedence over --format-only) |
+| `--show-config`             | Display resolved config after inheritance                           |
+| `--format-only`             | Format destination files only (source not required)                 |
+| `--skip-format`             | Skip YAML formatting during sync                                    |
+| `--no-color`                | Disable colored output (CI/accessibility)                           |
+| `--verbose`                 | Show detailed debug info                                            |
+| `--quiet`                   | Suppress output except errors                                       |
 
 ### Examples
 
@@ -788,6 +810,9 @@ hed --config config.yaml --format-only
 
 # Preview format changes
 hed --config config.yaml --format-only --dry-run
+
+# List files that would be formatted (--list-files takes precedence)
+hed --config config.yaml --format-only --list-files
 
 # Format-only config example (no source needed):
 # destination: './prod'

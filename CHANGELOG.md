@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.3] - 2026-01-27
+
+### Added
+
+- Format-only example: New example configuration (`example/7-format-only/`) demonstrates how to use `--format-only` mode to standardize YAML formatting across files without syncing from a source.
+
+### Fixed
+
+- Comment-only YAML files are now preserved: Files containing only comments (like placeholder files or documentation stubs) are no longer corrupted during sync or formatting. Previously, these files would lose their comments or cause formatting errors.
+- YAML formatting now correctly handles whitespace-only lines, preventing duplicate blank lines from appearing in formatted output.
+- `--list-files` flag now works correctly with `--format-only` mode, showing which files would be formatted instead of requiring a source folder.
+
 ## [1.9.2] - 2026-01-27
 
 ### Added

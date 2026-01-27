@@ -26,7 +26,7 @@ npx vitest run -t "skipExclude"
 helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--format-only] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format destination files without syncing, source not required), `--list-files` (preview files), `--show-config` (display resolved config)
+**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format destination files without syncing, source not required), `--list-files` (preview files, takes precedence over --format-only), `--show-config` (display resolved config)
 
 ## Architecture
 
@@ -41,7 +41,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
 - `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → fixedValues → skipPath → normalize → deepEqual)
-- `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
+- `yamlFormatter.ts` - AST formatting (key order, quoting, array sort, keySeparator with whitespace filtering)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
 - `arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)
