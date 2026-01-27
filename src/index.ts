@@ -8,6 +8,7 @@ import * as YAML from 'yaml';
 
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
+import type { FinalConfig } from './configFile';
 import { loadConfigFile } from './configLoader';
 import { isConfigMergerError } from './configMerger';
 import { validateConfigWarnings } from './configWarnings';
@@ -66,7 +67,7 @@ const main = async (): Promise<void> => {
   }
 
   // Load and validate config
-  const config = loadConfigFile(command.config, command.quiet, logger);
+  const config = loadConfigFile(command.config, command.quiet, logger, { formatOnly: command.formatOnly });
 
   // Early exit for show-config mode
   if (command.showConfig) {
@@ -77,10 +78,19 @@ const main = async (): Promise<void> => {
 
   // Early exit for validation-only mode
   if (command.validate) {
+    // Validation requires source folder
+    if (!config.source) {
+      logger.error('\nSource folder is required for validation mode.', 'critical');
+      process.exit(1);
+    }
+
+    // After source check, config is FinalConfig
+    const validationConfig = config as FinalConfig;
+
     // Phase 1: Static validation
     logger.log('\n' + formatProgressMessage('Validating configuration...', 'info'));
 
-    const warningResult = validateConfigWarnings(config);
+    const warningResult = validateConfigWarnings(validationConfig);
     let hasAnyWarnings = warningResult.hasWarnings;
 
     if (warningResult.hasWarnings) {
@@ -93,10 +103,10 @@ const main = async (): Promise<void> => {
 
     const sourceResult = await loadFiles(
       {
-        baseDirectory: config.source,
-        include: config.include,
-        exclude: config.exclude,
-        transforms: config.transforms,
+        baseDirectory: validationConfig.source,
+        include: validationConfig.include,
+        exclude: validationConfig.exclude,
+        transforms: validationConfig.transforms,
         skipExclude: true
       },
       logger
@@ -105,9 +115,9 @@ const main = async (): Promise<void> => {
 
     const destinationResult = await loadFiles(
       {
-        baseDirectory: config.destination,
-        include: config.include,
-        exclude: config.exclude,
+        baseDirectory: validationConfig.destination,
+        include: validationConfig.include,
+        exclude: validationConfig.exclude,
         skipExclude: true
       },
       logger
@@ -118,7 +128,7 @@ const main = async (): Promise<void> => {
 
     logger.log('\n' + formatProgressMessage('Validating pattern usage...', 'info'));
 
-    const usageResult = validatePatternUsage(config, sourceFiles, destinationFiles);
+    const usageResult = validatePatternUsage(validationConfig, sourceFiles, destinationFiles);
     hasAnyWarnings = hasAnyWarnings || usageResult.hasWarnings;
 
     if (usageResult.hasWarnings) {
@@ -139,7 +149,7 @@ const main = async (): Promise<void> => {
   // Add verbose debug output for config
   if (logger.shouldShow('debug')) {
     logger.debug('\nConfig details:');
-    logger.debug(`  Source: ${config.source}`);
+    if (config.source) logger.debug(`  Source: ${config.source}`);
     logger.debug(`  Destination: ${config.destination}`);
     logger.debug(`  Include patterns: ${config.include.join(', ')}`);
     logger.debug(`  Exclude patterns: ${config.exclude.join(', ')}`);
@@ -147,59 +157,24 @@ const main = async (): Promise<void> => {
     logger.debug(`  Prune enabled: ${config.prune}`);
   }
 
-  // Load source + destination files
-  logger.log('\n' + formatProgressMessage('Loading files...', 'loading'));
-  const sourceResult = await loadFiles(
-    {
-      baseDirectory: config.source,
-      include: config.include,
-      exclude: config.exclude,
-      transforms: config.transforms
-    },
-    logger
-  );
-  const sourceFiles = sourceResult.fileMap;
-  const originalPaths = sourceResult.originalPaths;
-  logger.progress(`Loaded ${sourceFiles.size} source file(s)`, 'success');
-
-  // Detect filename collisions
-  const collisions = detectCollisions(sourceFiles, config.transforms);
-  if (collisions.length > 0) validateNoCollisions(collisions);
-
-  if (logger.shouldShow('debug')) logger.debug('Filename collision check: passed');
-
-  const destinationResult = await loadFiles(
-    {
-      baseDirectory: config.destination,
-      include: config.include,
-      exclude: config.exclude
-    },
-    logger
-  );
-  const destinationFiles = destinationResult.fileMap;
-  logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
-
-  // Early exit for list-files mode
-  if (command.listFiles) {
-    const sourceFilesList = [...sourceFiles.keys()].toSorted();
-    const destinationFilesList = [...destinationFiles.keys()].toSorted();
-
-    console.log(chalk.cyan('\n📋 Files to be synced:\n'));
-    console.log(chalk.green(`Source files: ${sourceFilesList.length}`));
-    for (const file of sourceFilesList) console.log(`  ${chalk.dim(file)}`);
-
-    console.log(chalk.yellow(`\nDestination files: ${destinationFilesList.length}`));
-    for (const file of destinationFilesList) console.log(`  ${chalk.dim(file)}`);
-
-    return;
-  }
-
-  // Early exit for format-only mode
+  // Early exit for format-only mode (no source required)
   if (command.formatOnly) {
     if (!config.outputFormat) {
       logger.log(chalk.yellow('\n⚠️  No outputFormat configured. Nothing to format.'));
       return;
     }
+
+    logger.log('\n' + formatProgressMessage('Loading destination files...', 'loading'));
+    const destinationResult = await loadFiles(
+      {
+        baseDirectory: config.destination,
+        include: config.include,
+        exclude: config.exclude
+      },
+      logger
+    );
+    const destinationFiles = destinationResult.fileMap;
+    logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
 
     logger.log('\n' + formatProgressMessage('Formatting files...', 'info'));
 
@@ -240,14 +215,70 @@ const main = async (): Promise<void> => {
     return;
   }
 
+  // From here, source is required (FinalConfig) - TypeScript narrows the type
+  if (!config.source) {
+    logger.error('\nSource folder is required for sync operations.', 'critical');
+    process.exit(1);
+  }
+
+  // After source check, config is FinalConfig
+  const syncConfig = config as FinalConfig;
+
+  // Load source + destination files
+  logger.log('\n' + formatProgressMessage('Loading files...', 'loading'));
+  const sourceResult = await loadFiles(
+    {
+      baseDirectory: syncConfig.source,
+      include: syncConfig.include,
+      exclude: syncConfig.exclude,
+      transforms: syncConfig.transforms
+    },
+    logger
+  );
+  const sourceFiles = sourceResult.fileMap;
+  const originalPaths = sourceResult.originalPaths;
+  logger.progress(`Loaded ${sourceFiles.size} source file(s)`, 'success');
+
+  // Detect filename collisions
+  const collisions = detectCollisions(sourceFiles, syncConfig.transforms);
+  if (collisions.length > 0) validateNoCollisions(collisions);
+
+  if (logger.shouldShow('debug')) logger.debug('Filename collision check: passed');
+
+  const destinationResult = await loadFiles(
+    {
+      baseDirectory: syncConfig.destination,
+      include: syncConfig.include,
+      exclude: syncConfig.exclude
+    },
+    logger
+  );
+  const destinationFiles = destinationResult.fileMap;
+  logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
+
+  // Early exit for list-files mode
+  if (command.listFiles) {
+    const sourceFilesList = [...sourceFiles.keys()].toSorted();
+    const destinationFilesList = [...destinationFiles.keys()].toSorted();
+
+    console.log(chalk.cyan('\n📋 Files to be synced:\n'));
+    console.log(chalk.green(`Source files: ${sourceFilesList.length}`));
+    for (const file of sourceFilesList) console.log(`  ${chalk.dim(file)}`);
+
+    console.log(chalk.yellow(`\nDestination files: ${destinationFilesList.length}`));
+    for (const file of destinationFilesList) console.log(`  ${chalk.dim(file)}`);
+
+    return;
+  }
+
   // Compute file differences
   logger.log('\n' + formatProgressMessage('Computing differences...', 'info'));
-  const diffResult = computeFileDiff(sourceFiles, destinationFiles, config, logger, originalPaths);
+  const diffResult = computeFileDiff(sourceFiles, destinationFiles, syncConfig, logger, originalPaths);
 
   if (logger.shouldShow('debug')) logger.debug('Diff pipeline: parse → transforms → skipPath → normalize → compare');
 
   // Show console diff if requested (suppress in quiet mode)
-  if (command.diff && !command.quiet) showConsoleDiff(diffResult, config);
+  if (command.diff && !command.quiet) showConsoleDiff(diffResult, syncConfig);
   else {
     logger.log(`  New files: ${diffResult.addedFiles.length}`);
     logger.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
@@ -260,7 +291,7 @@ const main = async (): Promise<void> => {
     logger.log('\n' + formatProgressMessage('Analyzing differences for suggestions...', 'info'));
 
     try {
-      const suggestions = analyzeDifferencesForSuggestions(diffResult, config, command.suggestThreshold);
+      const suggestions = analyzeDifferencesForSuggestions(diffResult, syncConfig, command.suggestThreshold);
       const yaml = formatSuggestionsAsYaml(suggestions);
 
       console.log(chalk.cyan('\n💡 Suggested Configuration:\n'));
@@ -285,7 +316,7 @@ const main = async (): Promise<void> => {
 
   // Validate stop rules
   const configFileDirectory = path.dirname(path.resolve(command.config));
-  const validationResult = validateStopRules(diffResult, config.stopRules, configFileDirectory, logger);
+  const validationResult = validateStopRules(diffResult, syncConfig.stopRules, configFileDirectory, logger);
 
   if (validationResult.violations.length > 0)
     if (command.force) for (const violation of validationResult.violations) logger.stopRule(violation, 'force');
@@ -304,18 +335,19 @@ const main = async (): Promise<void> => {
     console.log(`  ${chalk.green('Added:')}     ${diffResult.addedFiles.length} files`);
     console.log(`  ${chalk.yellow('Changed:')}   ${diffResult.changedFiles.length} files`);
     console.log(
-      `  ${chalk.red('Deleted:')}   ${diffResult.deletedFiles.length} files (${config.prune ? 'prune enabled' : 'prune disabled'})`
+      `  ${chalk.red('Deleted:')}   ${diffResult.deletedFiles.length} files (${syncConfig.prune ? 'prune enabled' : 'prune disabled'})`
     );
     console.log(`  ${chalk.blue('Unchanged:')} ${diffResult.unchangedFiles.length} files`);
     console.log(chalk.dim('─'.repeat(60)));
 
-    if (diffResult.deletedFiles.length > 0 && config.prune)
+    if (diffResult.deletedFiles.length > 0 && syncConfig.prune)
       console.warn(chalk.red('⚠️  Warning: Prune is enabled. Files will be permanently deleted!'));
 
     console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
 
     // Pause to let user cancel (skip if delay is 0)
-    if (config.confirmationDelay > 0) await new Promise((resolve) => setTimeout(resolve, config.confirmationDelay));
+    if (syncConfig.confirmationDelay > 0)
+      await new Promise((resolve) => setTimeout(resolve, syncConfig.confirmationDelay));
   }
 
   // Update files
@@ -323,7 +355,7 @@ const main = async (): Promise<void> => {
     diffResult,
     sourceFiles,
     destinationFiles,
-    config,
+    syncConfig,
     command.dryRun,
     command.skipFormat,
     logger
@@ -331,11 +363,11 @@ const main = async (): Promise<void> => {
 
   // Generate HTML report if requested (suppress in quiet mode)
   if (command.diffHtml && !command.quiet)
-    await generateHtmlReport(diffResult, formattedFiles, config, command.dryRun, logger);
+    await generateHtmlReport(diffResult, formattedFiles, syncConfig, command.dryRun, logger);
 
   // Generate JSON report if requested (always outputs regardless of verbosity)
   if (command.diffJson)
-    generateJsonReport(diffResult, formattedFiles, validationResult, config, command.dryRun, packageJson.version);
+    generateJsonReport(diffResult, formattedFiles, validationResult, syncConfig, command.dryRun, packageJson.version);
 };
 
 // Execute main function with error handling

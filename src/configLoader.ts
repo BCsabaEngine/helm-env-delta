@@ -3,7 +3,9 @@ import path from 'node:path';
 import {
   type BaseConfig,
   type FinalConfig,
+  type FormatOnlyConfig,
   parseFinalConfig,
+  parseFormatOnlyConfig,
   type TransformConfig,
   type TransformRules
 } from './configFile';
@@ -12,6 +14,10 @@ import { loadTransformFiles } from './utils';
 
 // Note: Config type is now an alias for FinalConfig
 export type Config = FinalConfig;
+
+export type LoadConfigOptions = {
+  formatOnly?: boolean;
+};
 
 /**
  * Expands file-based transform configurations by loading external YAML files.
@@ -53,7 +59,12 @@ const expandTransformFiles = (config: BaseConfig, configDirectory: string): Base
 };
 
 // Loads and validates configuration from YAML file with extends support
-export const loadConfigFile = (configPath: string, quiet = false, logger?: import('./logger').Logger): FinalConfig => {
+export const loadConfigFile = (
+  configPath: string,
+  quiet = false,
+  logger?: import('./logger').Logger,
+  options: LoadConfigOptions = {}
+): FinalConfig | FormatOnlyConfig => {
   const configDirectory = path.dirname(path.resolve(configPath));
 
   // Resolve config with extends chain and merge
@@ -62,14 +73,16 @@ export const loadConfigFile = (configPath: string, quiet = false, logger?: impor
   // Expand file-based transform configs (contentFile, filenameFile)
   const expandedConfig = expandTransformFiles(mergedConfig, configDirectory);
 
-  // Validate expanded config as final (requires source and destination)
-  const config = parseFinalConfig(expandedConfig, configPath);
+  // Validate expanded config (format-only mode only requires destination)
+  const config = options.formatOnly
+    ? parseFormatOnlyConfig(expandedConfig, configPath)
+    : parseFinalConfig(expandedConfig, configPath);
 
   // Log successfully loaded config (suppress in quiet mode)
-  if (!quiet)
-    console.log(
-      `\nConfiguration loaded: ${config.source} -> ${config.destination}` + (config.prune ? ' [prune!]' : '')
-    );
+  if (!quiet) {
+    const sourceInfo = config.source ? `${config.source} -> ` : '';
+    console.log(`\nConfiguration loaded: ${sourceInfo}${config.destination}` + (config.prune ? ' [prune!]' : ''));
+  }
 
   return config;
 };
