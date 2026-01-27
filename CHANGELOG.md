@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-01-27
+
+### Added
+
+- Path validation: Source and destination folders can no longer be the same path. The tool now detects when both resolve to identical locations (including relative paths like `./envs/../envs/prod` and `./envs/prod`) and shows a clear error message, preventing accidental self-overwrites.
+
+### Changed
+
+- Format-only mode simplified: When using `--format-only`, you no longer need to specify a `source` folder in your config. Just provide `destination` and `outputFormat` settings to format files in place. This makes format-only configs cleaner and more intuitive for standalone formatting tasks.
+
 ## [1.9.1] - 2026-01-26
 
 ### Added
