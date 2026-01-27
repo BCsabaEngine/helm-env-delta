@@ -26,7 +26,7 @@ npx vitest run -t "skipExclude"
 helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--format-only] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format without syncing), `--list-files` (preview files), `--show-config` (display resolved config)
+**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format destination files without syncing, source not required), `--list-files` (preview files), `--show-config` (display resolved config)
 
 ## Architecture
 
@@ -35,7 +35,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 **Core Modules:**
 
 - `commandLine.ts` - CLI parsing (commander), help examples, flag validation
-- `configFile.ts` - Zod validation (BaseConfig/FinalConfig)
+- `configFile.ts` - Zod validation (BaseConfig/FinalConfig/FormatOnlyConfig), source==dest validation
 - `configLoader.ts` / `configMerger.ts` - YAML loading, inheritance (max 5 levels)
 - `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts)
 - `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
@@ -51,7 +51,8 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 
 **Config Schema:**
 
-- Core: `source`, `destination` (required), `include`/`exclude`, `prune`, `confirmationDelay`
+- Core: `source`, `destination` (required for sync, source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`
+- Validation: source and destination cannot resolve to the same path
 - Inheritance: Single parent via `extends`, max 5 levels, circular detection
 - `skipPath`: JSONPath patterns per-file (glob patterns), supports CSS-style filter expressions `[prop=value]`, `[prop^=prefix]`, `[prop$=suffix]`, `[prop*=substring]`
 - `transforms`: Object with `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
