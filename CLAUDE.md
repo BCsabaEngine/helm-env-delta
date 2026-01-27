@@ -41,7 +41,7 @@ helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--forc
 - `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
 - `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → fixedValues → skipPath → normalize → deepEqual)
-- `yamlFormatter.ts` - AST formatting (key order, quoting, array sort)
+- `yamlFormatter.ts` - AST formatting (key order, quoting, array sort, keySeparator with whitespace filtering)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
 - `arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)

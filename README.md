@@ -647,7 +647,7 @@ Standardize YAML across all environments.
 ```yaml
 outputFormat:
   indent: 2 # Indentation size
-  keySeparator: true # Blank line between top-level keys
+  keySeparator: true # Blank line between top-level keys (or second-level keys when single top-level key)
 
   keyOrders: # Custom key ordering
     'apps/*.yaml':
