@@ -1,0 +1,50 @@
+# Format-only configuration - no source required
+# Use with: hed --config config.yaml --format-only
+
+destination: './files'
+
+include:
+  - '**/*.yaml'
+
+# Formatting rules applied to all matched files
+outputFormat:
+  indent: 2
+  keySeparator: true # Use ': ' instead of ':'
+
+  # Quote specific values (glob pattern -> array of JSONPaths)
+  quoteValues:
+    '**/*.yaml':
+      - 'env[].value'
+
+  # Standardize key ordering (glob pattern -> array of keys in order)
+  keyOrders:
+    '**/*.yaml':
+      - 'apiVersion'
+      - 'kind'
+      - 'metadata'
+      - 'name'
+      - 'namespace'
+      - 'labels'
+      - 'annotations'
+      - 'spec'
+      - 'replicas'
+      - 'selector'
+      - 'template'
+      - 'containers'
+      - 'image'
+      - 'tag'
+      - 'ports'
+      - 'env'
+      - 'resources'
+      - 'requests'
+      - 'limits'
+
+  # Sort arrays alphabetically by 'name' key (glob pattern -> array of rules)
+  arraySort:
+    '**/*.yaml':
+      - path: 'env'
+        sortBy: 'name'
+      - path: 'ports'
+        sortBy: 'name'
+      - path: 'spec.ports'
+        sortBy: 'name'

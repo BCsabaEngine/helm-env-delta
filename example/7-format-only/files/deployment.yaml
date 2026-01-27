@@ -1,0 +1,29 @@
+# Inconsistent formatting - keys out of order, varying indentation
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - resources:
+            limits:
+              memory: 512Mi
+              cpu: 500m
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          image: nginx
+          name: web
+          ports:
+            - containerPort: 80
+          env:
+            - name: LOG_LEVEL
+              value: info
+            - name: DEBUG
+              value: 'false'
+kind: Deployment
+metadata:
+  labels:
+    app: web
+  name: web-deployment
+  namespace: production
+apiVersion: apps/v1
