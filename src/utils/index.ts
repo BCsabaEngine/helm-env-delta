@@ -109,3 +109,6 @@ export {
   itemMatchesAnyFilter,
   shouldPreserveItem
 } from './arrayMerger';
+
+// Comment-only file detection
+export { isCommentOnlyContent } from './commentOnlyDetector';

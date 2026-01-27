@@ -24,6 +24,7 @@ import { validatePatternUsage } from './patternUsageValidator';
 import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
+import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
@@ -183,6 +184,7 @@ const main = async (): Promise<void> => {
 
     for (const [relativePath, content] of destinationFiles) {
       if (!isYamlFile(relativePath)) continue;
+      if (isCommentOnlyContent(content)) continue;
 
       try {
         const formatted = formatYaml(content, relativePath, config.outputFormat);

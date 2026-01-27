@@ -2,6 +2,7 @@ import YAML from 'yaml';
 
 import { Config, FixedValueConfig, TransformConfig } from './configFile';
 import { FileMap } from './fileLoader';
+import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { deepEqual } from './utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
@@ -199,6 +200,9 @@ const processYamlFile = (options: ProcessYamlOptions): ChangedFile | undefined =
 
     throw parseError;
   }
+
+  // Check if destination is comment-only - preserve it
+  if (isCommentOnlyContent(destinationContent)) return undefined;
 
   const sourceTransformed = applyTransforms(sourceParsed, filePath, transforms);
 

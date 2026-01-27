@@ -14,6 +14,7 @@ import {
   itemMatchesAnyFilter,
   shouldPreserveItem
 } from './utils/arrayMerger';
+import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
 import { applyFixedValues, getFixedValuesForFile } from './utils/fixedValues';
@@ -418,6 +419,8 @@ const formatUnchangedFiles = async (
     if (isYamlFile(relativePath))
       try {
         const content = destinationFiles.get(relativePath)!;
+        if (isCommentOnlyContent(content)) continue;
+
         const effectiveOutputFormat = context.skipFormat ? undefined : context.config.outputFormat;
         const formatted = formatYaml(content, relativePath, effectiveOutputFormat);
 
