@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { type BaseConfig, type FinalConfig, parseBaseConfig, parseConfig, parseFinalConfig } from '../src/configFile';
+import {
+  type BaseConfig,
+  type FinalConfig,
+  type FormatOnlyConfig,
+  parseBaseConfig,
+  parseConfig,
+  parseFinalConfig,
+  parseFormatOnlyConfig
+} from '../src/configFile';
 import { ZodValidationError } from '../src/ZodError';
 
 describe('configFile', () => {
@@ -680,6 +688,112 @@ describe('configFile', () => {
       expect(result.prune).toBe(true);
       expect(result.stopRules).toBeDefined();
       expect(result.transforms).toBeDefined();
+    });
+  });
+
+  describe('parseFinalConfig - source equals destination validation', () => {
+    it('should reject when source and destination are the same path', () => {
+      const config = {
+        source: './same/path',
+        destination: './same/path'
+      };
+
+      expect(() => parseFinalConfig(config)).toThrow(ZodValidationError);
+      expect(() => parseFinalConfig(config)).toThrow('Source and destination folders cannot be the same');
+    });
+
+    it('should reject when source and destination resolve to the same path', () => {
+      const config = {
+        source: './envs/../envs/prod',
+        destination: './envs/prod'
+      };
+
+      expect(() => parseFinalConfig(config)).toThrow(ZodValidationError);
+      expect(() => parseFinalConfig(config)).toThrow('Source and destination folders cannot be the same');
+    });
+
+    it('should allow different source and destination paths', () => {
+      const config = {
+        source: './envs/uat',
+        destination: './envs/prod'
+      };
+
+      const result = parseFinalConfig(config);
+      expect(result.source).toBe('./envs/uat');
+      expect(result.destination).toBe('./envs/prod');
+    });
+  });
+
+  describe('parseFormatOnlyConfig', () => {
+    it('should parse config with only destination (no source required)', () => {
+      const config = { destination: './dest' };
+      const result = parseFormatOnlyConfig(config);
+
+      expect(result.destination).toBe('./dest');
+      expect(result.source).toBeUndefined();
+    });
+
+    it('should apply default values', () => {
+      const config = { destination: './dest' };
+      const result = parseFormatOnlyConfig(config);
+
+      expect(result.include).toEqual(['**/*']);
+      expect(result.exclude).toEqual([]);
+      expect(result.prune).toBe(false);
+      expect(result.confirmationDelay).toBe(3000);
+      expect(result.outputFormat).toEqual({ indent: 2, keySeparator: false });
+    });
+
+    it('should accept source as optional', () => {
+      const config = {
+        source: './optional/source',
+        destination: './dest'
+      };
+      const result = parseFormatOnlyConfig(config);
+
+      expect(result.source).toBe('./optional/source');
+      expect(result.destination).toBe('./dest');
+    });
+
+    it('should reject missing destination', () => {
+      const config = { source: './src' };
+
+      expect(() => parseFormatOnlyConfig(config)).toThrow(ZodValidationError);
+    });
+
+    it('should add hint for missing destination', () => {
+      try {
+        parseFormatOnlyConfig({});
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(ZodValidationError);
+        expect((error as Error).message).toContain('Hint');
+        expect((error as Error).message).toContain('Format-only mode requires destination');
+      }
+    });
+
+    it('should parse config with outputFormat', () => {
+      const config: FormatOnlyConfig = {
+        destination: './dest',
+        outputFormat: {
+          indent: 4,
+          keySeparator: true,
+          keyOrders: { '*.yaml': ['apiVersion', 'kind'] }
+        }
+      };
+      const result = parseFormatOnlyConfig(config);
+
+      expect(result.outputFormat.indent).toBe(4);
+      expect(result.outputFormat.keySeparator).toBe(true);
+      expect(result.outputFormat.keyOrders).toEqual({ '*.yaml': ['apiVersion', 'kind'] });
+    });
+
+    it('should include config path in error message', () => {
+      try {
+        parseFormatOnlyConfig({}, '/path/to/format-only.yaml');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(ZodValidationError);
+        expect((error as Error).message).toContain('/path/to/format-only.yaml');
+      }
     });
   });
 });

@@ -374,8 +374,8 @@ helm-env-delta --config config.yaml
 ### 🎯 Core Settings
 
 ```yaml
-source: './uat' # Required: Source folder
-destination: './prod' # Required: Destination folder
+source: './uat' # Required: Source folder (optional with --format-only)
+destination: './prod' # Required: Destination folder (must differ from source)
 
 include: # Optional: File patterns (default: all)
   - '**/*.yaml'
@@ -385,6 +385,8 @@ exclude: # Optional: Exclude patterns
 prune: false # Optional: Delete dest files not in source
 confirmationDelay: 3000 # Optional: Delay in ms before sync (default: 3000, 0 to disable)
 ```
+
+**Note:** Source and destination paths cannot resolve to the same folder.
 
 ---
 
@@ -729,24 +731,24 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag                        | Description                                        |
-| --------------------------- | -------------------------------------------------- |
-| `--config <path>`           | **Required** - Configuration file                  |
-| `--validate`                | Validate config and pattern usage (shows warnings) |
-| `--suggest`                 | Analyze differences and suggest config updates     |
-| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)  |
-| `--dry-run`                 | Preview changes without writing files              |
-| `--force`                   | Override stop rules                                |
-| `--diff`                    | Show console diff                                  |
-| `--diff-html`               | Generate HTML report (opens in browser)            |
-| `--diff-json`               | Output JSON to stdout (pipe to jq)                 |
-| `--list-files`              | List source/destination files without processing   |
-| `--show-config`             | Display resolved config after inheritance          |
-| `--format-only`             | Format destination files without syncing           |
-| `--skip-format`             | Skip YAML formatting during sync                   |
-| `--no-color`                | Disable colored output (CI/accessibility)          |
-| `--verbose`                 | Show detailed debug info                           |
-| `--quiet`                   | Suppress output except errors                      |
+| Flag                        | Description                                         |
+| --------------------------- | --------------------------------------------------- |
+| `--config <path>`           | **Required** - Configuration file                   |
+| `--validate`                | Validate config and pattern usage (shows warnings)  |
+| `--suggest`                 | Analyze differences and suggest config updates      |
+| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)   |
+| `--dry-run`                 | Preview changes without writing files               |
+| `--force`                   | Override stop rules                                 |
+| `--diff`                    | Show console diff                                   |
+| `--diff-html`               | Generate HTML report (opens in browser)             |
+| `--diff-json`               | Output JSON to stdout (pipe to jq)                  |
+| `--list-files`              | List source/destination files without processing    |
+| `--show-config`             | Display resolved config after inheritance           |
+| `--format-only`             | Format destination files only (source not required) |
+| `--skip-format`             | Skip YAML formatting during sync                    |
+| `--no-color`                | Disable colored output (CI/accessibility)           |
+| `--verbose`                 | Show detailed debug info                            |
+| `--quiet`                   | Suppress output except errors                       |
 
 ### Examples
 
@@ -781,11 +783,16 @@ hed --config config.yaml
 # Force override stop rules
 hed --config config.yaml --force
 
-# Format destination files only (no sync)
+# Format destination files only (no sync, source not required in config)
 hed --config config.yaml --format-only
 
 # Preview format changes
 hed --config config.yaml --format-only --dry-run
+
+# Format-only config example (no source needed):
+# destination: './prod'
+# outputFormat:
+#   indent: 2
 ```
 
 ---
@@ -1028,6 +1035,14 @@ spec:
 ---
 
 ## 🆘 Common Issues
+
+### ❓ Source and destination folders cannot be the same
+
+**Error:** `Source and destination folders cannot be the same`
+
+**Fix:** Ensure source and destination paths resolve to different directories. Paths like `./envs/../envs/prod` and `./envs/prod` will be detected as identical.
+
+---
 
 ### ❓ Stop rule violations blocking sync
 

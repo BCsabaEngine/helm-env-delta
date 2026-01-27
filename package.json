@@ -1,6 +1,6 @@
 {
   "name": "helm-env-delta",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "HelmEnvDelta – environment-aware YAML delta and sync for GitOps",
   "author": "BCsabaEngine",
   "license": "ISC",
@@ -70,8 +70,8 @@
     "@types/hogan.js": "^3.0.5",
     "@types/node": "^25.0.10",
     "@types/picomatch": "^4.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.53.1",
-    "@typescript-eslint/parser": "^8.53.1",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",

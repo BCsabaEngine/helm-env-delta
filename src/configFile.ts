@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { z } from 'zod';
 
 import { ZodValidationError } from './ZodError';
@@ -241,11 +243,44 @@ const finalConfigSchema = baseConfigSchema
       })
       .optional()
       .default({ indent: 2, keySeparator: false })
+  })
+  .refine(
+    (data) => {
+      const normalizedSource = path.resolve(data.source);
+      const normalizedDestination = path.resolve(data.destination);
+      return normalizedSource !== normalizedDestination;
+    },
+    {
+      message: 'Source and destination folders cannot be the same',
+      path: ['destination']
+    }
+  );
+
+// Format-Only Configuration Schema (destination required, source optional)
+const formatOnlyConfigSchema = baseConfigSchema
+  .omit({ extends: true })
+  .required({ destination: true })
+  .extend({
+    include: z.array(z.string().min(1)).default(['**/*']),
+    exclude: z.array(z.string().min(1)).default([]),
+    prune: z.boolean().default(false),
+    confirmationDelay: z.number().int().min(0).default(3000),
+    outputFormat: z
+      .object({
+        indent: z.number().int().min(1).max(10).default(2),
+        keySeparator: z.boolean().default(false),
+        quoteValues: z.record(z.string(), z.array(z.string())).optional(),
+        keyOrders: z.record(z.string(), z.array(z.string())).optional(),
+        arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
+      })
+      .optional()
+      .default({ indent: 2, keySeparator: false })
   });
 
 //Types
 export type BaseConfig = z.infer<typeof baseConfigSchema>;
 export type FinalConfig = z.infer<typeof finalConfigSchema>;
+export type FormatOnlyConfig = z.infer<typeof formatOnlyConfigSchema>;
 export type Config = FinalConfig;
 export type StopRule = z.infer<typeof stopRuleSchema>;
 export type SemverMajorUpgradeRule = z.infer<typeof semverMajorUpgradeRuleSchema>;
@@ -284,6 +319,24 @@ export const parseFinalConfig = (data: unknown, configPath?: string): FinalConfi
 
     if (sourceOrDestinationMissing)
       error.message += '\n\n  Hint: Base configs can omit source/dest, but final config must specify them.';
+
+    throw error;
+  }
+
+  return result.data;
+};
+
+//Parses and validates format-only configuration (only destination required)
+export const parseFormatOnlyConfig = (data: unknown, configPath?: string): FormatOnlyConfig => {
+  const result = formatOnlyConfigSchema.safeParse(data);
+
+  if (!result.success) {
+    const error = new ZodValidationError(result.error, configPath);
+    const destinationMissing = result.error.issues.some(
+      (issue) => issue.path[0] === 'destination' && issue.code === 'invalid_type'
+    );
+
+    if (destinationMissing) error.message += '\n\n  Hint: Format-only mode requires destination to be specified.';
 
     throw error;
   }
