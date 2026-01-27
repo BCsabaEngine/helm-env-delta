@@ -390,7 +390,7 @@ const applyKeySeparator = (yamlString: string, indent: number): string => {
   let hasSeenSecondLevelKey = false;
 
   for (const line of lines) {
-    if (!line) continue;
+    if (!line.trim()) continue;
 
     if (topLevelKeys > 1) {
       if (!line.startsWith(' ') && result.length > 0 && result.at(-1) !== '') result.push('');
