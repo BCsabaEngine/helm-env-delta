@@ -5,7 +5,7 @@ import YAML from 'yaml';
 
 import { Config } from './configFile';
 import { formatProgressMessage } from './consoleFormatter';
-import { ChangedFile, FileDiffResult } from './fileDiff';
+import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
 import { FileMap } from './fileLoader';
 import { Logger } from './logger';
 import {
@@ -370,14 +370,14 @@ const deleteFile = async (
 };
 
 // Helper functions for file operations
-const addNewFiles = async (files: string[], sourceFiles: FileMap, context: OperationContext): Promise<void> => {
+const addNewFiles = async (files: AddedFile[], sourceFiles: FileMap, context: OperationContext): Promise<void> => {
   if (context.logger.shouldShow('debug')) context.logger.debug(`Processing ${files.length} new files`);
 
-  for (const relativePath of files)
+  for (const addedFile of files)
     try {
-      const content = sourceFiles.get(relativePath)!;
+      const content = sourceFiles.get(addedFile.path)!;
       await addFile({
-        relativePath,
+        relativePath: addedFile.path,
         content,
         absoluteDestinationDirectory: context.absoluteDestinationDirectory,
         config: context.config,
@@ -386,7 +386,7 @@ const addNewFiles = async (files: string[], sourceFiles: FileMap, context: Opera
         logger: context.logger
       });
     } catch (error) {
-      context.errors.push({ operation: 'add', path: relativePath, error: error as Error });
+      context.errors.push({ operation: 'add', path: addedFile.path, error: error as Error });
     }
 };
 

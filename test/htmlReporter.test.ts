@@ -52,7 +52,7 @@ import open from 'open';
 
 import { diffArrays, findArrayPaths, hasArrays } from '../src/arrayDiffer';
 import { Config } from '../src/configFile';
-import { ChangedFile, FileDiffResult } from '../src/fileDiff';
+import { AddedFile, ChangedFile, FileDiffResult } from '../src/fileDiff';
 import { generateHtmlReport, HtmlReporterError, isHtmlReporterError } from '../src/htmlReporter';
 import { Logger } from '../src/logger';
 import { deepEqual } from '../src/utils/deepEqual';
@@ -84,6 +84,13 @@ const createMockChangedFile = (overrides?: Partial<ChangedFile>): ChangedFile =>
   rawParsedSource: { version: '1.0.0' },
   rawParsedDest: { version: '0.9.0' },
   skipPaths: [],
+  ...overrides
+});
+
+const createMockAddedFile = (path: string, overrides?: Partial<AddedFile>): AddedFile => ({
+  path,
+  content: `name: ${path}\nversion: 1.0.0`,
+  processedContent: `name: ${path}\nversion: 1.0.0`,
   ...overrides
 });
 
@@ -316,7 +323,7 @@ describe('htmlReporter', () => {
 
     it('should generate HTML template with all data', async () => {
       const diffResult = createMockDiffResult({
-        addedFiles: ['new.yaml'],
+        addedFiles: [createMockAddedFile('new.yaml')],
         deletedFiles: ['old.yaml'],
         changedFiles: [createMockChangedFile()],
         unchangedFiles: ['same.yaml']
@@ -503,16 +510,20 @@ describe('htmlReporter', () => {
 
     it('should include treeview classes in added files section', async () => {
       const diffResult = createMockDiffResult({
-        addedFiles: ['src/new.yaml', 'config/app.yaml']
+        addedFiles: [createMockAddedFile('src/new.yaml'), createMockAddedFile('config/app.yaml')]
       });
       const config = createMockConfig();
 
       await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
-      expect(htmlContent).toContain('class="tree-root"');
-      expect(htmlContent).toContain('class="tree-folder"');
-      expect(htmlContent).toContain('class="tree-file"');
+      // Added files section now has sidebar layout with content display
+      expect(htmlContent).toContain('class="sidebar-container"');
+      expect(htmlContent).toContain('Added Files');
+      expect(htmlContent).toContain('class="added-content"');
+      expect(htmlContent).toContain('class="file-content"');
+      expect(htmlContent).toContain('class="copy-btn"');
+      expect(htmlContent).toContain('class="download-btn"');
     });
 
     it('should include sidebar in changed files section', async () => {

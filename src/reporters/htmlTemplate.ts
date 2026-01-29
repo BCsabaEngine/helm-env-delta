@@ -1,4 +1,4 @@
-import { FileDiffResult } from '../fileDiff';
+import { AddedFile, FileDiffResult } from '../fileDiff';
 import { HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
 import { buildFileTree } from './treeBuilder';
 import { renderSidebarTree, renderTreeview } from './treeRenderer';
@@ -23,7 +23,7 @@ export interface ReportMetadata {
  *
  * Creates a tabbed interface with sections for:
  * - Changed files (with inline diffs)
- * - Added files
+ * - Added files (with content display, copy/download)
  * - Deleted files
  * - Formatted files
  * - Unchanged files
@@ -34,6 +34,8 @@ export interface ReportMetadata {
  * @param metadata - Report metadata (timestamp, paths, etc.)
  * @param changedSections - Pre-rendered HTML sections for changed files
  * @param changedFileIds - Map of changed file paths to their DOM element IDs
+ * @param addedSections - Pre-rendered HTML sections for added files
+ * @param addedFileIds - Map of added file paths to their DOM element IDs
  * @returns Complete HTML document as a string
  *
  * @example
@@ -51,7 +53,9 @@ export interface ReportMetadata {
  *   unchangedFiles,
  *   metadata,
  *   changedSections,
- *   changedFileIds
+ *   changedFileIds,
+ *   addedSections,
+ *   addedFileIds
  * );
  * ```
  */
@@ -61,12 +65,15 @@ export const generateHtmlTemplate = (
   trulyUnchangedFiles: string[],
   metadata: ReportMetadata,
   changedSections: string[],
-  changedFileIds: Map<string, string> = new Map()
+  changedFileIds: Map<string, string> = new Map(),
+  addedSections: string[] = [],
+  addedFileIds: Map<string, string> = new Map()
 ): string => {
   // Build trees for all file lists
   const changedFilePaths = diffResult.changedFiles.map((f) => f.path);
   const changedTree = buildFileTree(changedFilePaths);
-  const addedTree = buildFileTree(diffResult.addedFiles);
+  const addedFilePaths = diffResult.addedFiles.map((f: AddedFile) => f.path);
+  const addedTree = buildFileTree(addedFilePaths);
   const deletedTree = buildFileTree(diffResult.deletedFiles);
   const formattedTree = buildFileTree(formattedFiles);
   const unchangedTree = buildFileTree(trulyUnchangedFiles);
@@ -134,10 +141,22 @@ ${HTML_STYLES}
 
     <section id="added" class="tab-content">
       ${
-        diffResult.addedFiles.length > 0
+        addedSections.length > 0
           ? `
-        <div class="file-list">
-          ${renderTreeview(addedTree)}
+        <div class="sidebar-container">
+          <aside class="sidebar" id="added-sidebar">
+            <div class="sidebar-header">
+              <span>Added Files</span>
+              <button class="sidebar-toggle" data-sidebar="added">&#9664;</button>
+            </div>
+            <div class="sidebar-content">
+              ${renderSidebarTree(addedTree, addedFileIds)}
+            </div>
+          </aside>
+          <button class="sidebar-expand-btn" data-sidebar="added">&#9654;</button>
+          <div class="added-content">
+            ${addedSections.join('\n')}
+          </div>
         </div>
       `
           : '<p style="color: #586069; text-align: center; padding: 40px;">No added files</p>'

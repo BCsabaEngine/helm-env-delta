@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import YAML from 'yaml';
 
 import { Config } from './configFile';
-import { ChangedFile, FileDiffResult, getSkipPathsForFile } from './fileDiff';
+import { AddedFile, ChangedFile, FileDiffResult, getSkipPathsForFile } from './fileDiff';
 import { ArrayChange, detectArrayChanges } from './utils/arrayDiffProcessor';
 import { generateUnifiedDiff } from './utils/diffGenerator';
 import { isYamlFile } from './utils/fileType';
@@ -24,11 +24,11 @@ const colorizeUnifiedDiff = (diff: string): string => {
     .join('\n');
 };
 
-const formatAddedFiles = (files: string[]): string => {
+const formatAddedFiles = (files: AddedFile[]): string => {
   if (files.length === 0) return '';
 
   const header = chalk.green.bold(`\nAdded Files (${files.length}):`);
-  const fileList = files.map((file) => chalk.green(`  + ${file}`)).join('\n');
+  const fileList = files.map((file) => chalk.green(`  + ${file.path}`)).join('\n');
 
   return `${header}\n${fileList}\n`;
 };

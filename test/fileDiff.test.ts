@@ -11,7 +11,10 @@ describe('fileDiff', () => {
 
       const result = computeFileDiff(source, destination, config);
 
-      expect(result.addedFiles).toContain('new.yaml');
+      expect(result.addedFiles).toHaveLength(1);
+      expect(result.addedFiles[0]?.path).toBe('new.yaml');
+      expect(result.addedFiles[0]?.content).toBe('content');
+      expect(result.addedFiles[0]?.processedContent).toBeDefined();
       expect(result.deletedFiles).toHaveLength(0);
     });
 

@@ -325,6 +325,68 @@ export const HTML_STYLES = `
   .sidebar.collapsed ~ .sidebar-expand-btn {
     display: block;
   }
+
+  /* Added content area (same as changed-content) */
+  .added-content {
+    flex: 1;
+    min-width: 0;
+    padding-left: 20px;
+  }
+
+  /* Content container for added files */
+  .content-container {
+    padding: 16px;
+    background: #f6f8fa;
+    border-top: 1px solid #d0d7de;
+  }
+
+  .content-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .copy-btn,
+  .download-btn {
+    padding: 6px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #24292e;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover,
+  .download-btn:hover {
+    background: #f3f4f6;
+    border-color: #b0b7be;
+  }
+
+  .copy-btn.copied {
+    background: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+  }
+
+  .file-content {
+    margin: 0;
+    padding: 16px;
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre;
+  }
+
+  .file-content code {
+    font-family: inherit;
+  }
 `;
 
 /**
@@ -365,28 +427,36 @@ export const TAB_SCRIPT = String.raw`
     });
   });
 
-  // Sidebar toggle
-  const sidebarToggle = document.querySelector('.sidebar-toggle');
-  const sidebar = document.querySelector('.sidebar');
-  const expandBtn = document.querySelector('.sidebar-expand-btn');
-
-  if (sidebarToggle && sidebar) {
-    sidebarToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('collapsed');
-      sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '\u25B6' : '\u25C0';
-    });
-  }
-
-  if (expandBtn && sidebar) {
-    expandBtn.addEventListener('click', () => {
-      sidebar.classList.remove('collapsed');
-      if (sidebarToggle) {
-        sidebarToggle.textContent = '\u25C0';
+  // Sidebar toggle (supports multiple sidebars)
+  document.querySelectorAll('.sidebar-toggle').forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      const container = toggle.closest('.sidebar-container');
+      if (!container) return;
+      const sidebar = container.querySelector('.sidebar');
+      if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+        toggle.textContent = sidebar.classList.contains('collapsed') ? '\u25B6' : '\u25C0';
       }
     });
-  }
+  });
 
-  // Sidebar file click - scroll to diff
+  // Sidebar expand button (supports multiple sidebars)
+  document.querySelectorAll('.sidebar-expand-btn').forEach(expandBtn => {
+    expandBtn.addEventListener('click', () => {
+      const container = expandBtn.closest('.sidebar-container');
+      if (!container) return;
+      const sidebar = container.querySelector('.sidebar');
+      const toggle = container.querySelector('.sidebar-toggle');
+      if (sidebar) {
+        sidebar.classList.remove('collapsed');
+        if (toggle) {
+          toggle.textContent = '\u25C0';
+        }
+      }
+    });
+  });
+
+  // Sidebar file click - scroll to diff/content
   document.querySelectorAll('.sidebar-tree .tree-file-link').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
@@ -398,8 +468,11 @@ export const TAB_SCRIPT = String.raw`
         if (target.tagName === 'DETAILS' && !target.open) {
           target.open = true;
         }
-        // Highlight active file in sidebar
-        document.querySelectorAll('.sidebar-tree .tree-file').forEach(f => f.classList.remove('active'));
+        // Highlight active file in sidebar (within same container)
+        const container = link.closest('.sidebar-container');
+        if (container) {
+          container.querySelectorAll('.sidebar-tree .tree-file').forEach(f => f.classList.remove('active'));
+        }
         link.closest('.tree-file').classList.add('active');
       }
     });
@@ -412,18 +485,94 @@ export const TAB_SCRIPT = String.raw`
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           const fileId = entry.target.id;
-          document.querySelectorAll('.sidebar-tree .tree-file').forEach(f => {
-            const link = f.querySelector('.tree-file-link');
-            if (link && link.getAttribute('href') === '#' + fileId) {
-              f.classList.add('active');
-            } else {
-              f.classList.remove('active');
-            }
-          });
+          // Find the corresponding sidebar container
+          const tabContent = entry.target.closest('.tab-content');
+          if (tabContent) {
+            tabContent.querySelectorAll('.sidebar-tree .tree-file').forEach(f => {
+              const link = f.querySelector('.tree-file-link');
+              if (link && link.getAttribute('href') === '#' + fileId) {
+                f.classList.add('active');
+              } else {
+                f.classList.remove('active');
+              }
+            });
+          }
         }
       });
     }, { threshold: 0.3, rootMargin: '-100px 0px -50% 0px' });
 
     fileSections.forEach(section => observer.observe(section));
   }
+
+  // Copy button functionality
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const fileId = btn.getAttribute('data-file-id');
+      const section = document.getElementById(fileId);
+      if (!section) return;
+
+      const codeElement = section.querySelector('.file-content code');
+      if (!codeElement) return;
+
+      const content = codeElement.textContent || '';
+
+      try {
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(content);
+        } else {
+          // Fallback for older browsers
+          const textarea = document.createElement('textarea');
+          textarea.value = content;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+
+        // Visual feedback
+        const originalText = btn.textContent;
+        btn.textContent = '\u2713 Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+        btn.textContent = '\u2717 Failed';
+        setTimeout(() => {
+          btn.textContent = '\ud83d\udccb Copy';
+        }, 2000);
+      }
+    });
+  });
+
+  // Download button functionality
+  document.querySelectorAll('.download-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fileId = btn.getAttribute('data-file-id');
+      const filename = btn.getAttribute('data-filename') || 'file.yaml';
+      const section = document.getElementById(fileId);
+      if (!section) return;
+
+      const codeElement = section.querySelector('.file-content code');
+      if (!codeElement) return;
+
+      const content = codeElement.textContent || '';
+
+      // Create blob and download
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+  });
 `;

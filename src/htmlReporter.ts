@@ -6,9 +6,10 @@ import path from 'node:path';
 import { html as diff2html } from 'diff2html';
 
 import { Config } from './configFile';
-import { ChangedFile, FileDiffResult } from './fileDiff';
+import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
 import { openInBrowser } from './reporters/browserLauncher';
 import { generateHtmlTemplate, ReportMetadata } from './reporters/htmlTemplate';
+import { escapeHtml } from './reporters/treeRenderer';
 import { generateUnifiedDiff } from './utils/diffGenerator';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
@@ -48,6 +49,31 @@ const generateFileSummary = (file: ChangedFile): string => {
   if (!file.originalPath) return file.path;
 
   return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
+};
+
+const generateAddedFileSummary = (file: AddedFile): string => {
+  if (!file.originalPath) return file.path;
+
+  return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
+};
+
+const generateAddedFileSection = (file: AddedFile, fileId: string): string => {
+  const summary = generateAddedFileSummary(file);
+  const escapedContent = escapeHtml(file.processedContent);
+  const filename = file.path.split('/').pop() || file.path;
+
+  return `
+    <details class="file-section" id="${fileId}" data-file-id="${fileId}" open>
+      <summary>${summary}</summary>
+      <div class="content-container">
+        <div class="content-actions">
+          <button class="copy-btn" data-file-id="${fileId}" title="Copy to clipboard">📋 Copy</button>
+          <button class="download-btn" data-file-id="${fileId}" data-filename="${escapeHtml(filename)}" title="Download file">⬇ Download</button>
+        </div>
+        <pre class="file-content"><code>${escapedContent}</code></pre>
+      </div>
+    </details>
+  `;
 };
 
 const generateChangedFileSection = (file: ChangedFile, fileId: string): string => {
@@ -126,6 +152,15 @@ export const generateHtmlReport = async (
     generateChangedFileSection(file, `file-${index}`)
   );
 
+  // Generate added file IDs map for sidebar navigation
+  const addedFileIds = new Map<string, string>();
+  for (const [index, file] of diffResult.addedFiles.entries()) addedFileIds.set(file.path, `added-file-${index}`);
+
+  // Generate added file sections with IDs
+  const addedSections = diffResult.addedFiles.map((file, index) =>
+    generateAddedFileSection(file, `added-file-${index}`)
+  );
+
   // Generate complete HTML
   const htmlContent = generateHtmlTemplate(
     diffResult,
@@ -133,7 +168,9 @@ export const generateHtmlReport = async (
     trulyUnchangedFiles,
     metadata,
     changedSections,
-    changedFileIds
+    changedFileIds,
+    addedSections,
+    addedFileIds
   );
 
   // Write HTML file

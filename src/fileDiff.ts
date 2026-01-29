@@ -1,6 +1,6 @@
 import YAML from 'yaml';
 
-import { Config, FixedValueConfig, TransformConfig } from './configFile';
+import { Config, FixedValueConfig, OutputFormat, TransformConfig } from './configFile';
 import { FileMap } from './fileLoader';
 import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { deepEqual } from './utils/deepEqual';
@@ -11,10 +11,11 @@ import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } fro
 import { globalMatcher } from './utils/patternMatcher';
 import { normalizeForComparison } from './utils/serialization';
 import { applyTransforms } from './utils/transformer';
+import { formatYaml } from './yamlFormatter';
 
 // Types
 export interface FileDiffResult {
-  addedFiles: string[];
+  addedFiles: AddedFile[];
   deletedFiles: string[];
   changedFiles: ChangedFile[];
   unchangedFiles: string[];
@@ -36,6 +37,13 @@ export interface ChangedFile {
   parsedDest?: unknown;
 }
 
+export interface AddedFile {
+  path: string;
+  originalPath?: string; // Original filename before transform (only set if transformed)
+  content: string;
+  processedContent: string;
+}
+
 export interface ProcessYamlOptions {
   filePath: string;
   sourceContent: string;
@@ -54,10 +62,65 @@ export class FileDiffError extends FileDiffErrorClass {}
 export const isFileDiffError = createErrorTypeGuard(FileDiffError);
 
 // Helper Functions
-const detectAddedFiles = (sourceFiles: FileMap, destinationFiles: FileMap): string[] => {
-  const addedFiles: string[] = [];
+const processAddedFileContent = (
+  filePath: string,
+  content: string,
+  transforms?: TransformConfig,
+  fixedValues?: FixedValueConfig,
+  outputFormat?: OutputFormat
+): string => {
+  if (!isYamlFile(filePath)) return content;
 
-  for (const path of sourceFiles.keys()) if (!destinationFiles.has(path)) addedFiles.push(path);
+  try {
+    // Parse YAML
+    const parsed = YAML.parse(content);
+
+    // Apply transforms
+    const transformed = applyTransforms(parsed, filePath, transforms);
+
+    // Apply fixed values
+    const fixedValueRules = getFixedValuesForFile(filePath, fixedValues);
+    if (fixedValueRules.length > 0) applyFixedValues(transformed, fixedValueRules);
+
+    // Serialize back to YAML
+    let processed = YAML.stringify(transformed);
+
+    // Apply formatting
+    processed = formatYaml(processed, filePath, outputFormat);
+
+    return processed;
+  } catch {
+    // If processing fails, return original content
+    return content;
+  }
+};
+
+const detectAddedFiles = (
+  sourceFiles: FileMap,
+  destinationFiles: FileMap,
+  config: Config,
+  originalPaths?: Map<string, string>
+): AddedFile[] => {
+  const addedFiles: AddedFile[] = [];
+
+  for (const [path, content] of sourceFiles.entries())
+    if (!destinationFiles.has(path)) {
+      const originalPath = originalPaths?.get(path);
+      const processedContent = processAddedFileContent(
+        path,
+        content,
+        config.transforms,
+        config.fixedValues,
+        config.outputFormat
+      );
+
+      addedFiles.push({
+        path,
+        originalPath,
+        content,
+        processedContent
+      });
+    }
 
   return addedFiles;
 };
@@ -312,7 +375,7 @@ export const computeFileDiff = (
     if (skipPathCount > 0) logger.debug(`  SkipPath patterns: ${skipPathCount}`);
   }
 
-  const addedFiles = detectAddedFiles(sourceFiles, destinationFiles);
+  const addedFiles = detectAddedFiles(sourceFiles, destinationFiles, config, originalPaths);
 
   const deletedFiles = config.prune ? detectDeletedFiles(sourceFiles, destinationFiles) : [];
 

@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AddedFile } from '../src/fileDiff';
 import { updateFiles } from '../src/fileUpdater';
 import { Logger } from '../src/logger';
+
+const createAddedFile = (path: string): AddedFile => ({
+  path,
+  content: 'content',
+  processedContent: 'content'
+});
 
 vi.mock('node:fs/promises', () => ({
   stat: vi.fn(),
@@ -46,7 +53,7 @@ describe('fileUpdater', () => {
   describe('updateFiles', () => {
     it('should add new files', async () => {
       const diffResult = {
-        addedFiles: ['new.yaml'],
+        addedFiles: [createAddedFile('new.yaml')],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -120,7 +127,7 @@ describe('fileUpdater', () => {
 
     it('should not write files in dry-run mode', async () => {
       const diffResult = {
-        addedFiles: ['new.yaml'],
+        addedFiles: [createAddedFile('new.yaml')],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -154,7 +161,7 @@ describe('fileUpdater', () => {
       vi.mocked(stat).mockResolvedValue({ isDirectory: () => true } as never);
 
       const diffResult = {
-        addedFiles: ['nested/path/file.yaml'],
+        addedFiles: [createAddedFile('nested/path/file.yaml')],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -350,7 +357,7 @@ describe('fileUpdater', () => {
 
     it('should skip formatting when skipFormat is true', async () => {
       const diffResult = {
-        addedFiles: ['new.yaml'],
+        addedFiles: [createAddedFile('new.yaml')],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -370,7 +377,7 @@ describe('fileUpdater', () => {
 
     it('should apply formatting when skipFormat is false', async () => {
       const diffResult = {
-        addedFiles: ['new.yaml'],
+        addedFiles: [createAddedFile('new.yaml')],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -743,7 +750,7 @@ describe('fileUpdater', () => {
 
       it('should apply fixedValues to added files', async () => {
         const diffResult = {
-          addedFiles: ['new.yaml'],
+          addedFiles: [createAddedFile('new.yaml')],
           deletedFiles: [],
           changedFiles: [],
           unchangedFiles: []
@@ -922,7 +929,7 @@ describe('fileUpdater', () => {
 
       it('should apply multiple fixedValues rules in order', async () => {
         const diffResult = {
-          addedFiles: ['test.yaml'],
+          addedFiles: [createAddedFile('test.yaml')],
           deletedFiles: [],
           changedFiles: [],
           unchangedFiles: []
