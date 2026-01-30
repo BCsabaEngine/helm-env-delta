@@ -25,7 +25,7 @@ import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isCommentOnlyContent } from './utils/commentOnlyDetector';
-import { filterFileMap, filterFileMaps } from './utils/fileFilter';
+import { filterDiffResultByMode, filterFileMap, filterFileMaps } from './utils/fileFilter';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
@@ -307,7 +307,10 @@ const main = async (): Promise<void> => {
 
   // Compute file differences
   logger.log('\n' + formatProgressMessage('Computing differences...', 'info'));
-  const diffResult = computeFileDiff(sourceFiles, destinationFiles, syncConfig, logger, originalPaths);
+  const rawDiffResult = computeFileDiff(sourceFiles, destinationFiles, syncConfig, logger, originalPaths);
+
+  // Apply mode filter
+  const diffResult = filterDiffResultByMode(rawDiffResult, command.mode);
 
   if (logger.shouldShow('debug')) logger.debug('Diff pipeline: parse → transforms → skipPath → normalize → compare');
 

@@ -1,4 +1,22 @@
+import type { FileDiffResult } from '../fileDiff';
 import type { FileMap } from '../fileLoader';
+
+export type ChangeMode = 'new' | 'modified' | 'deleted' | 'all';
+
+/**
+ * Filters a FileDiffResult by change type mode.
+ * Returns only the changes matching the specified mode.
+ */
+export const filterDiffResultByMode = (diffResult: FileDiffResult, mode: ChangeMode): FileDiffResult => {
+  if (mode === 'all') return diffResult;
+
+  return {
+    addedFiles: mode === 'new' ? diffResult.addedFiles : [],
+    deletedFiles: mode === 'deleted' ? diffResult.deletedFiles : [],
+    changedFiles: mode === 'modified' ? diffResult.changedFiles : [],
+    unchangedFiles: diffResult.unchangedFiles
+  };
+};
 
 /**
  * Filters a FileMap by filename or content match (case-insensitive).

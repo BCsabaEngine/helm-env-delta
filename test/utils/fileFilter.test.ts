@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterFileMap, filterFileMaps } from '../../src/utils/fileFilter';
+import type { FileDiffResult } from '../../src/fileDiff';
+import { filterDiffResultByMode, filterFileMap, filterFileMaps } from '../../src/utils/fileFilter';
 
 describe('filterFileMap', () => {
   it('should return all files when filter is undefined', () => {
@@ -280,5 +281,110 @@ describe('filterFileMaps', () => {
 
     expect(result.sourceFiles.get('file.yaml')).toBe('source: searchterm');
     expect(result.destinationFiles.get('file.yaml')).toBe('dest: content');
+  });
+});
+
+const createDiffResult = (): FileDiffResult => ({
+  addedFiles: [
+    { path: 'added1.yaml', content: 'content', processedContent: 'content' },
+    { path: 'added2.yaml', content: 'content', processedContent: 'content' }
+  ],
+  deletedFiles: ['deleted1.yaml', 'deleted2.yaml'],
+  changedFiles: [
+    {
+      path: 'changed1.yaml',
+      sourceContent: 'source',
+      destinationContent: 'dest',
+      processedSourceContent: 'source',
+      processedDestContent: 'dest',
+      rawParsedSource: 'source',
+      rawParsedDest: 'dest',
+      skipPaths: []
+    }
+  ],
+  unchangedFiles: ['unchanged1.yaml', 'unchanged2.yaml']
+});
+
+describe('filterDiffResultByMode', () => {
+  it('should return all changes when mode is all', () => {
+    const diffResult = createDiffResult();
+
+    const result = filterDiffResultByMode(diffResult, 'all');
+
+    expect(result).toBe(diffResult);
+    expect(result.addedFiles.length).toBe(2);
+    expect(result.deletedFiles.length).toBe(2);
+    expect(result.changedFiles.length).toBe(1);
+    expect(result.unchangedFiles.length).toBe(2);
+  });
+
+  it('should return only added files when mode is new', () => {
+    const diffResult = createDiffResult();
+
+    const result = filterDiffResultByMode(diffResult, 'new');
+
+    expect(result.addedFiles.length).toBe(2);
+    expect(result.deletedFiles.length).toBe(0);
+    expect(result.changedFiles.length).toBe(0);
+    expect(result.unchangedFiles.length).toBe(2);
+  });
+
+  it('should return only changed files when mode is modified', () => {
+    const diffResult = createDiffResult();
+
+    const result = filterDiffResultByMode(diffResult, 'modified');
+
+    expect(result.addedFiles.length).toBe(0);
+    expect(result.deletedFiles.length).toBe(0);
+    expect(result.changedFiles.length).toBe(1);
+    expect(result.unchangedFiles.length).toBe(2);
+  });
+
+  it('should return only deleted files when mode is deleted', () => {
+    const diffResult = createDiffResult();
+
+    const result = filterDiffResultByMode(diffResult, 'deleted');
+
+    expect(result.addedFiles.length).toBe(0);
+    expect(result.deletedFiles.length).toBe(2);
+    expect(result.changedFiles.length).toBe(0);
+    expect(result.unchangedFiles.length).toBe(2);
+  });
+
+  it('should always preserve unchangedFiles regardless of mode', () => {
+    const diffResult = createDiffResult();
+
+    const addedResult = filterDiffResultByMode(diffResult, 'new');
+    const modifiedResult = filterDiffResultByMode(diffResult, 'modified');
+    const deletedResult = filterDiffResultByMode(diffResult, 'deleted');
+
+    expect(addedResult.unchangedFiles).toEqual(diffResult.unchangedFiles);
+    expect(modifiedResult.unchangedFiles).toEqual(diffResult.unchangedFiles);
+    expect(deletedResult.unchangedFiles).toEqual(diffResult.unchangedFiles);
+  });
+
+  it('should handle empty arrays correctly', () => {
+    const emptyDiffResult: FileDiffResult = {
+      addedFiles: [],
+      deletedFiles: [],
+      changedFiles: [],
+      unchangedFiles: []
+    };
+
+    const result = filterDiffResultByMode(emptyDiffResult, 'new');
+
+    expect(result.addedFiles.length).toBe(0);
+    expect(result.deletedFiles.length).toBe(0);
+    expect(result.changedFiles.length).toBe(0);
+    expect(result.unchangedFiles.length).toBe(0);
+  });
+
+  it('should not modify the original diffResult', () => {
+    const diffResult = createDiffResult();
+    const originalAddedLength = diffResult.addedFiles.length;
+
+    filterDiffResultByMode(diffResult, 'deleted');
+
+    expect(diffResult.addedFiles.length).toBe(originalAddedLength);
   });
 });

@@ -6,6 +6,8 @@ import packageJson from '../package.json';
 // Command Types
 // ============================================================================
 
+export type ChangeMode = 'new' | 'modified' | 'deleted' | 'all';
+
 export type SyncCommand = {
   config: string;
   dryRun: boolean;
@@ -24,6 +26,7 @@ export type SyncCommand = {
   suggest: boolean;
   suggestThreshold: number;
   filter?: string;
+  mode: ChangeMode;
 };
 
 // ============================================================================
@@ -52,6 +55,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--suggest-threshold <number>', 'Minimum confidence for suggestions (0-1, default: 0.3)', '0.3')
     .option('--no-color', 'Disable colored output')
     .option('-f, --filter <string>', 'Filter files by filename or content (case-insensitive)')
+    .option('-m, --mode <type>', 'Filter by change type: new, modified, deleted, all', 'all')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
     .addHelpText(
@@ -75,6 +79,12 @@ Examples:
 
   # Filter to only process files matching 'prod'
   $ helm-env-delta --config config.yaml -f prod --diff
+
+  # Sync only new files
+  $ helm-env-delta --config config.yaml --mode new
+
+  # Preview modified files only
+  $ helm-env-delta --config config.yaml --mode modified --dry-run --diff
 
 Documentation: https://github.com/balazscsaba2006/helm-env-delta
 `
@@ -104,6 +114,13 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     process.exit(1);
   }
 
+  // Validate --mode value
+  const validModes = ['new', 'modified', 'deleted', 'all'];
+  if (!validModes.includes(options['mode'])) {
+    console.error('Error: --mode must be one of: ' + validModes.join(', '));
+    process.exit(1);
+  }
+
   return {
     config: options['config'],
     dryRun: options['dryRun'],
@@ -121,6 +138,7 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     quiet: options['quiet'],
     suggest: options['suggest'],
     suggestThreshold: threshold,
-    filter: options['filter']
+    filter: options['filter'],
+    mode: options['mode'] as ChangeMode
   };
 };
