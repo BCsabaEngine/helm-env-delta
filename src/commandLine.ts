@@ -6,6 +6,8 @@ import packageJson from '../package.json';
 // Command Types
 // ============================================================================
 
+export type ChangeMode = 'new' | 'modified' | 'deleted' | 'all';
+
 export type SyncCommand = {
   config: string;
   dryRun: boolean;
@@ -23,6 +25,8 @@ export type SyncCommand = {
   noColor: boolean;
   suggest: boolean;
   suggestThreshold: number;
+  filter?: string;
+  mode: ChangeMode;
 };
 
 // ============================================================================
@@ -37,19 +41,21 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .description('Environment-aware YAML delta and sync for GitOps workflows')
     .version(packageJson.version)
     .requiredOption('-c, --config <file>', 'Path to YAML configuration file')
-    .option('--dry-run', 'Preview changes without writing files', false)
+    .option('-D, --dry-run', 'Preview changes without writing files', false)
     .option('--force', 'Override stop rules and proceed with changes', false)
-    .option('--diff', 'Display console diff for changed files', false)
-    .option('--diff-html', 'Generate and open HTML diff report in browser', false)
-    .option('--diff-json', 'Output diff as JSON to stdout', false)
-    .option('--skip-format', 'Skip YAML formatting (outputFormat section)', false)
+    .option('-d, --diff', 'Display console diff for changed files', false)
+    .option('-H, --diff-html', 'Generate and open HTML diff report in browser', false)
+    .option('-J, --diff-json', 'Output diff as JSON to stdout', false)
+    .option('-S, --skip-format', 'Skip YAML formatting (outputFormat section)', false)
     .option('--format-only', 'Format YAML files in destination without syncing', false)
     .option('--validate', 'Validate configuration file and exit', false)
-    .option('--list-files', 'List files that would be synced without processing diffs', false)
+    .option('-l, --list-files', 'List files that would be synced without processing diffs', false)
     .option('--show-config', 'Display resolved configuration after inheritance and exit', false)
     .option('--suggest', 'Analyze differences and suggest transforms and stop rules', false)
     .option('--suggest-threshold <number>', 'Minimum confidence for suggestions (0-1, default: 0.3)', '0.3')
     .option('--no-color', 'Disable colored output')
+    .option('-f, --filter <string>', 'Filter files by filename or content (case-insensitive)')
+    .option('-m, --mode <type>', 'Filter by change type: new, modified, deleted, all', 'all')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
     .addHelpText(
@@ -70,6 +76,15 @@ Examples:
 
   # CI/CD usage with JSON output
   $ helm-env-delta --config config.yaml --diff-json | jq '.summary'
+
+  # Filter to only process files matching 'prod'
+  $ helm-env-delta --config config.yaml -f prod --diff
+
+  # Sync only new files
+  $ helm-env-delta --config config.yaml --mode new
+
+  # Preview modified files only
+  $ helm-env-delta --config config.yaml --mode modified --dry-run --diff
 
 Documentation: https://github.com/balazscsaba2006/helm-env-delta
 `
@@ -99,6 +114,13 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     process.exit(1);
   }
 
+  // Validate --mode value
+  const validModes = ['new', 'modified', 'deleted', 'all'];
+  if (!validModes.includes(options['mode'])) {
+    console.error('Error: --mode must be one of: ' + validModes.join(', '));
+    process.exit(1);
+  }
+
   return {
     config: options['config'],
     dryRun: options['dryRun'],
@@ -115,6 +137,8 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     verbose: options['verbose'],
     quiet: options['quiet'],
     suggest: options['suggest'],
-    suggestThreshold: threshold
+    suggestThreshold: threshold,
+    filter: options['filter'],
+    mode: options['mode'] as ChangeMode
   };
 };

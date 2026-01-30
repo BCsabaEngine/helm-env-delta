@@ -36,7 +36,9 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined,
+        mode: 'all'
       });
     });
 
@@ -107,7 +109,9 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined,
+        mode: 'all'
       });
     });
 
@@ -171,7 +175,9 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined,
+        mode: 'all'
       });
     });
 
@@ -247,7 +253,9 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined,
+        mode: 'all'
       });
     });
 
@@ -366,7 +374,9 @@ describe('commandLine', () => {
         verbose: true,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined,
+        mode: 'all'
       });
     });
 
@@ -389,7 +399,9 @@ describe('commandLine', () => {
         verbose: false,
         quiet: true,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined,
+        mode: 'all'
       });
     });
 
@@ -445,6 +457,111 @@ describe('commandLine', () => {
       expect(result.listFiles).toBe(true);
       expect(result.showConfig).toBe(true);
       expect(result.noColor).toBe(true);
+    });
+
+    it('should parse command with --filter option', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--filter', 'prod']);
+
+      expect(result.filter).toBe('prod');
+    });
+
+    it('should parse command with -f short flag', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '-f', 'staging']);
+
+      expect(result.filter).toBe('staging');
+    });
+
+    it('should default filter to undefined when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.filter).toBeUndefined();
+    });
+
+    it('should handle filter with spaces', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '-f', 'prod values']);
+
+      expect(result.filter).toBe('prod values');
+    });
+
+    it('should parse command with --filter and other flags', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        '--config',
+        'test.yaml',
+        '--filter',
+        'prod',
+        '--dry-run',
+        '--diff'
+      ]);
+
+      expect(result.filter).toBe('prod');
+      expect(result.dryRun).toBe(true);
+      expect(result.diff).toBe(true);
+    });
+
+    it('should parse command with --mode new', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--mode', 'new']);
+
+      expect(result.mode).toBe('new');
+    });
+
+    it('should parse command with --mode modified', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--mode', 'modified']);
+
+      expect(result.mode).toBe('modified');
+    });
+
+    it('should parse command with --mode deleted', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--mode', 'deleted']);
+
+      expect(result.mode).toBe('deleted');
+    });
+
+    it('should parse command with --mode all', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--mode', 'all']);
+
+      expect(result.mode).toBe('all');
+    });
+
+    it('should parse command with -m short flag', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '-m', 'new']);
+
+      expect(result.mode).toBe('new');
+    });
+
+    it('should default mode to all when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.mode).toBe('all');
+    });
+
+    it('should exit when --mode has invalid value', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--mode', 'invalid']);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --mode must be one of: new, modified, deleted, all');
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should parse command with --mode and other flags', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        '--config',
+        'test.yaml',
+        '--mode',
+        'modified',
+        '--dry-run',
+        '--diff'
+      ]);
+
+      expect(result.mode).toBe('modified');
+      expect(result.dryRun).toBe(true);
+      expect(result.diff).toBe(true);
     });
   });
 });

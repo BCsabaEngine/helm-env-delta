@@ -56,7 +56,7 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 📊 **Multiple Reports** - Console, HTML (visual), and JSON (CI/CD) output formats.
 
-🔍 **Discovery Tools** - Preview files (`--list-files`), inspect config (`--show-config`), validate with comprehensive warnings including unused pattern detection.
+🔍 **Discovery Tools** - Preview files (`-l`), inspect config (`--show-config`), filter by filename/content (`-f`), filter by change type (`-m`), validate with comprehensive warnings including unused pattern detection.
 
 💡 **Smart Suggestions** - Heuristic analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically. Control sensitivity with `--suggest-threshold`.
 
@@ -102,28 +102,28 @@ transforms:
 ### 2️⃣ Preview Changes
 
 ```bash
-helm-env-delta --config config.yaml --dry-run --diff
+hed -c config.yaml -D -d
 ```
 
 ### 3️⃣ Execute Sync
 
 ```bash
-helm-env-delta --config config.yaml
+hed -c config.yaml
 ```
 
 ### 4️⃣ Review in Browser
 
 ```bash
-helm-env-delta --config config.yaml --diff-html
+hed -c config.yaml -H
 ```
 
 ### 5️⃣ Get Smart Suggestions (Optional)
 
 ```bash
-helm-env-delta --config config.yaml --suggest
+hed -c config.yaml --suggest
 
 # Control suggestion sensitivity (0-1, default: 0.3)
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
+hed -c config.yaml --suggest --suggest-threshold 0.7
 ```
 
 Analyzes differences and suggests transforms and stop rules automatically with configurable confidence filtering.
@@ -753,66 +753,80 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag                        | Description                                                         |
-| --------------------------- | ------------------------------------------------------------------- |
-| `--config <path>`           | **Required** - Configuration file                                   |
-| `--validate`                | Validate config and pattern usage (shows warnings)                  |
-| `--suggest`                 | Analyze differences and suggest config updates                      |
-| `--suggest-threshold <0-1>` | Minimum confidence for suggestions (default: 0.3)                   |
-| `--dry-run`                 | Preview changes without writing files                               |
-| `--force`                   | Override stop rules                                                 |
-| `--diff`                    | Show console diff                                                   |
-| `--diff-html`               | Generate HTML report (opens in browser)                             |
-| `--diff-json`               | Output JSON to stdout (pipe to jq)                                  |
-| `--list-files`              | List files without processing (takes precedence over --format-only) |
-| `--show-config`             | Display resolved config after inheritance                           |
-| `--format-only`             | Format destination files only (source not required)                 |
-| `--skip-format`             | Skip YAML formatting during sync                                    |
-| `--no-color`                | Disable colored output (CI/accessibility)                           |
-| `--verbose`                 | Show detailed debug info                                            |
-| `--quiet`                   | Suppress output except errors                                       |
+| Flag                        | Short | Description                                                         |
+| --------------------------- | ----- | ------------------------------------------------------------------- |
+| `--config <path>`           | `-c`  | **Required** - Configuration file                                   |
+| `--validate`                |       | Validate config and pattern usage (shows warnings)                  |
+| `--suggest`                 |       | Analyze differences and suggest config updates                      |
+| `--suggest-threshold <0-1>` |       | Minimum confidence for suggestions (default: 0.3)                   |
+| `--dry-run`                 | `-D`  | Preview changes without writing files                               |
+| `--force`                   |       | Override stop rules                                                 |
+| `--diff`                    | `-d`  | Show console diff                                                   |
+| `--diff-html`               | `-H`  | Generate HTML report (opens in browser)                             |
+| `--diff-json`               | `-J`  | Output JSON to stdout (pipe to jq)                                  |
+| `--list-files`              | `-l`  | List files without processing (takes precedence over --format-only) |
+| `--show-config`             |       | Display resolved config after inheritance                           |
+| `--format-only`             |       | Format destination files only (source not required)                 |
+| `--skip-format`             | `-S`  | Skip YAML formatting during sync                                    |
+| `--filter <string>`         | `-f`  | Filter files by filename or content (case-insensitive)              |
+| `--mode <type>`             | `-m`  | Filter by change type: new, modified, deleted, all (default: all)   |
+| `--no-color`                |       | Disable colored output (CI/accessibility)                           |
+| `--verbose`                 |       | Show detailed debug info                                            |
+| `--quiet`                   |       | Suppress output except errors                                       |
 
 ### Examples
 
 ```bash
 # Validate configuration (shows warnings)
-hed --config config.yaml --validate
+hed -c config.yaml --validate
 
 # Get smart configuration suggestions
-hed --config config.yaml --suggest
+hed -c config.yaml --suggest
 
 # Get only high-confidence suggestions
-hed --config config.yaml --suggest --suggest-threshold 0.7
+hed -c config.yaml --suggest --suggest-threshold 0.7
 
 # Preview files that will be synced
-hed --config config.yaml --list-files
+hed -c config.yaml -l
 
 # Display resolved config (after inheritance)
-hed --config config.yaml --show-config
+hed -c config.yaml --show-config
 
 # Preview with diff
-hed --config config.yaml --dry-run --diff
+hed -c config.yaml -D -d
 
 # Visual HTML report
-hed --config config.yaml --diff-html
+hed -c config.yaml -H
 
 # CI/CD integration (no colors)
-hed --config config.yaml --diff-json --no-color | jq '.summary'
+hed -c config.yaml -J --no-color | jq '.summary'
 
 # Execute sync
-hed --config config.yaml
+hed -c config.yaml
 
 # Force override stop rules
-hed --config config.yaml --force
+hed -c config.yaml --force
+
+# Filter to only process files matching 'prod'
+hed -c config.yaml -f prod -d
+
+# Sync only new files
+hed -c config.yaml -m new
+
+# Preview modified files only
+hed -c config.yaml -m modified -D -d
+
+# Combine filter and mode
+hed -c config.yaml -f deployment -m modified -D -d
 
 # Format destination files only (no sync, source not required in config)
-hed --config config.yaml --format-only
+hed -c config.yaml --format-only
 
 # Preview format changes
-hed --config config.yaml --format-only --dry-run
+hed -c config.yaml --format-only -D
 
 # List files that would be formatted (--list-files takes precedence)
-hed --config config.yaml --format-only --list-files
+hed -c config.yaml --format-only -l
 
 # Format-only config example (no source needed):
 # destination: './prod'
@@ -841,13 +855,13 @@ flowchart LR
 
 ```bash
 # 1. Preview changes
-hed --config config.yaml --dry-run --diff
+hed -c config.yaml -D -d
 
 # 2. Review in browser
-hed --config config.yaml --diff-html
+hed -c config.yaml -H
 
 # 3. Execute sync
-hed --config config.yaml
+hed -c config.yaml
 
 # 4. Git workflow
 git add prod/

@@ -1,9 +1,15 @@
 import type { SpyInstance } from 'vitest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { FinalConfig } from '../src/configFile';
 import { showConsoleDiff } from '../src/consoleDiffReporter';
-import type { ChangedFile, FileDiffResult } from '../src/fileDiff';
+import type { AddedFile, ChangedFile, FileDiffResult } from '../src/fileDiff';
+
+const createAddedFile = (path: string): AddedFile => ({
+  path,
+  content: 'content',
+  processedContent: 'content'
+});
 
 const createMockConfig = (overrides?: Partial<FinalConfig>): FinalConfig => ({
   source: './source',
@@ -29,7 +35,7 @@ describe('consoleDiffReporter', () => {
   describe('showConsoleDiff - summary box', () => {
     it('should display summary box with all counts', () => {
       const diffResult: FileDiffResult = {
-        addedFiles: ['file1.yaml', 'file2.yaml'],
+        addedFiles: [createAddedFile('file1.yaml'), createAddedFile('file2.yaml')],
         deletedFiles: ['file3.yaml'],
         changedFiles: [],
         unchangedFiles: ['file4.yaml', 'file5.yaml', 'file6.yaml']
@@ -168,7 +174,11 @@ describe('consoleDiffReporter', () => {
   describe('showConsoleDiff - added files', () => {
     it('should display added files list', () => {
       const diffResult: FileDiffResult = {
-        addedFiles: ['new-file1.yaml', 'new-file2.yaml', 'new-file3.txt'],
+        addedFiles: [
+          createAddedFile('new-file1.yaml'),
+          createAddedFile('new-file2.yaml'),
+          createAddedFile('new-file3.txt')
+        ],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -186,7 +196,7 @@ describe('consoleDiffReporter', () => {
 
     it('should prefix added files with +', () => {
       const diffResult: FileDiffResult = {
-        addedFiles: ['new-file.yaml'],
+        addedFiles: [createAddedFile('new-file.yaml')],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -250,7 +260,7 @@ describe('consoleDiffReporter', () => {
 
     it('should not show deleted files section when empty', () => {
       const diffResult: FileDiffResult = {
-        addedFiles: ['new.yaml'],
+        addedFiles: [createAddedFile('new.yaml')],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -357,73 +367,6 @@ describe('consoleDiffReporter', () => {
       expect(output).toContain('Changed Files (1)');
       expect(output).toContain('File: values.yaml');
     });
-
-    it('should display array-specific details for YAML with array changes', () => {
-      const changedFile: ChangedFile = {
-        path: 'config.yaml',
-        rawParsedSource: { items: [{ name: 'a' }, { name: 'b' }] },
-        rawParsedDest: { items: [{ name: 'a' }] },
-        processedSourceContent: { items: [{ name: 'a' }, { name: 'b' }] },
-        processedDestContent: { items: [{ name: 'a' }] }
-      };
-      const diffResult: FileDiffResult = {
-        addedFiles: [],
-        deletedFiles: [],
-        changedFiles: [changedFile],
-        unchangedFiles: []
-      };
-      const config = createMockConfig();
-
-      showConsoleDiff(diffResult, config);
-
-      const output = consoleLogSpy.mock.calls.map((call: unknown[]) => call[0]).join('\n');
-      expect(output).toContain('Array-specific details');
-      expect(output).toContain('items');
-    });
-
-    it('should show added items in arrays', () => {
-      const changedFile: ChangedFile = {
-        path: 'config.yaml',
-        rawParsedSource: { items: ['a', 'b', 'c'] },
-        rawParsedDest: { items: ['a', 'b'] },
-        processedSourceContent: { items: ['a', 'b', 'c'] },
-        processedDestContent: { items: ['a', 'b'] }
-      };
-      const diffResult: FileDiffResult = {
-        addedFiles: [],
-        deletedFiles: [],
-        changedFiles: [changedFile],
-        unchangedFiles: []
-      };
-      const config = createMockConfig();
-
-      showConsoleDiff(diffResult, config);
-
-      const output = consoleLogSpy.mock.calls.map((call: unknown[]) => call[0]).join('\n');
-      expect(output).toContain('Added');
-    });
-
-    it('should show removed items in arrays', () => {
-      const changedFile: ChangedFile = {
-        path: 'config.yaml',
-        rawParsedSource: { items: ['a'] },
-        rawParsedDest: { items: ['a', 'b'] },
-        processedSourceContent: { items: ['a'] },
-        processedDestContent: { items: ['a', 'b'] }
-      };
-      const diffResult: FileDiffResult = {
-        addedFiles: [],
-        deletedFiles: [],
-        changedFiles: [changedFile],
-        unchangedFiles: []
-      };
-      const config = createMockConfig();
-
-      showConsoleDiff(diffResult, config);
-
-      const output = consoleLogSpy.mock.calls.map((call: unknown[]) => call[0]).join('\n');
-      expect(output).toContain('Removed');
-    });
   });
 
   describe('showConsoleDiff - mixed file types', () => {
@@ -436,7 +379,7 @@ describe('consoleDiffReporter', () => {
         processedDestContent: { version: '1.0.0' }
       };
       const diffResult: FileDiffResult = {
-        addedFiles: ['new.yaml', 'new2.txt'],
+        addedFiles: [createAddedFile('new.yaml'), createAddedFile('new2.txt')],
         deletedFiles: ['old.yaml'],
         changedFiles: [changedFile],
         unchangedFiles: ['same.yaml']
@@ -471,7 +414,7 @@ describe('consoleDiffReporter', () => {
     it('should handle files with long paths', () => {
       const longPath = 'very/long/path/to/deeply/nested/directory/structure/file.yaml';
       const diffResult: FileDiffResult = {
-        addedFiles: [longPath],
+        addedFiles: [createAddedFile(longPath)],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -487,7 +430,7 @@ describe('consoleDiffReporter', () => {
     it('should handle files with special characters', () => {
       const specialPath = 'file with spaces & symbols (1).yaml';
       const diffResult: FileDiffResult = {
-        addedFiles: [specialPath],
+        addedFiles: [createAddedFile(specialPath)],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []
@@ -503,7 +446,7 @@ describe('consoleDiffReporter', () => {
     it('should handle unicode in file paths', () => {
       const unicodePath = 'файл.yaml'; // Cyrillic characters
       const diffResult: FileDiffResult = {
-        addedFiles: [unicodePath],
+        addedFiles: [createAddedFile(unicodePath)],
         deletedFiles: [],
         changedFiles: [],
         unchangedFiles: []

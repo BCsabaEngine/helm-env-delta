@@ -1,6 +1,7 @@
 import { bench, describe } from 'vitest';
 import * as YAML from 'yaml';
 
+import type { AddedFile } from '../../src/fileDiff';
 import { updateFiles } from '../../src/fileUpdater';
 import { generateFileMap } from './fixtures/dataGenerator';
 
@@ -20,7 +21,7 @@ const generateDiffResult = (source: Map<string, string>, destination: Map<string
   }
 
   return {
-    addedFiles: [] as string[],
+    addedFiles: [] as AddedFile[],
     deletedFiles: [] as string[],
     changedFiles,
     unchangedFiles: [] as string[]
@@ -58,7 +59,7 @@ describe('fileUpdater performance', () => {
     bench('write-1000-unchanged-files', async () => {
       const source = generateFileMap(50, { size: 'small', complexity: 'flat' });
       const diff = {
-        addedFiles: [] as string[],
+        addedFiles: [] as AddedFile[],
         deletedFiles: [] as string[],
         changedFiles: [],
         unchangedFiles: [...source.keys()]

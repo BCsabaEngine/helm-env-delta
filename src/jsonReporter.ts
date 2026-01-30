@@ -1,5 +1,5 @@
 import { Config } from './configFile';
-import { ChangedFile, FileDiffResult } from './fileDiff';
+import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
 import { ValidationResult } from './stopRulesValidator';
 import { deepEqual } from './utils/deepEqual';
 import { generateUnifiedDiff } from './utils/diffGenerator';
@@ -46,8 +46,14 @@ export interface ChangedFileDetail {
   changes: FieldChange[];
 }
 
+export interface AddedFileDetail {
+  path: string;
+  originalPath?: string;
+  content: string;
+}
+
 export interface JsonReportFiles {
-  added: string[];
+  added: AddedFileDetail[];
   deleted: string[];
   changed: ChangedFileDetail[];
   formatted: string[];
@@ -184,8 +190,14 @@ export const generateJsonReport = (
 
     const changedFileDetails = diffResult.changedFiles.map((file) => generateChangedFileDetail(file));
 
+    const addedFileDetails: AddedFileDetail[] = diffResult.addedFiles.map((file: AddedFile) => ({
+      path: file.path,
+      originalPath: file.originalPath,
+      content: file.processedContent
+    }));
+
     const files: JsonReportFiles = {
-      added: diffResult.addedFiles,
+      added: addedFileDetails,
       deleted: diffResult.deletedFiles,
       changed: changedFileDetails,
       formatted: formattedFiles,

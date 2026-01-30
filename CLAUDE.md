@@ -23,10 +23,10 @@ npx vitest run test/fileLoader.test.ts
 npx vitest run -t "skipExclude"
 
 # CLI
-helm-env-delta --config config.yaml [--validate] [--suggest] [--dry-run] [--force] [--diff] [--diff-html] [--diff-json] [--skip-format] [--format-only] [--list-files] [--show-config] [--no-color] [--verbose] [--quiet]
+helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] [-d|--diff] [-H|--diff-html] [-J|--diff-json] [-S|--skip-format] [--format-only] [-l|--list-files] [--show-config] [--no-color] [-f|--filter <string>] [-m|--mode <type>] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `--config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `--dry-run` (preview), `--force` (override stop rules), `--diff-html` (browser), `--diff-json` (pipe to jq), `--format-only` (format destination files without syncing, source not required), `--list-files` (preview files, takes precedence over --format-only), `--show-config` (display resolved config)
+**Key Flags:** `-c, --config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `-D, --dry-run` (preview), `--force` (override stop rules), `-H, --diff-html` (browser), `-J, --diff-json` (pipe to jq), `--format-only` (format destination files without syncing, source not required), `-l, --list-files` (preview files, takes precedence over --format-only), `--show-config` (display resolved config), `-f, --filter` (filter files by filename/content), `-m, --mode` (filter by change type: new/modified/deleted/all)
 
 ## Architecture
 

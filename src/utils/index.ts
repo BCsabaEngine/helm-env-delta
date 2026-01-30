@@ -30,9 +30,6 @@ export { globalMatcher, PatternMatcher } from './patternMatcher';
 // Diff utilities
 export { generateUnifiedDiff } from './diffGenerator';
 
-// Array diff processing utilities
-export { type ArrayChange, type ArrayChangeInfo, detectArrayChanges } from './arrayDiffProcessor';
-
 // Version checking utilities
 export { checkForUpdates, isVersionCheckerError, VersionCheckerError } from './versionChecker';
 
@@ -112,3 +109,6 @@ export {
 
 // Comment-only file detection
 export { isCommentOnlyContent } from './commentOnlyDetector';
+
+// File filter utilities
+export { filterFileMap, filterFileMaps } from './fileFilter';

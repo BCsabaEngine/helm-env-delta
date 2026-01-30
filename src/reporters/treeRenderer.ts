@@ -100,7 +100,7 @@ const renderSidebarNode = (node: TreeNode, fileIds: Map<string, string>): string
  * @param text - Text to escape
  * @returns Escaped text safe for HTML insertion
  */
-const escapeHtml = (text: string): string =>
+export const escapeHtml = (text: string): string =>
   text
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')

@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Config } from '../src/configFile';
-import { ChangedFile, FileDiffResult } from '../src/fileDiff';
+import { AddedFile, ChangedFile, FileDiffResult } from '../src/fileDiff';
 import { generateJsonReport, JsonReport } from '../src/jsonReporter';
 import { ValidationResult } from '../src/stopRulesValidator';
+
+const createMockAddedFile = (path: string): AddedFile => ({
+  path,
+  content: `name: ${path}`,
+  processedContent: `name: ${path}`
+});
 
 const createMockConfig = (): Config => ({
   source: './source',
@@ -45,7 +51,7 @@ describe('jsonReporter', () => {
   describe('generateJsonReport', () => {
     it('should generate valid JSON output', () => {
       const diffResult: FileDiffResult = {
-        addedFiles: ['file1.yaml'],
+        addedFiles: [createMockAddedFile('file1.yaml')],
         deletedFiles: ['file2.yaml'],
         changedFiles: [],
         unchangedFiles: ['file3.yaml']
@@ -96,7 +102,7 @@ describe('jsonReporter', () => {
 
     it('should include correct summary counts', () => {
       const diffResult: FileDiffResult = {
-        addedFiles: ['file1.yaml', 'file2.yaml'],
+        addedFiles: [createMockAddedFile('file1.yaml'), createMockAddedFile('file2.yaml')],
         deletedFiles: ['file3.yaml'],
         changedFiles: [
           createMockChangedFile('file4.yaml', 'source1', 'dest1', { key: 'value1' }, { key: 'value2' }),
@@ -132,7 +138,7 @@ describe('jsonReporter', () => {
 
     it('should include all file categories in files object', () => {
       const diffResult: FileDiffResult = {
-        addedFiles: ['new.yaml'],
+        addedFiles: [createMockAddedFile('new.yaml')],
         deletedFiles: ['removed.yaml'],
         changedFiles: [createMockChangedFile('changed.yaml', 'a', 'b', { x: 1 }, { x: 2 })],
         unchangedFiles: ['same.yaml']
@@ -148,7 +154,9 @@ describe('jsonReporter', () => {
       const output = consoleLogSpy.mock.calls[0][0];
       const parsed: JsonReport = JSON.parse(output);
 
-      expect(parsed.files.added).toEqual(['new.yaml']);
+      expect(parsed.files.added).toHaveLength(1);
+      expect(parsed.files.added[0].path).toBe('new.yaml');
+      expect(parsed.files.added[0].content).toBe('name: new.yaml');
       expect(parsed.files.deleted).toEqual(['removed.yaml']);
       expect(parsed.files.unchanged).toEqual(['same.yaml']);
       expect(parsed.files.formatted).toEqual(['formatted.yaml']);
