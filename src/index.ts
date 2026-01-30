@@ -25,7 +25,7 @@ import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isCommentOnlyContent } from './utils/commentOnlyDetector';
-import { filterFileMap } from './utils/fileFilter';
+import { filterFileMap, filterFileMaps } from './utils/fileFilter';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
@@ -128,8 +128,9 @@ const main = async (): Promise<void> => {
 
     // Apply filter if provided
     if (command.filter) {
-      sourceFiles = filterFileMap(sourceFiles, command.filter);
-      destinationFiles = filterFileMap(destinationFiles, command.filter);
+      const filtered = filterFileMaps(sourceFiles, destinationFiles, command.filter);
+      sourceFiles = filtered.sourceFiles;
+      destinationFiles = filtered.destinationFiles;
     }
 
     logger.progress(`Loaded ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`, 'success');
@@ -280,8 +281,9 @@ const main = async (): Promise<void> => {
 
   // Apply filter if provided
   if (command.filter) {
-    sourceFiles = filterFileMap(sourceFiles, command.filter);
-    destinationFiles = filterFileMap(destinationFiles, command.filter);
+    const filtered = filterFileMaps(sourceFiles, destinationFiles, command.filter);
+    sourceFiles = filtered.sourceFiles;
+    destinationFiles = filtered.destinationFiles;
     logger.progress(
       `Filter '${command.filter}' matched ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`,
       'info'

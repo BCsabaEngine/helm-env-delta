@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterFileMap } from '../../src/utils/fileFilter';
+import { filterFileMap, filterFileMaps } from '../../src/utils/fileFilter';
 
 describe('filterFileMap', () => {
   it('should return all files when filter is undefined', () => {
@@ -156,5 +156,129 @@ describe('filterFileMap', () => {
 
     expect(result.size).toBe(1);
     expect(result.has('apps/prod/values.yaml')).toBe(true);
+  });
+});
+
+describe('filterFileMaps', () => {
+  it('should return both maps unchanged when filter is undefined', () => {
+    const sourceFiles = new Map([['file.yaml', 'source content']]);
+    const destinationFiles = new Map([['file.yaml', 'dest content']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles);
+
+    expect(result.sourceFiles).toBe(sourceFiles);
+    expect(result.destinationFiles).toBe(destinationFiles);
+  });
+
+  it('should return both maps unchanged when filter is empty string', () => {
+    const sourceFiles = new Map([['file.yaml', 'source content']]);
+    const destinationFiles = new Map([['file.yaml', 'dest content']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, '');
+
+    expect(result.sourceFiles).toBe(sourceFiles);
+    expect(result.destinationFiles).toBe(destinationFiles);
+  });
+
+  it('should include file in both maps if it matches in source only', () => {
+    const sourceFiles = new Map([['file.yaml', 'contains searchterm']]);
+    const destinationFiles = new Map([['file.yaml', 'different content']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.has('file.yaml')).toBe(true);
+    expect(result.destinationFiles.has('file.yaml')).toBe(true);
+  });
+
+  it('should include file in both maps if it matches in destination only', () => {
+    const sourceFiles = new Map([['file.yaml', 'different content']]);
+    const destinationFiles = new Map([['file.yaml', 'contains searchterm']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.has('file.yaml')).toBe(true);
+    expect(result.destinationFiles.has('file.yaml')).toBe(true);
+  });
+
+  it('should not include file if it matches in neither map', () => {
+    const sourceFiles = new Map([['file.yaml', 'content A']]);
+    const destinationFiles = new Map([['file.yaml', 'content B']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.size).toBe(0);
+    expect(result.destinationFiles.size).toBe(0);
+  });
+
+  it('should handle file only in source (added file scenario)', () => {
+    const sourceFiles = new Map([['new-file.yaml', 'contains searchterm']]);
+    const destinationFiles = new Map<string, string>();
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.has('new-file.yaml')).toBe(true);
+    expect(result.destinationFiles.size).toBe(0);
+  });
+
+  it('should handle file only in destination (deleted file scenario)', () => {
+    const sourceFiles = new Map<string, string>();
+    const destinationFiles = new Map([['old-file.yaml', 'contains searchterm']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.size).toBe(0);
+    expect(result.destinationFiles.has('old-file.yaml')).toBe(true);
+  });
+
+  it('should match by filename and include in both maps', () => {
+    const sourceFiles = new Map([['prod-values.yaml', 'content A']]);
+    const destinationFiles = new Map([['prod-values.yaml', 'content B']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'prod');
+
+    expect(result.sourceFiles.has('prod-values.yaml')).toBe(true);
+    expect(result.destinationFiles.has('prod-values.yaml')).toBe(true);
+  });
+
+  it('should be case-insensitive', () => {
+    const sourceFiles = new Map([['file.yaml', 'contains SEARCHTERM']]);
+    const destinationFiles = new Map([['file.yaml', 'different content']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.has('file.yaml')).toBe(true);
+    expect(result.destinationFiles.has('file.yaml')).toBe(true);
+  });
+
+  it('should handle multiple files with mixed matches', () => {
+    const sourceFiles = new Map([
+      ['file1.yaml', 'contains searchterm'],
+      ['file2.yaml', 'no match here'],
+      ['file3.yaml', 'also no match']
+    ]);
+    const destinationFiles = new Map([
+      ['file1.yaml', 'different content'],
+      ['file2.yaml', 'has searchterm now'],
+      ['file3.yaml', 'still no match']
+    ]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.size).toBe(2);
+    expect(result.destinationFiles.size).toBe(2);
+    expect(result.sourceFiles.has('file1.yaml')).toBe(true);
+    expect(result.sourceFiles.has('file2.yaml')).toBe(true);
+    expect(result.destinationFiles.has('file1.yaml')).toBe(true);
+    expect(result.destinationFiles.has('file2.yaml')).toBe(true);
+  });
+
+  it('should preserve original content in filtered maps', () => {
+    const sourceFiles = new Map([['file.yaml', 'source: searchterm']]);
+    const destinationFiles = new Map([['file.yaml', 'dest: content']]);
+
+    const result = filterFileMaps(sourceFiles, destinationFiles, 'searchterm');
+
+    expect(result.sourceFiles.get('file.yaml')).toBe('source: searchterm');
+    expect(result.destinationFiles.get('file.yaml')).toBe('dest: content');
   });
 });
