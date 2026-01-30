@@ -8,6 +8,7 @@ Common questions and answers about HelmEnvDelta.
 - [Installation & Setup](#installation--setup)
 - [Configuration](#configuration)
 - [Usage & Workflow](#usage--workflow)
+- [CLI Shortcuts & Filtering](#cli-shortcuts--filtering)
 - [Transforms & Path Filtering](#transforms--path-filtering)
 - [Stop Rules & Safety](#stop-rules--safety)
 - [Team & Collaboration](#team--collaboration)
@@ -206,20 +207,59 @@ This shows what would change without modifying any files.
 
 ### Can I test HelmEnvDelta without modifying my files?
 
-**Yes!** Always use `--dry-run` to preview changes:
+**Yes!** Always use `--dry-run` (or `-D`) to preview changes:
 
 ```bash
-# Console output
-helm-env-delta --config config.yaml --dry-run --diff
+# Console output (using short flags)
+hed -c config.yaml -D -d
 
 # Visual HTML report
-helm-env-delta --config config.yaml --dry-run --diff-html
+hed -c config.yaml -D -H
 
 # JSON output for programmatic analysis
-helm-env-delta --config config.yaml --dry-run --diff-json
+hed -c config.yaml -D -J
 ```
 
 Dry-run shows exactly what would change without writing any files.
+
+---
+
+## CLI Shortcuts & Filtering
+
+### What are the command-line shortcuts?
+
+HelmEnvDelta provides short flags for common options:
+
+| Long Flag       | Short | Description                                      |
+| --------------- | ----- | ------------------------------------------------ |
+| `--config`      | `-c`  | Configuration file (required)                    |
+| `--dry-run`     | `-D`  | Preview changes without writing                  |
+| `--diff`        | `-d`  | Show console diff                                |
+| `--diff-html`   | `-H`  | Generate HTML report                             |
+| `--diff-json`   | `-J`  | Output JSON to stdout                            |
+| `--skip-format` | `-S`  | Skip YAML formatting                             |
+| `--list-files`  | `-l`  | List files without processing                    |
+| `--filter`      | `-f`  | Filter files by filename/content                 |
+| `--mode`        | `-m`  | Filter by change type (new/modified/deleted/all) |
+
+**Examples using short flags:**
+
+```bash
+# Preview with console diff
+hed -c config.yaml -D -d
+
+# HTML report
+hed -c config.yaml -H
+
+# JSON output piped to jq
+hed -c config.yaml -J | jq '.summary'
+
+# Filter and preview modified files
+hed -c config.yaml -f api -m modified -D -d
+
+# List files
+hed -c config.yaml -l
+```
 
 ---
 
@@ -365,15 +405,15 @@ destination: './prod'
 EOF
 
 # 2. Get suggestions
-helm-env-delta --config config.yaml --suggest > suggestions.yaml
+hed -c config.yaml --suggest > suggestions.yaml
 
 # 3. Review suggestions and copy relevant sections to config.yaml
 
 # 4. Test with dry-run
-helm-env-delta --config config.yaml --dry-run --diff
+hed -c config.yaml -D -d
 
 # 5. Execute sync
-helm-env-delta --config config.yaml
+hed -c config.yaml
 ```
 
 **When to use:**
@@ -440,14 +480,14 @@ helm-env-delta --config config.yaml --suggest --suggest-threshold 0.8
 **Standard workflow:**
 
 ```bash
-# 1. Review changes with dry-run
-helm-env-delta --config config.yaml --dry-run --diff
+# 1. Review changes with dry-run (using short flags)
+hed -c config.yaml -D -d
 
 # 2. Generate detailed HTML report
-helm-env-delta --config config.yaml --dry-run --diff-html
+hed -c config.yaml -D -H
 
 # 3. Execute sync if changes look good
-helm-env-delta --config config.yaml
+hed -c config.yaml
 
 # 4. Review the actual changes made
 git diff
@@ -1276,9 +1316,30 @@ npm run test:perf  # Shows detailed timing
 
 ### Can I limit runs to a subset of services?
 
-**Yes!** Use specific include patterns or multiple config files:
+**Yes!** Use CLI filters, specific include patterns, or multiple config files:
 
-**Option 1: Targeted include patterns**
+**Option 1: CLI Filter (NEW - Recommended for ad-hoc filtering)**
+
+Use `-f, --filter` to filter files by filename or content, and `-m, --mode` to filter by change type:
+
+```bash
+# Filter to only process files matching 'frontend'
+hed -c config.yaml -f frontend -d
+
+# Sync only new files
+hed -c config.yaml -m new
+
+# Preview modified files only
+hed -c config.yaml -m modified -D -d
+
+# Combine filter and mode: only modified files containing 'api'
+hed -c config.yaml -f api -m modified -D -d
+
+# Filter by change type: new, modified, deleted, or all (default)
+hed -c config.yaml -m deleted -D  # Preview files that would be deleted
+```
+
+**Option 2: Targeted include patterns (in config)**
 
 ```yaml
 # config-frontend-only.yaml
@@ -1290,18 +1351,14 @@ include:
   - 'services/web-app/**/*.yaml'
 ```
 
-**Option 2: Command-line glob override (not supported)**
-
-HelmEnvDelta doesn't support CLI pattern overrides—use separate config files instead.
-
 **Option 3: Multiple configs per service group**
 
 ```bash
 # Sync only critical services
-helm-env-delta --config config.critical.yaml
+helm-env-delta -c config.critical.yaml
 
 # Sync non-critical later
-helm-env-delta --config config.non-critical.yaml
+helm-env-delta -c config.non-critical.yaml
 ```
 
 **Option 4: Directory-scoped configs**
@@ -1318,7 +1375,7 @@ Run from service directory:
 
 ```bash
 cd services/api
-helm-env-delta --config config.yaml
+helm-env-delta -c config.yaml
 ```
 
 **CI/CD with changed-file detection:**
@@ -1334,7 +1391,7 @@ helm-env-delta --config config.yaml
   run: |
     for svc in ${{ steps.changes.outputs.services }}; do
       if [ -f "$svc/hed-config.yaml" ]; then
-        helm-env-delta --config "$svc/hed-config.yaml"
+        helm-env-delta -c "$svc/hed-config.yaml"
       fi
     done
 ```
@@ -1722,12 +1779,64 @@ helm-env-delta --config config.yaml --quiet
 
 ---
 
-### How can I preview which files will be synced without processing them?
+### How do I filter files by name or show only certain change types?
 
-**Use `--list-files`** to quickly see which files match your glob patterns:
+**Use the CLI filter options for ad-hoc filtering:**
+
+**Filter by filename or content (`-f, --filter`):**
 
 ```bash
-helm-env-delta --config config.yaml --list-files
+# Only process files with 'prod' in filename or content (case-insensitive)
+hed -c config.yaml -f prod -d
+
+# Filter to deployment files
+hed -c config.yaml -f deployment -D -d
+
+# Filter to files containing specific service name
+hed -c config.yaml -f my-service -d
+```
+
+**Filter by change type (`-m, --mode`):**
+
+```bash
+# Only show/sync new files (files in source but not in destination)
+hed -c config.yaml -m new -D -d
+
+# Only show/sync modified files (files that exist in both but differ)
+hed -c config.yaml -m modified -D -d
+
+# Only show files that would be deleted (with prune: true)
+hed -c config.yaml -m deleted -D -d
+
+# Show all changes (default)
+hed -c config.yaml -m all -d
+```
+
+**Combine both filters:**
+
+```bash
+# Only modified files containing 'api' in name/content
+hed -c config.yaml -f api -m modified -D -d
+
+# Only new deployment files
+hed -c config.yaml -f deployment -m new -D -d
+```
+
+**Use cases:**
+
+- **Large repos**: Focus on specific services without modifying config
+- **Debugging**: Isolate changes to specific files
+- **Incremental sync**: Process only new or modified files
+- **Review deleted files**: Preview what `prune: true` would remove
+
+---
+
+### How can I preview which files will be synced without processing them?
+
+**Use `--list-files` (or `-l`)** to quickly see which files match your glob patterns:
+
+```bash
+hed -c config.yaml -l
 ```
 
 **Output:**
@@ -2093,4 +2202,4 @@ include:
 
 ---
 
-**Last Updated:** 2026-01-26 (Added Team & Collaboration, Performance & Scaling, and Adoption & Migration sections)
+**Last Updated:** 2026-01-30 (Added CLI filter/mode options, command-line shortcuts)
