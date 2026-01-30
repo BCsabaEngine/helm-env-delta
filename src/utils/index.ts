@@ -109,3 +109,6 @@ export {
 
 // Comment-only file detection
 export { isCommentOnlyContent } from './commentOnlyDetector';
+
+// File filter utilities
+export { filterFileMap } from './fileFilter';

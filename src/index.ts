@@ -25,6 +25,7 @@ import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isCommentOnlyContent } from './utils/commentOnlyDetector';
+import { filterFileMap } from './utils/fileFilter';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
@@ -112,7 +113,7 @@ const main = async (): Promise<void> => {
       },
       logger
     );
-    const sourceFiles = sourceResult.fileMap;
+    let sourceFiles = sourceResult.fileMap;
 
     const destinationResult = await loadFiles(
       {
@@ -123,7 +124,13 @@ const main = async (): Promise<void> => {
       },
       logger
     );
-    const destinationFiles = destinationResult.fileMap;
+    let destinationFiles = destinationResult.fileMap;
+
+    // Apply filter if provided
+    if (command.filter) {
+      sourceFiles = filterFileMap(sourceFiles, command.filter);
+      destinationFiles = filterFileMap(destinationFiles, command.filter);
+    }
 
     logger.progress(`Loaded ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`, 'success');
 
@@ -174,7 +181,11 @@ const main = async (): Promise<void> => {
       },
       logger
     );
-    const destinationFiles = destinationResult.fileMap;
+    let destinationFiles = destinationResult.fileMap;
+
+    // Apply filter if provided
+    if (command.filter) destinationFiles = filterFileMap(destinationFiles, command.filter);
+
     logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
 
     // Early exit for list-files mode in format-only context
@@ -246,7 +257,7 @@ const main = async (): Promise<void> => {
     },
     logger
   );
-  const sourceFiles = sourceResult.fileMap;
+  let sourceFiles = sourceResult.fileMap;
   const originalPaths = sourceResult.originalPaths;
   logger.progress(`Loaded ${sourceFiles.size} source file(s)`, 'success');
 
@@ -264,8 +275,18 @@ const main = async (): Promise<void> => {
     },
     logger
   );
-  const destinationFiles = destinationResult.fileMap;
+  let destinationFiles = destinationResult.fileMap;
   logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
+
+  // Apply filter if provided
+  if (command.filter) {
+    sourceFiles = filterFileMap(sourceFiles, command.filter);
+    destinationFiles = filterFileMap(destinationFiles, command.filter);
+    logger.progress(
+      `Filter '${command.filter}' matched ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`,
+      'info'
+    );
+  }
 
   // Early exit for list-files mode
   if (command.listFiles) {

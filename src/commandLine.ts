@@ -23,6 +23,7 @@ export type SyncCommand = {
   noColor: boolean;
   suggest: boolean;
   suggestThreshold: number;
+  filter?: string;
 };
 
 // ============================================================================
@@ -50,6 +51,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--suggest', 'Analyze differences and suggest transforms and stop rules', false)
     .option('--suggest-threshold <number>', 'Minimum confidence for suggestions (0-1, default: 0.3)', '0.3')
     .option('--no-color', 'Disable colored output')
+    .option('-f, --filter <string>', 'Filter files by filename or content (case-insensitive)')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
     .addHelpText(
@@ -70,6 +72,9 @@ Examples:
 
   # CI/CD usage with JSON output
   $ helm-env-delta --config config.yaml --diff-json | jq '.summary'
+
+  # Filter to only process files matching 'prod'
+  $ helm-env-delta --config config.yaml -f prod --diff
 
 Documentation: https://github.com/balazscsaba2006/helm-env-delta
 `
@@ -115,6 +120,7 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     verbose: options['verbose'],
     quiet: options['quiet'],
     suggest: options['suggest'],
-    suggestThreshold: threshold
+    suggestThreshold: threshold,
+    filter: options['filter']
   };
 };

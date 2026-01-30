@@ -36,7 +36,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined
       });
     });
 
@@ -107,7 +108,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined
       });
     });
 
@@ -171,7 +173,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined
       });
     });
 
@@ -247,7 +250,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined
       });
     });
 
@@ -366,7 +370,8 @@ describe('commandLine', () => {
         verbose: true,
         quiet: false,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined
       });
     });
 
@@ -389,7 +394,8 @@ describe('commandLine', () => {
         verbose: false,
         quiet: true,
         suggest: false,
-        suggestThreshold: 0.3
+        suggestThreshold: 0.3,
+        filter: undefined
       });
     });
 
@@ -445,6 +451,47 @@ describe('commandLine', () => {
       expect(result.listFiles).toBe(true);
       expect(result.showConfig).toBe(true);
       expect(result.noColor).toBe(true);
+    });
+
+    it('should parse command with --filter option', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--filter', 'prod']);
+
+      expect(result.filter).toBe('prod');
+    });
+
+    it('should parse command with -f short flag', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '-f', 'staging']);
+
+      expect(result.filter).toBe('staging');
+    });
+
+    it('should default filter to undefined when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.filter).toBeUndefined();
+    });
+
+    it('should handle filter with spaces', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '-f', 'prod values']);
+
+      expect(result.filter).toBe('prod values');
+    });
+
+    it('should parse command with --filter and other flags', () => {
+      const result = parseCommandLine([
+        'node',
+        'cli',
+        '--config',
+        'test.yaml',
+        '--filter',
+        'prod',
+        '--dry-run',
+        '--diff'
+      ]);
+
+      expect(result.filter).toBe('prod');
+      expect(result.dryRun).toBe(true);
+      expect(result.diff).toBe(true);
     });
   });
 });
