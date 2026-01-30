@@ -1,9 +1,7 @@
 import chalk from 'chalk';
-import YAML from 'yaml';
 
 import { Config } from './configFile';
 import { AddedFile, ChangedFile, FileDiffResult, getSkipPathsForFile } from './fileDiff';
-import { ArrayChange, detectArrayChanges } from './utils/arrayDiffProcessor';
 import { generateUnifiedDiff } from './utils/diffGenerator';
 import { isYamlFile } from './utils/fileType';
 import { serializeForDiff } from './utils/serialization';
@@ -42,34 +40,6 @@ const formatDeletedFiles = (files: string[]): string => {
   return `${header}\n${fileList}\n`;
 };
 
-const formatArrayDiff = (change: ArrayChange): string => {
-  let output = '';
-
-  if (change.removed.length > 0) {
-    output += chalk.red.bold(`\n  Removed (${change.removed.length}):\n`);
-    for (const item of change.removed) {
-      const yaml = YAML.stringify(item, { indent: 4 });
-      const lines = yaml.split('\n').filter((l) => l.trim());
-      output += lines.map((l) => chalk.red(`    - ${l}`)).join('\n');
-      output += '\n';
-    }
-  }
-
-  if (change.added.length > 0) {
-    output += chalk.green.bold(`\n  Added (${change.added.length}):\n`);
-    for (const item of change.added) {
-      const yaml = YAML.stringify(item, { indent: 4 });
-      const lines = yaml.split('\n').filter((l) => l.trim());
-      output += lines.map((l) => chalk.green(`    + ${l}`)).join('\n');
-      output += '\n';
-    }
-  }
-
-  if (change.unchanged.length > 0) output += chalk.gray(`\n  Unchanged: ${change.unchanged.length} items\n`);
-
-  return output;
-};
-
 const formatChangedFile = (file: ChangedFile, config: Config): string => {
   const isYaml = isYamlFile(file.path);
   const separator = chalk.yellow('━'.repeat(60));
@@ -79,58 +49,22 @@ const formatChangedFile = (file: ChangedFile, config: Config): string => {
       ? chalk.dim(`SkipPath patterns applied: ${skipPaths.join(', ')}`)
       : chalk.dim('No skipPath patterns applied');
 
-  if (!isYaml) {
-    const destinationContent = String(file.processedDestContent);
-    const sourceContent = String(file.processedSourceContent);
-    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-    const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
-
-    return `
-${separator}
-${chalk.yellow.bold(`File: ${file.path}`)}
-${skipPathInfo}
-
-${colorizedDiff}
-`;
-  }
-
-  const arrayInfo = detectArrayChanges(file);
-
-  if (!arrayInfo.hasArrays) {
-    const destinationContent = serializeForDiff(file.processedDestContent, true);
-    const sourceContent = serializeForDiff(file.processedSourceContent, true);
-    const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
-    const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
-
-    return `
-${separator}
-${chalk.yellow.bold(`File: ${file.path}`)}
-${skipPathInfo}
-
-${colorizedDiff}
-`;
-  }
-
-  let output = `\n${separator}\n${chalk.yellow.bold(`File: ${file.path}`)}\n${skipPathInfo}\n`;
-
-  const destinationContent = serializeForDiff(file.processedDestContent, true);
-  const sourceContent = serializeForDiff(file.processedSourceContent, true);
+  const destinationContent = isYaml
+    ? serializeForDiff(file.processedDestContent, true)
+    : String(file.processedDestContent);
+  const sourceContent = isYaml
+    ? serializeForDiff(file.processedSourceContent, true)
+    : String(file.processedSourceContent);
   const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
   const colorizedDiff = colorizeUnifiedDiff(unifiedDiff);
 
-  output += `\n${colorizedDiff}\n`;
+  return `
+${separator}
+${chalk.yellow.bold(`File: ${file.path}`)}
+${skipPathInfo}
 
-  if (arrayInfo.hasChanges) {
-    output += chalk.cyan.bold('\nArray-specific details:\n');
-
-    for (const change of arrayInfo.changes) {
-      const pathString = change.path.join('.');
-      output += chalk.cyan(`\n  ${pathString}:\n`);
-      output += formatArrayDiff(change);
-    }
-  }
-
-  return output;
+${colorizedDiff}
+`;
 };
 
 const formatChangedFiles = (files: ChangedFile[], config: Config): string => {
