@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-01-30
+
+### Added
+
+- Downloadable new files in HTML report: When syncing creates new files, the HTML diff report now includes download buttons so you can save them directly from your browser. Great for reviewing and sharing proposed new files before committing.
+- File filtering: New `-f, --filter <string>` flag lets you narrow down which files to process by matching against filenames or file contents (case-insensitive). Perfect for focusing on specific services or configurations in large projects.
+- Change type filtering: New `-m, --mode <type>` flag filters files by their change status: `new` (only files that will be created), `modified` (only changed files), `deleted` (only files that will be removed), or `all` (default). Combine with `--diff` or `--dry-run` to review specific types of changes.
+- Command shortcuts: Added single-letter aliases for commonly used flags: `-D` (dry-run), `-d` (diff), `-H` (diff-html), `-J` (diff-json), `-S` (skip-format), `-l` (list-files), `-f` (filter), `-m` (mode). Type less, sync faster.
+
 ## [1.9.3] - 2026-01-27
 
 ### Added
