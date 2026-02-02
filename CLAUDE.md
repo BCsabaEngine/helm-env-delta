@@ -26,7 +26,7 @@ npx vitest run -t "skipExclude"
 helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] [-d|--diff] [-H|--diff-html] [-J|--diff-json] [-S|--skip-format] [--format-only] [-l|--list-files] [--show-config] [--no-color] [-f|--filter <string>] [-m|--mode <type>] [--verbose] [--quiet]
 ```
 
-**Key Flags:** `-c, --config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `-D, --dry-run` (preview), `--force` (override stop rules), `-H, --diff-html` (browser), `-J, --diff-json` (pipe to jq), `--format-only` (format destination files without syncing, source not required), `-l, --list-files` (preview files, takes precedence over --format-only), `--show-config` (display resolved config), `-f, --filter` (filter files by filename/content), `-m, --mode` (filter by change type: new/modified/deleted/all)
+**Key Flags:** `-c, --config` (required), `--validate` (two-phase validation with unused pattern detection), `--suggest` (heuristic analysis), `--suggest-threshold` (min confidence 0-1), `-D, --dry-run` (preview), `--force` (override stop rules), `-H, --diff-html` (browser), `-J, --diff-json` (pipe to jq), `--format-only` (format destination files without syncing, source not required), `-l, --list-files` (preview files, takes precedence over --format-only), `--show-config` (display resolved config), `-f, --filter` (filter files by filename/content, supports `|` for OR, `&` for AND), `-m, --mode` (filter by change type: new/modified/deleted/all)
 
 ## Architecture
 
@@ -97,6 +97,7 @@ Barrel exports via `index.ts`:
 - `regexPatternFileLoader.ts` - loadRegexPatternArray, loadRegexPatternsFromKeys
 - `fixedValues.ts` - getFixedValuesForFile, applyFixedValues, setValueAtPath (constant value injection)
 - `arrayMerger.ts` - getApplicableArrayFilters, mergeArraysWithFilters (skipPath-aware array merging)
+- `fileFilter.ts` - parseFilterExpression, fileMatchesFilter, filterFileMap, filterFileMaps (logical operators for CLI filter)
 
 **Error Pattern:** All modules use `errors.ts` factory for custom error classes with type guards, error codes, hints.
 
@@ -194,6 +195,35 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 2. **Phase 2 (File-Based)** - `patternUsageValidator.ts` validates pattern usage against actual files
 
 **What Gets Validated:** exclude patterns, skipPath patterns (glob + JSONPath), stopRules patterns (glob + path field), fixedValues patterns (glob + path field)
+
+## CLI Filter Operators
+
+The `-f/--filter` flag supports logical operators for complex filtering:
+
+| Operator | Name   | Example              | Matches                                         |
+| -------- | ------ | -------------------- | ----------------------------------------------- |
+| (none)   | Simple | `-f prod`            | Files where filename or content contains "prod" |
+| `\|`     | OR     | `-f "prod\|staging"` | Files matching "prod" OR "staging"              |
+| `&`      | AND    | `-f "values&prod"`   | Files matching "values" AND "prod"              |
+
+**Syntax:**
+
+```bash
+# OR: match ANY term (filename or content)
+helm-env-delta -c config.yaml -f "prod|staging" --list-files
+
+# AND: match ALL terms (can be split between filename and content)
+helm-env-delta -c config.yaml -f "values&prod" --list-files
+
+# Escape literal | or & with backslash
+helm-env-delta -c config.yaml -f "foo\|bar" --list-files
+```
+
+**Constraints:**
+
+- Cannot mix `&` and `|` in a single filter (throws `FilterParseError`)
+- Case-insensitive matching
+- Empty terms are ignored (`a||b` becomes `a|b`)
 
 ## Testing
 
