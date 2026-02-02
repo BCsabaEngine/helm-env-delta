@@ -12,7 +12,9 @@
 
 HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows while protecting your production-specific settings and preventing dangerous changes.
 
----
+<p align="center">
+  <img src="helm-env-delta.png" alt="helm-env-delta" />
+</p>
 
 ## 👤 Who Is This For?
 
@@ -697,28 +699,28 @@ outputFormat:
 
 The `-f/--filter` flag supports logical operators for complex filtering:
 
-| Operator | Name   | Example              | Matches                                         |
-| -------- | ------ | -------------------- | ----------------------------------------------- |
-| (none)   | Simple | `-f prod`            | Files where filename or content contains "prod" |
-| `\|`     | OR     | `-f "prod\|staging"` | Files matching "prod" OR "staging"              |
-| `&`      | AND    | `-f "values&prod"`   | Files matching "values" AND "prod"              |
+| Operator | Name   | Example           | Matches                                         |
+| -------- | ------ | ----------------- | ----------------------------------------------- |
+| (none)   | Simple | `-f prod`         | Files where filename or content contains "prod" |
+| `,`      | OR     | `-f prod,staging` | Files matching "prod" OR "staging"              |
+| `+`      | AND    | `-f values+prod`  | Files matching "values" AND "prod"              |
 
 ```bash
 # OR: match ANY term (filename or content)
-hed -c config.yaml -f "prod|staging" --list-files
+hed -c config.yaml -f prod,staging --list-files
 
 # AND: match ALL terms (can be split between filename and content)
-hed -c config.yaml -f "values&prod" --list-files
+hed -c config.yaml -f values+prod --list-files
 
-# Escape literal | or & with backslash
-hed -c config.yaml -f "foo\|bar" --list-files
+# Escape literal , or + with backslash
+hed -c config.yaml -f "foo\,bar" --list-files
 ```
 
 **Constraints:**
 
-- Cannot mix `&` and `|` in a single filter (throws error)
+- Cannot mix `+` and `,` in a single filter (throws error)
 - Case-insensitive matching
-- Empty terms are ignored (`a||b` becomes `a|b`)
+- Empty terms are ignored (`a,,b` becomes `a,b`)
 
 ---
 
@@ -797,7 +799,7 @@ hed --config <file> [options]  # Short alias
 | `--show-config`             |       | Display resolved config after inheritance                           |
 | `--format-only`             |       | Format destination files only (source not required)                 |
 | `--skip-format`             | `-S`  | Skip YAML formatting during sync                                    |
-| `--filter <string>`         | `-f`  | Filter files by filename/content (supports `\|` OR, `&` AND)        |
+| `--filter <string>`         | `-f`  | Filter files by filename/content (supports `,` OR, `+` AND)         |
 | `--mode <type>`             | `-m`  | Filter by change type: new, modified, deleted, all (default: all)   |
 | `--no-color`                |       | Disable colored output (CI/accessibility)                           |
 | `--verbose`                 |       | Show detailed debug info                                            |
@@ -840,10 +842,10 @@ hed -c config.yaml --force
 hed -c config.yaml -f prod -d
 
 # Filter with OR: match files containing 'prod' OR 'staging'
-hed -c config.yaml -f "prod|staging" -l
+hed -c config.yaml -f prod,staging -l
 
 # Filter with AND: match files containing BOTH 'values' AND 'prod'
-hed -c config.yaml -f "values&prod" -d
+hed -c config.yaml -f values+prod -d
 
 # Sync only new files
 hed -c config.yaml -m new

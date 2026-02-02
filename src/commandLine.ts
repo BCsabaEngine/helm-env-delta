@@ -54,7 +54,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--suggest', 'Analyze differences and suggest transforms and stop rules', false)
     .option('--suggest-threshold <number>', 'Minimum confidence for suggestions (0-1, default: 0.3)', '0.3')
     .option('--no-color', 'Disable colored output')
-    .option('-f, --filter <string>', 'Filter files by filename or content (supports | for OR, & for AND)')
+    .option('-f, --filter <string>', 'Filter files by filename or content (supports , for OR, + for AND)')
     .option('-m, --mode <type>', 'Filter by change type: new, modified, deleted, all', 'all')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
@@ -81,10 +81,10 @@ Examples:
   $ helm-env-delta --config config.yaml -f prod --diff
 
   # Filter with OR: files matching 'prod' OR 'staging'
-  $ helm-env-delta --config config.yaml -f "prod|staging" --diff
+  $ helm-env-delta --config config.yaml -f prod,staging --diff
 
   # Filter with AND: files matching 'values' AND 'prod'
-  $ helm-env-delta --config config.yaml -f "values&prod" --diff
+  $ helm-env-delta --config config.yaml -f values+prod --diff
 
   # Sync only new files
   $ helm-env-delta --config config.yaml --mode new
