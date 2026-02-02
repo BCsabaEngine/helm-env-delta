@@ -20,7 +20,7 @@ export interface ParsedFilter {
 // ============================================================================
 
 const filterParseErrorCodes = {
-  MIXED_OPERATORS: 'Cannot combine AND (&) and OR (|) operators in a single filter expression'
+  MIXED_OPERATORS: 'Cannot combine AND (+) and OR (,) operators in a single filter expression'
 };
 
 export const FilterParseError = createErrorClass('FilterParseError', filterParseErrorCodes);
@@ -32,7 +32,7 @@ export const isFilterParseError = createErrorTypeGuard(FilterParseError);
 
 /**
  * Parses a filter expression into its operator and terms.
- * Supports OR (|), AND (&) operators with backslash escaping.
+ * Supports OR (,), AND (+) operators with backslash escaping.
  * Throws FilterParseError if both operators are used in the same expression.
  */
 export const parseFilterExpression = (filter: string | undefined): ParsedFilter => {
@@ -46,8 +46,8 @@ export const parseFilterExpression = (filter: string | undefined): ParsedFilter 
     const char = filter[index];
     const isEscaped = index > 0 && filter[index - 1] === '\\';
 
-    if (char === '|' && !isEscaped) hasUnescapedOr = true;
-    if (char === '&' && !isEscaped) hasUnescapedAnd = true;
+    if (char === ',' && !isEscaped) hasUnescapedOr = true;
+    if (char === '+' && !isEscaped) hasUnescapedAnd = true;
   }
 
   // Check for mixed operators
@@ -55,8 +55,8 @@ export const parseFilterExpression = (filter: string | undefined): ParsedFilter 
     throw new FilterParseError('Mixed operators detected', {
       code: 'MIXED_OPERATORS',
       hints: [
-        'Use only | (OR) or only & (AND) in a single filter',
-        String.raw`Escape literal characters with backslash: \| or \&`
+        'Use only , (OR) or only + (AND) in a single filter',
+        String.raw`Escape literal characters with backslash: \, or \+`
       ]
     });
 
@@ -67,7 +67,7 @@ export const parseFilterExpression = (filter: string | undefined): ParsedFilter 
   let terms: string[];
   if (operator === 'NONE') terms = [filter];
   else {
-    const splitChar = operator === 'OR' ? '|' : '&';
+    const splitChar = operator === 'OR' ? ',' : '+';
     terms = [];
     let currentTerm = '';
 
@@ -78,7 +78,7 @@ export const parseFilterExpression = (filter: string | undefined): ParsedFilter 
       if (char === splitChar && !isEscaped) {
         terms.push(currentTerm);
         currentTerm = '';
-      } else if (char === '\\' && index + 1 < filter.length && (filter[index + 1] === '|' || filter[index + 1] === '&'))
+      } else if (char === '\\' && index + 1 < filter.length && (filter[index + 1] === ',' || filter[index + 1] === '+'))
         // Skip escape character, next iteration will add the escaped char
         continue;
       else currentTerm += char;
@@ -90,7 +90,7 @@ export const parseFilterExpression = (filter: string | undefined): ParsedFilter 
   const processedTerms = terms
     .map((term) =>
       term
-        .replaceAll(/\\([&|])/g, '$1')
+        .replaceAll(/\\([+,])/g, '$1')
         .trim()
         .toLowerCase()
     )
@@ -147,7 +147,7 @@ export const filterDiffResultByMode = (diffResult: FileDiffResult, mode: ChangeM
 
 /**
  * Filters a FileMap by filename or content match (case-insensitive).
- * Supports logical operators: | (OR), & (AND).
+ * Supports logical operators: , (OR), + (AND).
  * A file matches if EITHER:
  *   1. The filename includes the filter text
  *   2. The file content includes the filter text
@@ -167,7 +167,7 @@ export const filterFileMap = (fileMap: FileMap, filter: string | undefined): Fil
 
 /**
  * Filters two FileMaps together by filename or content match (case-insensitive).
- * Supports logical operators: | (OR), & (AND).
+ * Supports logical operators: , (OR), + (AND).
  * A file is included if its path matches in EITHER map (by filename or content).
  * This ensures files that exist in both maps stay in both filtered outputs,
  * preventing "changed" files from incorrectly appearing as "added".

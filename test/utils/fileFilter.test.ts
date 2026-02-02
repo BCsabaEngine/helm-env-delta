@@ -50,74 +50,74 @@ describe('parseFilterExpression', () => {
     });
   });
 
-  describe('OR operator (|)', () => {
+  describe('OR operator (,)', () => {
     it('should parse OR expression with two terms', () => {
-      const result = parseFilterExpression('prod|staging');
+      const result = parseFilterExpression('prod,staging');
 
       expect(result.operator).toBe('OR');
       expect(result.terms).toEqual(['prod', 'staging']);
     });
 
     it('should parse OR expression with multiple terms', () => {
-      const result = parseFilterExpression('prod|staging|dev');
+      const result = parseFilterExpression('prod,staging,dev');
 
       expect(result.operator).toBe('OR');
       expect(result.terms).toEqual(['prod', 'staging', 'dev']);
     });
 
     it('should handle whitespace around terms', () => {
-      const result = parseFilterExpression(' prod | staging ');
+      const result = parseFilterExpression(' prod , staging ');
 
       expect(result.operator).toBe('OR');
       expect(result.terms).toEqual(['prod', 'staging']);
     });
 
     it('should filter out empty terms', () => {
-      const result = parseFilterExpression('prod||staging');
+      const result = parseFilterExpression('prod,,staging');
 
       expect(result.operator).toBe('OR');
       expect(result.terms).toEqual(['prod', 'staging']);
     });
 
     it('should return NONE if only one non-empty term after filtering', () => {
-      const result = parseFilterExpression('prod|');
+      const result = parseFilterExpression('prod,');
 
       expect(result.operator).toBe('NONE');
       expect(result.terms).toEqual(['prod']);
     });
   });
 
-  describe('AND operator (&)', () => {
+  describe('AND operator (+)', () => {
     it('should parse AND expression with two terms', () => {
-      const result = parseFilterExpression('values&prod');
+      const result = parseFilterExpression('values+prod');
 
       expect(result.operator).toBe('AND');
       expect(result.terms).toEqual(['values', 'prod']);
     });
 
     it('should parse AND expression with multiple terms', () => {
-      const result = parseFilterExpression('values&prod&yaml');
+      const result = parseFilterExpression('values+prod+yaml');
 
       expect(result.operator).toBe('AND');
       expect(result.terms).toEqual(['values', 'prod', 'yaml']);
     });
 
     it('should handle whitespace around terms', () => {
-      const result = parseFilterExpression(' values & prod ');
+      const result = parseFilterExpression(' values + prod ');
 
       expect(result.operator).toBe('AND');
       expect(result.terms).toEqual(['values', 'prod']);
     });
 
     it('should filter out empty terms', () => {
-      const result = parseFilterExpression('values&&prod');
+      const result = parseFilterExpression('values++prod');
 
       expect(result.operator).toBe('AND');
       expect(result.terms).toEqual(['values', 'prod']);
     });
 
     it('should return NONE if only one non-empty term after filtering', () => {
-      const result = parseFilterExpression('prod&');
+      const result = parseFilterExpression('prod+');
 
       expect(result.operator).toBe('NONE');
       expect(result.terms).toEqual(['prod']);
@@ -125,43 +125,43 @@ describe('parseFilterExpression', () => {
   });
 
   describe('escaped operators', () => {
-    it('should treat escaped pipe as literal character', () => {
-      const result = parseFilterExpression(String.raw`foo\|bar`);
+    it('should treat escaped comma as literal character', () => {
+      const result = parseFilterExpression(String.raw`foo\,bar`);
 
       expect(result.operator).toBe('NONE');
-      expect(result.terms).toEqual(['foo|bar']);
+      expect(result.terms).toEqual(['foo,bar']);
     });
 
-    it('should treat escaped ampersand as literal character', () => {
-      const result = parseFilterExpression(String.raw`foo\&bar`);
+    it('should treat escaped plus as literal character', () => {
+      const result = parseFilterExpression(String.raw`foo\+bar`);
 
       expect(result.operator).toBe('NONE');
-      expect(result.terms).toEqual(['foo&bar']);
+      expect(result.terms).toEqual(['foo+bar']);
     });
 
     it('should handle escaped operator with actual operators', () => {
-      const result = parseFilterExpression(String.raw`foo\|bar|baz`);
+      const result = parseFilterExpression(String.raw`foo\,bar,baz`);
 
       expect(result.operator).toBe('OR');
-      expect(result.terms).toEqual(['foo|bar', 'baz']);
+      expect(result.terms).toEqual(['foo,bar', 'baz']);
     });
 
     it('should handle multiple escaped operators', () => {
-      const result = parseFilterExpression(String.raw`a\|b\&c`);
+      const result = parseFilterExpression(String.raw`a\,b\+c`);
 
       expect(result.operator).toBe('NONE');
-      expect(result.terms).toEqual(['a|b&c']);
+      expect(result.terms).toEqual(['a,b+c']);
     });
   });
 
   describe('mixed operators error', () => {
     it('should throw FilterParseError for mixed AND and OR operators', () => {
-      expect(() => parseFilterExpression('a&b|c')).toThrow();
+      expect(() => parseFilterExpression('a+b,c')).toThrow();
     });
 
     it('should include MIXED_OPERATORS code in error', () => {
       try {
-        parseFilterExpression('a&b|c');
+        parseFilterExpression('a+b,c');
         expect.fail('Should have thrown');
       } catch (error) {
         expect(isFilterParseError(error)).toBe(true);
@@ -171,7 +171,7 @@ describe('parseFilterExpression', () => {
 
     it('should include hints in error message', () => {
       try {
-        parseFilterExpression('prod&staging|dev');
+        parseFilterExpression('prod+staging,dev');
         expect.fail('Should have thrown');
       } catch (error) {
         expect(isFilterParseError(error)).toBe(true);
@@ -183,11 +183,11 @@ describe('parseFilterExpression', () => {
     });
 
     it('should not throw if one operator is escaped', () => {
-      expect(() => parseFilterExpression(String.raw`a\&b|c`)).not.toThrow();
+      expect(() => parseFilterExpression(String.raw`a\+b,c`)).not.toThrow();
 
-      const result = parseFilterExpression(String.raw`a\&b|c`);
+      const result = parseFilterExpression(String.raw`a\+b,c`);
       expect(result.operator).toBe('OR');
-      expect(result.terms).toEqual(['a&b', 'c']);
+      expect(result.terms).toEqual(['a+b', 'c']);
     });
   });
 });
@@ -486,7 +486,7 @@ describe('filterFileMap', () => {
         ['dev-values.yaml', 'content']
       ]);
 
-      const result = filterFileMap(fileMap, 'prod|staging');
+      const result = filterFileMap(fileMap, 'prod,staging');
 
       expect(result.size).toBe(2);
       expect(result.has('prod-values.yaml')).toBe(true);
@@ -500,7 +500,7 @@ describe('filterFileMap', () => {
         ['file3.yaml', 'env: development']
       ]);
 
-      const result = filterFileMap(fileMap, 'production|staging');
+      const result = filterFileMap(fileMap, 'production,staging');
 
       expect(result.size).toBe(2);
       expect(result.has('file1.yaml')).toBe(true);
@@ -516,7 +516,7 @@ describe('filterFileMap', () => {
         ['staging-values.yaml', 'content']
       ]);
 
-      const result = filterFileMap(fileMap, 'prod&values');
+      const result = filterFileMap(fileMap, 'prod+values');
 
       expect(result.size).toBe(1);
       expect(result.has('prod-values.yaml')).toBe(true);
@@ -529,7 +529,7 @@ describe('filterFileMap', () => {
         ['dev.yaml', 'env: development']
       ]);
 
-      const result = filterFileMap(fileMap, 'prod&staging');
+      const result = filterFileMap(fileMap, 'prod+staging');
 
       expect(result.size).toBe(2);
       expect(result.has('prod.yaml')).toBe(true);
@@ -541,7 +541,7 @@ describe('filterFileMap', () => {
     it('should throw FilterParseError for mixed operators', () => {
       const fileMap = new Map([['file.yaml', 'content']]);
 
-      expect(() => filterFileMap(fileMap, 'a&b|c')).toThrow();
+      expect(() => filterFileMap(fileMap, 'a+b,c')).toThrow();
     });
   });
 });
@@ -682,7 +682,7 @@ describe('filterFileMaps', () => {
         ['dev-values.yaml', 'content F']
       ]);
 
-      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod|staging');
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod,staging');
 
       expect(result.sourceFiles.size).toBe(2);
       expect(result.destinationFiles.size).toBe(2);
@@ -694,7 +694,7 @@ describe('filterFileMaps', () => {
       const sourceFiles = new Map([['file.yaml', 'has production']]);
       const destinationFiles = new Map([['file.yaml', 'different']]);
 
-      const result = filterFileMaps(sourceFiles, destinationFiles, 'production|staging');
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'production,staging');
 
       expect(result.sourceFiles.has('file.yaml')).toBe(true);
       expect(result.destinationFiles.has('file.yaml')).toBe(true);
@@ -714,7 +714,7 @@ describe('filterFileMaps', () => {
         ['staging-values.yaml', 'dest']
       ]);
 
-      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod&values');
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod+values');
 
       expect(result.sourceFiles.size).toBe(1);
       expect(result.destinationFiles.size).toBe(1);
@@ -725,7 +725,7 @@ describe('filterFileMaps', () => {
       const sourceFiles = new Map([['prod.yaml', 'content']]);
       const destinationFiles = new Map([['prod.yaml', 'has staging']]);
 
-      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod&staging');
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod+staging');
 
       expect(result.sourceFiles.has('prod.yaml')).toBe(true);
       expect(result.destinationFiles.has('prod.yaml')).toBe(true);
@@ -737,7 +737,7 @@ describe('filterFileMaps', () => {
       const sourceFiles = new Map([['file.yaml', 'content']]);
       const destinationFiles = new Map([['file.yaml', 'content']]);
 
-      expect(() => filterFileMaps(sourceFiles, destinationFiles, 'a&b|c')).toThrow();
+      expect(() => filterFileMaps(sourceFiles, destinationFiles, 'a+b,c')).toThrow();
     });
   });
 });
