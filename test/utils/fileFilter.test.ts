@@ -1,7 +1,326 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FileDiffResult } from '../../src/fileDiff';
-import { filterDiffResultByMode, filterFileMap, filterFileMaps } from '../../src/utils/fileFilter';
+import {
+  fileMatchesFilter,
+  filterDiffResultByMode,
+  filterFileMap,
+  filterFileMaps,
+  isFilterParseError,
+  parseFilterExpression
+} from '../../src/utils/fileFilter';
+
+// ============================================================================
+// parseFilterExpression Tests
+// ============================================================================
+
+describe('parseFilterExpression', () => {
+  describe('basic parsing', () => {
+    it('should return NONE operator with empty terms for undefined filter', () => {
+      const result = parseFilterExpression();
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual([]);
+    });
+
+    it('should return NONE operator with empty terms for empty string', () => {
+      const result = parseFilterExpression('');
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual([]);
+    });
+
+    it('should return NONE operator with single term for simple filter', () => {
+      const result = parseFilterExpression('prod');
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual(['prod']);
+    });
+
+    it('should convert terms to lowercase', () => {
+      const result = parseFilterExpression('PROD');
+
+      expect(result.terms).toEqual(['prod']);
+    });
+
+    it('should trim whitespace from terms', () => {
+      const result = parseFilterExpression('  prod  ');
+
+      expect(result.terms).toEqual(['prod']);
+    });
+  });
+
+  describe('OR operator (|)', () => {
+    it('should parse OR expression with two terms', () => {
+      const result = parseFilterExpression('prod|staging');
+
+      expect(result.operator).toBe('OR');
+      expect(result.terms).toEqual(['prod', 'staging']);
+    });
+
+    it('should parse OR expression with multiple terms', () => {
+      const result = parseFilterExpression('prod|staging|dev');
+
+      expect(result.operator).toBe('OR');
+      expect(result.terms).toEqual(['prod', 'staging', 'dev']);
+    });
+
+    it('should handle whitespace around terms', () => {
+      const result = parseFilterExpression(' prod | staging ');
+
+      expect(result.operator).toBe('OR');
+      expect(result.terms).toEqual(['prod', 'staging']);
+    });
+
+    it('should filter out empty terms', () => {
+      const result = parseFilterExpression('prod||staging');
+
+      expect(result.operator).toBe('OR');
+      expect(result.terms).toEqual(['prod', 'staging']);
+    });
+
+    it('should return NONE if only one non-empty term after filtering', () => {
+      const result = parseFilterExpression('prod|');
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual(['prod']);
+    });
+  });
+
+  describe('AND operator (&)', () => {
+    it('should parse AND expression with two terms', () => {
+      const result = parseFilterExpression('values&prod');
+
+      expect(result.operator).toBe('AND');
+      expect(result.terms).toEqual(['values', 'prod']);
+    });
+
+    it('should parse AND expression with multiple terms', () => {
+      const result = parseFilterExpression('values&prod&yaml');
+
+      expect(result.operator).toBe('AND');
+      expect(result.terms).toEqual(['values', 'prod', 'yaml']);
+    });
+
+    it('should handle whitespace around terms', () => {
+      const result = parseFilterExpression(' values & prod ');
+
+      expect(result.operator).toBe('AND');
+      expect(result.terms).toEqual(['values', 'prod']);
+    });
+
+    it('should filter out empty terms', () => {
+      const result = parseFilterExpression('values&&prod');
+
+      expect(result.operator).toBe('AND');
+      expect(result.terms).toEqual(['values', 'prod']);
+    });
+
+    it('should return NONE if only one non-empty term after filtering', () => {
+      const result = parseFilterExpression('prod&');
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual(['prod']);
+    });
+  });
+
+  describe('escaped operators', () => {
+    it('should treat escaped pipe as literal character', () => {
+      const result = parseFilterExpression(String.raw`foo\|bar`);
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual(['foo|bar']);
+    });
+
+    it('should treat escaped ampersand as literal character', () => {
+      const result = parseFilterExpression(String.raw`foo\&bar`);
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual(['foo&bar']);
+    });
+
+    it('should handle escaped operator with actual operators', () => {
+      const result = parseFilterExpression(String.raw`foo\|bar|baz`);
+
+      expect(result.operator).toBe('OR');
+      expect(result.terms).toEqual(['foo|bar', 'baz']);
+    });
+
+    it('should handle multiple escaped operators', () => {
+      const result = parseFilterExpression(String.raw`a\|b\&c`);
+
+      expect(result.operator).toBe('NONE');
+      expect(result.terms).toEqual(['a|b&c']);
+    });
+  });
+
+  describe('mixed operators error', () => {
+    it('should throw FilterParseError for mixed AND and OR operators', () => {
+      expect(() => parseFilterExpression('a&b|c')).toThrow();
+    });
+
+    it('should include MIXED_OPERATORS code in error', () => {
+      try {
+        parseFilterExpression('a&b|c');
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(isFilterParseError(error)).toBe(true);
+        if (isFilterParseError(error)) expect(error.code).toBe('MIXED_OPERATORS');
+      }
+    });
+
+    it('should include hints in error message', () => {
+      try {
+        parseFilterExpression('prod&staging|dev');
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(isFilterParseError(error)).toBe(true);
+        if (isFilterParseError(error)) {
+          expect(error.hints).toBeDefined();
+          expect(error.hints!.length).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    it('should not throw if one operator is escaped', () => {
+      expect(() => parseFilterExpression(String.raw`a\&b|c`)).not.toThrow();
+
+      const result = parseFilterExpression(String.raw`a\&b|c`);
+      expect(result.operator).toBe('OR');
+      expect(result.terms).toEqual(['a&b', 'c']);
+    });
+  });
+});
+
+// ============================================================================
+// fileMatchesFilter Tests
+// ============================================================================
+
+describe('fileMatchesFilter', () => {
+  describe('NONE operator', () => {
+    it('should return true for empty terms', () => {
+      const result = fileMatchesFilter('file.yaml', 'content', { operator: 'NONE', terms: [] });
+
+      expect(result).toBe(true);
+    });
+
+    it('should match by filename', () => {
+      const result = fileMatchesFilter('prod-values.yaml', 'some content', { operator: 'NONE', terms: ['prod'] });
+
+      expect(result).toBe(true);
+    });
+
+    it('should match by content', () => {
+      const result = fileMatchesFilter('file.yaml', 'environment: production', { operator: 'NONE', terms: ['prod'] });
+
+      expect(result).toBe(true);
+    });
+
+    it('should be case-insensitive', () => {
+      const result = fileMatchesFilter('PROD-values.yaml', 'CONTENT', { operator: 'NONE', terms: ['prod'] });
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false if no match', () => {
+      const result = fileMatchesFilter('dev-values.yaml', 'development', { operator: 'NONE', terms: ['prod'] });
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('OR operator', () => {
+    it('should match if first term matches filename', () => {
+      const result = fileMatchesFilter('prod-values.yaml', 'content', { operator: 'OR', terms: ['prod', 'staging'] });
+
+      expect(result).toBe(true);
+    });
+
+    it('should match if second term matches filename', () => {
+      const result = fileMatchesFilter('staging-values.yaml', 'content', {
+        operator: 'OR',
+        terms: ['prod', 'staging']
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('should match if any term matches content', () => {
+      const result = fileMatchesFilter('file.yaml', 'env: production', { operator: 'OR', terms: ['prod', 'staging'] });
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false if no terms match', () => {
+      const result = fileMatchesFilter('dev-values.yaml', 'development', {
+        operator: 'OR',
+        terms: ['prod', 'staging']
+      });
+
+      expect(result).toBe(false);
+    });
+
+    it('should match if term in filename and different term in content', () => {
+      const result = fileMatchesFilter('prod-values.yaml', 'staging env', {
+        operator: 'OR',
+        terms: ['prod', 'staging']
+      });
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('AND operator', () => {
+    it('should match if all terms match in filename', () => {
+      const result = fileMatchesFilter('prod-values.yaml', 'content', { operator: 'AND', terms: ['prod', 'values'] });
+
+      expect(result).toBe(true);
+    });
+
+    it('should match if all terms match in content', () => {
+      const result = fileMatchesFilter('file.yaml', 'production values here', {
+        operator: 'AND',
+        terms: ['prod', 'values']
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('should match if terms split between filename and content', () => {
+      const result = fileMatchesFilter('prod-config.yaml', 'values: true', {
+        operator: 'AND',
+        terms: ['prod', 'values']
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false if only some terms match', () => {
+      const result = fileMatchesFilter('prod-config.yaml', 'content', { operator: 'AND', terms: ['prod', 'values'] });
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false if no terms match', () => {
+      const result = fileMatchesFilter('dev-config.yaml', 'content', { operator: 'AND', terms: ['prod', 'values'] });
+
+      expect(result).toBe(false);
+    });
+
+    it('should work with three terms', () => {
+      const result = fileMatchesFilter('prod-values.yaml', 'env: staging', {
+        operator: 'AND',
+        terms: ['prod', 'values', 'staging']
+      });
+
+      expect(result).toBe(true);
+    });
+  });
+});
+
+// ============================================================================
+// filterFileMap Tests
+// ============================================================================
 
 describe('filterFileMap', () => {
   it('should return all files when filter is undefined', () => {
@@ -158,6 +477,73 @@ describe('filterFileMap', () => {
     expect(result.size).toBe(1);
     expect(result.has('apps/prod/values.yaml')).toBe(true);
   });
+
+  describe('OR operator', () => {
+    it('should match files with OR expression', () => {
+      const fileMap = new Map([
+        ['prod-values.yaml', 'content'],
+        ['staging-values.yaml', 'content'],
+        ['dev-values.yaml', 'content']
+      ]);
+
+      const result = filterFileMap(fileMap, 'prod|staging');
+
+      expect(result.size).toBe(2);
+      expect(result.has('prod-values.yaml')).toBe(true);
+      expect(result.has('staging-values.yaml')).toBe(true);
+    });
+
+    it('should match by content with OR expression', () => {
+      const fileMap = new Map([
+        ['file1.yaml', 'env: production'],
+        ['file2.yaml', 'env: staging'],
+        ['file3.yaml', 'env: development']
+      ]);
+
+      const result = filterFileMap(fileMap, 'production|staging');
+
+      expect(result.size).toBe(2);
+      expect(result.has('file1.yaml')).toBe(true);
+      expect(result.has('file2.yaml')).toBe(true);
+    });
+  });
+
+  describe('AND operator', () => {
+    it('should match files with AND expression', () => {
+      const fileMap = new Map([
+        ['prod-values.yaml', 'content'],
+        ['prod-config.yaml', 'content'],
+        ['staging-values.yaml', 'content']
+      ]);
+
+      const result = filterFileMap(fileMap, 'prod&values');
+
+      expect(result.size).toBe(1);
+      expect(result.has('prod-values.yaml')).toBe(true);
+    });
+
+    it('should match by combined filename and content with AND', () => {
+      const fileMap = new Map([
+        ['prod.yaml', 'env: staging'],
+        ['staging.yaml', 'env: production'],
+        ['dev.yaml', 'env: development']
+      ]);
+
+      const result = filterFileMap(fileMap, 'prod&staging');
+
+      expect(result.size).toBe(2);
+      expect(result.has('prod.yaml')).toBe(true);
+      expect(result.has('staging.yaml')).toBe(true);
+    });
+  });
+
+  describe('error handling', () => {
+    it('should throw FilterParseError for mixed operators', () => {
+      const fileMap = new Map([['file.yaml', 'content']]);
+
+      expect(() => filterFileMap(fileMap, 'a&b|c')).toThrow();
+    });
+  });
 });
 
 describe('filterFileMaps', () => {
@@ -281,6 +667,78 @@ describe('filterFileMaps', () => {
 
     expect(result.sourceFiles.get('file.yaml')).toBe('source: searchterm');
     expect(result.destinationFiles.get('file.yaml')).toBe('dest: content');
+  });
+
+  describe('OR operator', () => {
+    it('should match files with OR expression in either map', () => {
+      const sourceFiles = new Map([
+        ['prod-values.yaml', 'content A'],
+        ['staging-values.yaml', 'content B'],
+        ['dev-values.yaml', 'content C']
+      ]);
+      const destinationFiles = new Map([
+        ['prod-values.yaml', 'content D'],
+        ['staging-values.yaml', 'content E'],
+        ['dev-values.yaml', 'content F']
+      ]);
+
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod|staging');
+
+      expect(result.sourceFiles.size).toBe(2);
+      expect(result.destinationFiles.size).toBe(2);
+      expect(result.sourceFiles.has('prod-values.yaml')).toBe(true);
+      expect(result.sourceFiles.has('staging-values.yaml')).toBe(true);
+    });
+
+    it('should include file in both maps if it matches in only one map with OR', () => {
+      const sourceFiles = new Map([['file.yaml', 'has production']]);
+      const destinationFiles = new Map([['file.yaml', 'different']]);
+
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'production|staging');
+
+      expect(result.sourceFiles.has('file.yaml')).toBe(true);
+      expect(result.destinationFiles.has('file.yaml')).toBe(true);
+    });
+  });
+
+  describe('AND operator', () => {
+    it('should match files with AND expression', () => {
+      const sourceFiles = new Map([
+        ['prod-values.yaml', 'content'],
+        ['prod-config.yaml', 'content'],
+        ['staging-values.yaml', 'content']
+      ]);
+      const destinationFiles = new Map([
+        ['prod-values.yaml', 'dest'],
+        ['prod-config.yaml', 'dest'],
+        ['staging-values.yaml', 'dest']
+      ]);
+
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod&values');
+
+      expect(result.sourceFiles.size).toBe(1);
+      expect(result.destinationFiles.size).toBe(1);
+      expect(result.sourceFiles.has('prod-values.yaml')).toBe(true);
+    });
+
+    it('should match by combined filename and content with AND across maps', () => {
+      const sourceFiles = new Map([['prod.yaml', 'content']]);
+      const destinationFiles = new Map([['prod.yaml', 'has staging']]);
+
+      const result = filterFileMaps(sourceFiles, destinationFiles, 'prod&staging');
+
+      expect(result.sourceFiles.has('prod.yaml')).toBe(true);
+      expect(result.destinationFiles.has('prod.yaml')).toBe(true);
+    });
+  });
+
+  describe('error handling', () => {
+    it('should throw FilterParseError for mixed operators', () => {
+      const sourceFiles = new Map([['file.yaml', 'content']]);
+      const destinationFiles = new Map([['file.yaml', 'content']]);
+
+      expect(() => filterFileMaps(sourceFiles, destinationFiles, 'a&b|c')).toThrow();
+    });
   });
 });
 
