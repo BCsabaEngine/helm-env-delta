@@ -111,4 +111,12 @@ export {
 export { isCommentOnlyContent } from './commentOnlyDetector';
 
 // File filter utilities
-export { filterFileMap, filterFileMaps } from './fileFilter';
+export type { FilterLogicalOperator, ParsedFilter } from './fileFilter';
+export {
+  fileMatchesFilter,
+  filterFileMap,
+  filterFileMaps,
+  FilterParseError,
+  isFilterParseError,
+  parseFilterExpression
+} from './fileFilter';

@@ -25,7 +25,7 @@ import { validateStopRules } from './stopRulesValidator';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isCommentOnlyContent } from './utils/commentOnlyDetector';
-import { filterDiffResultByMode, filterFileMap, filterFileMaps } from './utils/fileFilter';
+import { filterDiffResultByMode, filterFileMap, filterFileMaps, isFilterParseError } from './utils/fileFilter';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
@@ -424,6 +424,7 @@ const main = async (): Promise<void> => {
     else if (isHtmlReporterError(error)) console.error(error.message);
     else if (isJsonReporterError(error)) console.error(error.message);
     else if (isSuggestionEngineError(error)) console.error(error.message);
+    else if (isFilterParseError(error)) console.error(error.message);
     else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
