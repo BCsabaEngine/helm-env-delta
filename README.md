@@ -56,7 +56,7 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 📦 **Config Inheritance** - Reuse base configurations with environment-specific overrides.
 
-📊 **Multiple Reports** - Console, HTML (visual), and JSON (CI/CD) output formats.
+📊 **Multiple Reports** - Console, HTML (visual, self-contained), and JSON (CI/CD) output formats. HTML reports include diff stats dashboard, per-file line change badges, copy diff buttons, file search, and collapse/expand controls.
 
 🔍 **Discovery Tools** - Preview files (`-l`), inspect config (`--show-config`), filter by filename/content (`-f`), filter by change type (`-m`), validate with comprehensive warnings including unused pattern detection.
 
@@ -118,6 +118,8 @@ hed -c config.yaml
 ```bash
 hed -c config.yaml -H
 ```
+
+Self-contained HTML report — works offline, no CDN required. Includes diff stats, line change badges, copy buttons, sidebar search, and collapse/expand controls.
 
 ### 5️⃣ Get Smart Suggestions (Optional)
 
