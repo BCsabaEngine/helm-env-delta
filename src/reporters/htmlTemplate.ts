@@ -1,5 +1,5 @@
 import { AddedFile, FileDiffResult } from '../fileDiff';
-import { HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
+import { DIFF2HTML_STYLES, HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
 import { buildFileTree } from './treeBuilder';
 import { renderSidebarTree, renderTreeview } from './treeRenderer';
 
@@ -83,7 +83,7 @@ export const generateHtmlTemplate = (
 <head>
   <meta charset="UTF-8">
   <title>helm-env-delta Report - ${metadata.timestamp}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css">
+  <style>${DIFF2HTML_STYLES}</style>
   <style>
 ${HTML_STYLES}
   </style>

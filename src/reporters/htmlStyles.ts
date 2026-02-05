@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs';
+
 // ============================================================================
 // HTML Styles and Scripts
 // ============================================================================
+
+/**
+ * Inlined diff2html CSS for fully self-contained HTML reports.
+ */
+// eslint-disable-next-line unicorn/prefer-module
+export const DIFF2HTML_STYLES = readFileSync(require.resolve('diff2html/bundles/css/diff2html.min.css'), 'utf8');
 
 /**
  * CSS styles for the HTML diff report.
