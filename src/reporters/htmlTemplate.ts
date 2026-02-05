@@ -131,6 +131,10 @@ ${HTML_STYLES}
           </aside>
           <button class="sidebar-expand-btn">&#9654;</button>
           <div class="changed-content">
+            <div class="content-toolbar">
+              <button class="collapse-all-btn">Collapse All</button>
+              <button class="expand-all-btn">Expand All</button>
+            </div>
             ${changedSections.join('\n')}
           </div>
         </div>
@@ -199,6 +203,8 @@ ${HTML_STYLES}
       }
     </section>
   </main>
+
+  <button class="scroll-to-top" title="Scroll to top">&#9650;</button>
 
   <script>
 ${TAB_SCRIPT}

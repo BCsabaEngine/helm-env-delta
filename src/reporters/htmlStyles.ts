@@ -387,6 +387,62 @@ export const HTML_STYLES = `
   .file-content code {
     font-family: inherit;
   }
+
+  /* Scroll-to-top button */
+  .scroll-to-top {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: #0969da;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: opacity 0.2s, background 0.2s;
+    z-index: 200;
+    line-height: 40px;
+    text-align: center;
+    padding: 0;
+  }
+
+  .scroll-to-top:hover {
+    background: #0550ae;
+  }
+
+  .scroll-to-top.visible {
+    display: block;
+  }
+
+  /* Content toolbar (collapse/expand buttons) */
+  .content-toolbar {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+
+  .collapse-all-btn,
+  .expand-all-btn {
+    padding: 4px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: #586069;
+    transition: all 0.2s;
+  }
+
+  .collapse-all-btn:hover,
+  .expand-all-btn:hover {
+    background: #f6f8fa;
+    color: #24292e;
+  }
 `;
 
 /**
@@ -573,6 +629,33 @@ export const TAB_SCRIPT = String.raw`
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    });
+  });
+
+  // Scroll-to-top button
+  const scrollToTopBtn = document.querySelector('.scroll-to-top');
+  if (scrollToTopBtn) {
+    window.addEventListener('scroll', () => {
+      scrollToTopBtn.classList.toggle('visible', window.scrollY > 200);
+    });
+    scrollToTopBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // Collapse All / Expand All buttons
+  document.querySelectorAll('.collapse-all-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabContent = btn.closest('.tab-content');
+      if (!tabContent) return;
+      tabContent.querySelectorAll('.file-section[open]').forEach(d => { d.open = false; });
+    });
+  });
+  document.querySelectorAll('.expand-all-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabContent = btn.closest('.tab-content');
+      if (!tabContent) return;
+      tabContent.querySelectorAll('.file-section').forEach(d => { d.open = true; });
     });
   });
 `;
