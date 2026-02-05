@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs';
+
 // ============================================================================
 // HTML Styles and Scripts
 // ============================================================================
+
+/**
+ * Inlined diff2html CSS for fully self-contained HTML reports.
+ */
+// eslint-disable-next-line unicorn/prefer-module
+export const DIFF2HTML_STYLES = readFileSync(require.resolve('diff2html/bundles/css/diff2html.min.css'), 'utf8');
 
 /**
  * CSS styles for the HTML diff report.
@@ -132,6 +140,14 @@ export const HTML_STYLES = `
 
   .file-section summary:hover {
     background: #eaeef2;
+  }
+
+  .file-section[open] > summary {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid #d0d7de;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
 
   .filename-transform {
@@ -387,6 +403,226 @@ export const HTML_STYLES = `
   .file-content code {
     font-family: inherit;
   }
+
+  /* Scroll-to-top button */
+  .scroll-to-top {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: #0969da;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: opacity 0.2s, background 0.2s;
+    z-index: 200;
+    line-height: 40px;
+    text-align: center;
+    padding: 0;
+  }
+
+  .scroll-to-top:hover {
+    background: #0550ae;
+  }
+
+  .scroll-to-top.visible {
+    display: block;
+  }
+
+  /* Content toolbar (collapse/expand buttons) */
+  .content-toolbar {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+
+  .collapse-all-btn,
+  .expand-all-btn {
+    padding: 4px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: #586069;
+    transition: all 0.2s;
+  }
+
+  .collapse-all-btn:hover,
+  .expand-all-btn:hover {
+    background: #f6f8fa;
+    color: #24292e;
+  }
+
+  /* Line change count badges */
+  .summary-badges {
+    float: right;
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 12px;
+  }
+
+  .line-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    line-height: 18px;
+  }
+
+  .line-added {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .line-removed {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .sidebar-tree .line-badge {
+    font-size: 10px;
+    padding: 0 5px;
+    line-height: 16px;
+  }
+
+  /* Diff toolbar */
+  .diff-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 16px;
+    border-bottom: 1px solid #d0d7de;
+    background: #f6f8fa;
+  }
+
+  .copy-diff-btn {
+    padding: 4px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #24292e;
+    transition: all 0.2s;
+  }
+
+  .copy-diff-btn:hover {
+    background: #f3f4f6;
+    border-color: #b0b7be;
+  }
+
+  .copy-diff-btn.copied {
+    background: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+  }
+
+  /* Sidebar search */
+  .sidebar-search {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+    margin-bottom: 8px;
+    box-sizing: border-box;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fff;
+  }
+
+  .sidebar-search:focus {
+    outline: none;
+    border-color: #0969da;
+    box-shadow: 0 0 0 3px rgba(9,105,218,0.15);
+  }
+
+  /* Statistics dashboard */
+  .stats-dashboard {
+    margin: 15px 0 0;
+    padding: 12px 0 0;
+    border-top: 1px solid #e1e4e8;
+  }
+
+  .stats-summary {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .stats-summary .total-added {
+    font-weight: 700;
+    color: #155724;
+    font-size: 16px;
+  }
+
+  .stats-summary .total-removed {
+    font-weight: 700;
+    color: #721c24;
+    font-size: 16px;
+  }
+
+  .stats-bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #e1e4e8;
+    margin-bottom: 10px;
+  }
+
+  .stats-segment {
+    height: 100%;
+    min-width: 2px;
+  }
+
+  .stats-segment.added-segment {
+    background: #28a745;
+  }
+
+  .stats-segment.removed-segment {
+    background: #d73a49;
+  }
+
+  .top-changed-files {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .top-changed-files li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color: #586069;
+  }
+
+  .top-changed-files .file-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px;
+  }
+
+  .top-changed-files .file-stats {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 `;
 
 /**
@@ -573,6 +809,115 @@ export const TAB_SCRIPT = String.raw`
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    });
+  });
+
+  // Scroll-to-top button
+  const scrollToTopBtn = document.querySelector('.scroll-to-top');
+  if (scrollToTopBtn) {
+    window.addEventListener('scroll', () => {
+      scrollToTopBtn.classList.toggle('visible', window.scrollY > 200);
+    });
+    scrollToTopBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // Collapse All / Expand All buttons
+  document.querySelectorAll('.collapse-all-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabContent = btn.closest('.tab-content');
+      if (!tabContent) return;
+      tabContent.querySelectorAll('.file-section[open]').forEach(d => { d.open = false; });
+    });
+  });
+  document.querySelectorAll('.expand-all-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabContent = btn.closest('.tab-content');
+      if (!tabContent) return;
+      tabContent.querySelectorAll('.file-section').forEach(d => { d.open = true; });
+    });
+  });
+
+  // Copy Diff button functionality
+  document.querySelectorAll('.copy-diff-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const fileId = btn.getAttribute('data-file-id');
+      const section = document.getElementById(fileId);
+      if (!section) return;
+
+      const diffSource = section.querySelector('.unified-diff-source');
+      if (!diffSource) return;
+
+      const content = diffSource.textContent || '';
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(content);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = content;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+
+        const originalText = btn.textContent;
+        btn.textContent = '\u2713 Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy diff:', err);
+        btn.textContent = '\u2717 Failed';
+        setTimeout(() => {
+          btn.textContent = 'Copy Diff';
+        }, 2000);
+      }
+    });
+  });
+
+  // Sidebar search/filter functionality
+  document.querySelectorAll('.sidebar-search').forEach(input => {
+    input.addEventListener('input', () => {
+      const searchText = input.value.toLowerCase().trim();
+      const sidebar = input.closest('.sidebar-content');
+      if (!sidebar) return;
+
+      const files = sidebar.querySelectorAll('.tree-file');
+      const folders = sidebar.querySelectorAll('.tree-folder');
+
+      if (!searchText) {
+        files.forEach(f => { f.style.display = ''; });
+        folders.forEach(f => { f.style.display = ''; f.classList.remove('collapsed'); });
+        return;
+      }
+
+      // First hide all files that don't match
+      files.forEach(f => {
+        const path = (f.getAttribute('data-path') || '').toLowerCase();
+        f.style.display = path.includes(searchText) ? '' : 'none';
+      });
+
+      // Then show/hide folders based on whether they have visible children
+      // Process from deepest to shallowest
+      const folderArray = Array.from(folders).reverse();
+      folderArray.forEach(folder => {
+        const childrenContainer = folder.querySelector('.tree-children');
+        if (!childrenContainer) return;
+        const hasVisibleChild = childrenContainer.querySelector('.tree-file:not([style*="display: none"]), .tree-folder:not([style*="display: none"])');
+        if (hasVisibleChild) {
+          folder.style.display = '';
+          folder.classList.remove('collapsed');
+        } else {
+          folder.style.display = 'none';
+        }
+      });
     });
   });
 `;
