@@ -503,7 +503,7 @@ describe('htmlReporter', () => {
       await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
-      expect(htmlContent).toContain('<summary>config/app.yaml</summary>');
+      expect(htmlContent).toContain('<summary>config/app.yaml');
       // Should not have the span with transform class wrapping the filename
       expect(htmlContent).not.toContain('<span class="filename-transform">');
     });

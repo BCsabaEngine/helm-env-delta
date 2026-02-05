@@ -8,7 +8,7 @@ import { html as diff2html } from 'diff2html';
 import { Config } from './configFile';
 import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
 import { openInBrowser } from './reporters/browserLauncher';
-import { generateHtmlTemplate, ReportMetadata } from './reporters/htmlTemplate';
+import { DiffStats, generateHtmlTemplate, ReportMetadata } from './reporters/htmlTemplate';
 import { escapeHtml } from './reporters/treeRenderer';
 import { generateUnifiedDiff } from './utils/diffGenerator';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
@@ -16,7 +16,7 @@ import { isYamlFile } from './utils/fileType';
 import { serializeForDiff } from './utils/serialization';
 
 // Re-export types for backward compatibility
-export type { ReportMetadata } from './reporters/htmlTemplate';
+export type { DiffStats, ReportMetadata } from './reporters/htmlTemplate';
 
 // Error Handling
 const HtmlReporterErrorClass = createErrorClass('HTML Reporter Error', {
@@ -44,6 +44,17 @@ const DIFF2HTML_OPTIONS = {
 } as const;
 
 const generateDiffHtml = (unifiedDiff: string): string => diff2html(unifiedDiff, DIFF2HTML_OPTIONS);
+
+const countDiffLines = (unifiedDiff: string): { added: number; removed: number } => {
+  const lines = unifiedDiff.split('\n');
+  let added = 0;
+  let removed = 0;
+  for (const line of lines)
+    if (line.startsWith('+') && !line.startsWith('+++')) added++;
+    else if (line.startsWith('-') && !line.startsWith('---')) removed++;
+
+  return { added, removed };
+};
 
 const generateFileSummary = (file: ChangedFile): string => {
   if (!file.originalPath) return file.path;
@@ -76,22 +87,33 @@ const generateAddedFileSection = (file: AddedFile, fileId: string): string => {
   `;
 };
 
-const generateChangedFileSection = (file: ChangedFile, fileId: string): string => {
+const generateChangedFileSection = (
+  file: ChangedFile,
+  fileId: string
+): { html: string; added: number; removed: number } => {
   const isYaml = isYamlFile(file.path);
   const summary = generateFileSummary(file);
   const destinationContent = serializeForDiff(file.processedDestContent, isYaml);
   const sourceContent = serializeForDiff(file.processedSourceContent, isYaml);
   const unifiedDiff = generateUnifiedDiff(file.path, destinationContent, sourceContent);
   const diffHtml = generateDiffHtml(unifiedDiff);
+  const { added, removed } = countDiffLines(unifiedDiff);
+  const escapedDiff = escapeHtml(unifiedDiff);
 
-  return `
+  const html = `
     <details class="file-section" id="${fileId}" data-file-id="${fileId}" open>
-      <summary>${summary}</summary>
+      <summary>${summary}<span class="summary-badges"><span class="line-badge line-added">+${added}</span><span class="line-badge line-removed">-${removed}</span></span></summary>
+      <div class="diff-toolbar">
+        <button class="copy-diff-btn" data-file-id="${fileId}">Copy Diff</button>
+      </div>
+      <pre class="unified-diff-source" style="display:none">${escapedDiff}</pre>
       <div class="diff-container">
         ${diffHtml}
       </div>
     </details>
   `;
+
+  return { html, added, removed };
 };
 
 // Template generation moved to reporters/htmlTemplate.ts
@@ -147,10 +169,13 @@ export const generateHtmlReport = async (
   const changedFileIds = new Map<string, string>();
   for (const [index, file] of diffResult.changedFiles.entries()) changedFileIds.set(file.path, `file-${index}`);
 
-  // Generate file sections with IDs
-  const changedSections = diffResult.changedFiles.map((file, index) =>
-    generateChangedFileSection(file, `file-${index}`)
-  );
+  // Generate file sections with IDs and collect stats
+  const fileStats = new Map<string, { added: number; removed: number }>();
+  const changedSections = diffResult.changedFiles.map((file, index) => {
+    const result = generateChangedFileSection(file, `file-${index}`);
+    fileStats.set(file.path, { added: result.added, removed: result.removed });
+    return result.html;
+  });
 
   // Generate added file IDs map for sidebar navigation
   const addedFileIds = new Map<string, string>();
@@ -161,6 +186,18 @@ export const generateHtmlReport = async (
     generateAddedFileSection(file, `added-file-${index}`)
   );
 
+  // Build diff stats for dashboard
+  let totalAdded = 0;
+  let totalRemoved = 0;
+  const statsArray: DiffStats['fileStats'] = [];
+  for (const [filePath, stats] of fileStats) {
+    totalAdded += stats.added;
+    totalRemoved += stats.removed;
+    statsArray.push({ path: filePath, added: stats.added, removed: stats.removed });
+  }
+  statsArray.sort((a, b) => b.added + b.removed - (a.added + a.removed));
+  const diffStats: DiffStats = { totalAdded, totalRemoved, fileStats: statsArray };
+
   // Generate complete HTML
   const htmlContent = generateHtmlTemplate(
     diffResult,
@@ -170,7 +207,9 @@ export const generateHtmlReport = async (
     changedSections,
     changedFileIds,
     addedSections,
-    addedFileIds
+    addedFileIds,
+    fileStats,
+    diffStats
   );
 
   // Write HTML file

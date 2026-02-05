@@ -1,7 +1,37 @@
 import { AddedFile, FileDiffResult } from '../fileDiff';
 import { DIFF2HTML_STYLES, HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
 import { buildFileTree } from './treeBuilder';
-import { renderSidebarTree, renderTreeview } from './treeRenderer';
+import { escapeHtml, renderSidebarTree, renderTreeview } from './treeRenderer';
+
+const renderStatsDashboard = (diffStats: DiffStats): string => {
+  const total = diffStats.totalAdded + diffStats.totalRemoved;
+  if (total === 0) return '';
+
+  const addedPercent = Math.round((diffStats.totalAdded / total) * 100);
+  const removedPercent = 100 - addedPercent;
+
+  const top5 = diffStats.fileStats.slice(0, 5);
+  const topFilesHtml = top5
+    .map(
+      (f) =>
+        `<li><span class="file-path">${escapeHtml(f.path)}</span><span class="file-stats"><span class="line-badge line-added">+${f.added}</span> <span class="line-badge line-removed">-${f.removed}</span></span></li>`
+    )
+    .join('');
+
+  return `
+    <div class="stats-dashboard">
+      <div class="stats-summary">
+        <span class="total-added">+${diffStats.totalAdded}</span>
+        <span class="total-removed">-${diffStats.totalRemoved}</span>
+        <span style="color: #586069; font-size: 13px;">lines across ${diffStats.fileStats.length} file${diffStats.fileStats.length === 1 ? '' : 's'}</span>
+      </div>
+      <div class="stats-bar">
+        <div class="stats-segment added-segment" style="width: ${addedPercent}%"></div>
+        <div class="stats-segment removed-segment" style="width: ${removedPercent}%"></div>
+      </div>
+      ${top5.length > 0 ? `<ul class="top-changed-files">${topFilesHtml}</ul>` : ''}
+    </div>`;
+};
 
 // ============================================================================
 // Types
@@ -12,6 +42,12 @@ export interface ReportMetadata {
   source: string;
   destination: string;
   dryRun: boolean;
+}
+
+export interface DiffStats {
+  totalAdded: number;
+  totalRemoved: number;
+  fileStats: Array<{ path: string; added: number; removed: number }>;
 }
 
 // ============================================================================
@@ -36,6 +72,8 @@ export interface ReportMetadata {
  * @param changedFileIds - Map of changed file paths to their DOM element IDs
  * @param addedSections - Pre-rendered HTML sections for added files
  * @param addedFileIds - Map of added file paths to their DOM element IDs
+ * @param fileStats - Map of file paths to their line change counts
+ * @param diffStats - Aggregated diff statistics for the dashboard
  * @returns Complete HTML document as a string
  *
  * @example
@@ -67,7 +105,9 @@ export const generateHtmlTemplate = (
   changedSections: string[],
   changedFileIds: Map<string, string> = new Map(),
   addedSections: string[] = [],
-  addedFileIds: Map<string, string> = new Map()
+  addedFileIds: Map<string, string> = new Map(),
+  fileStats: Map<string, { added: number; removed: number }> = new Map(),
+  diffStats?: DiffStats
 ): string => {
   // Build trees for all file lists
   const changedFilePaths = diffResult.changedFiles.map((f) => f.path);
@@ -104,6 +144,7 @@ ${HTML_STYLES}
       <span class="stat formatted">${formattedFiles.length} Formatted</span>
       <span class="stat unchanged">${trulyUnchangedFiles.length} Unchanged</span>
     </div>
+    ${diffStats ? renderStatsDashboard(diffStats) : ''}
   </header>
 
   <nav class="tabs">
@@ -126,7 +167,8 @@ ${HTML_STYLES}
               <button class="sidebar-toggle">&#9664;</button>
             </div>
             <div class="sidebar-content">
-              ${renderSidebarTree(changedTree, changedFileIds)}
+              <input type="text" class="sidebar-search" placeholder="Filter files..." />
+              ${renderSidebarTree(changedTree, changedFileIds, fileStats)}
             </div>
           </aside>
           <button class="sidebar-expand-btn">&#9654;</button>
@@ -154,6 +196,7 @@ ${HTML_STYLES}
               <button class="sidebar-toggle" data-sidebar="added">&#9664;</button>
             </div>
             <div class="sidebar-content">
+              <input type="text" class="sidebar-search" placeholder="Filter files..." />
               ${renderSidebarTree(addedTree, addedFileIds)}
             </div>
           </aside>

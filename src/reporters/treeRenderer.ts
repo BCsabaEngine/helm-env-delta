@@ -63,10 +63,14 @@ const renderTreeNode = (node: TreeNode): string => {
  * const html = renderSidebarTree(tree, fileIds);
  * ```
  */
-export const renderSidebarTree = (nodes: TreeNode[], fileIds: Map<string, string>): string => {
+export const renderSidebarTree = (
+  nodes: TreeNode[],
+  fileIds: Map<string, string>,
+  fileStats?: Map<string, { added: number; removed: number }>
+): string => {
   if (nodes.length === 0) return '';
 
-  return `<ul class="tree-root sidebar-tree">${nodes.map((node) => renderSidebarNode(node, fileIds)).join('')}</ul>`;
+  return `<ul class="tree-root sidebar-tree">${nodes.map((node) => renderSidebarNode(node, fileIds, fileStats)).join('')}</ul>`;
 };
 
 /**
@@ -76,9 +80,15 @@ export const renderSidebarTree = (nodes: TreeNode[], fileIds: Map<string, string
  * @param fileIds - Map of file paths to their DOM element IDs
  * @returns HTML string for the node
  */
-const renderSidebarNode = (node: TreeNode, fileIds: Map<string, string>): string => {
+const renderSidebarNode = (
+  node: TreeNode,
+  fileIds: Map<string, string>,
+  fileStats?: Map<string, { added: number; removed: number }>
+): string => {
   if (node.isFolder) {
-    const children = node.children ? node.children.map((child) => renderSidebarNode(child, fileIds)).join('') : '';
+    const children = node.children
+      ? node.children.map((child) => renderSidebarNode(child, fileIds, fileStats)).join('')
+      : '';
     return `
       <li class="tree-folder" data-path="${escapeHtml(node.path)}">
         <span class="tree-toggle">&#9660;</span>
@@ -88,9 +98,13 @@ const renderSidebarNode = (node: TreeNode, fileIds: Map<string, string>): string
   }
 
   const fileId = fileIds.get(node.path) || '';
+  const stats = fileStats?.get(node.path);
+  const badges = stats
+    ? ` <span class="line-badge line-added">+${stats.added}</span><span class="line-badge line-removed">-${stats.removed}</span>`
+    : '';
   return `
     <li class="tree-file" data-path="${escapeHtml(node.path)}" data-file-id="${escapeHtml(fileId)}">
-      <a href="#${escapeHtml(fileId)}" class="tree-file-link">${escapeHtml(node.name)}</a>
+      <a href="#${escapeHtml(fileId)}" class="tree-file-link">${escapeHtml(node.name)}</a>${badges}
     </li>`;
 };
 
