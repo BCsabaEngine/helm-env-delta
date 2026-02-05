@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-02-05
+
+### Added
+
+- Self-contained HTML reports: diff2html CSS is now inlined, so HTML reports work fully offline without CDN downloads. Open reports anywhere, anytime — no internet required.
+- Diff statistics dashboard: The HTML report header now shows total added/removed line counts with a visual bar chart and a list of the top changed files, giving you an at-a-glance overview of the sync impact.
+- Per-file line change badges: Each file section and sidebar entry now shows `+N` / `-N` badges indicating the number of added and removed lines, making it easy to spot the most impactful changes.
+- Copy Diff button: Each changed file section includes a "Copy Diff" button to copy the unified diff to your clipboard for easy sharing or pasting into pull requests.
+- Collapse All / Expand All buttons: Quickly collapse or expand all file sections in the changed and added tabs for faster navigation in large reports.
+- Scroll-to-top button: A floating button appears when you scroll down, letting you quickly jump back to the top of the report.
+- Sidebar file search: A filter input at the top of the sidebar lets you search files by path, instantly narrowing the file tree to matching entries.
+- Sticky file headers: Open file section headers now stick to the top of the viewport as you scroll through diffs, so you always know which file you're looking at.
+
 ## [1.10.3] - 2026-02-02
 
 ### Changed
