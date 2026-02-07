@@ -488,12 +488,6 @@ export const HTML_STYLES = `
     color: #721c24;
   }
 
-  .sidebar-tree .line-badge {
-    font-size: 10px;
-    padding: 0 5px;
-    line-height: 16px;
-  }
-
   /* Diff toolbar */
   .diff-toolbar {
     display: flex;
@@ -546,6 +540,23 @@ export const HTML_STYLES = `
     outline: none;
     border-color: #0969da;
     box-shadow: 0 0 0 3px rgba(9,105,218,0.15);
+  }
+
+  /* Stats toggle button */
+  .stats-toggle-btn {
+    padding: 4px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: #586069;
+    transition: all 0.2s;
+  }
+
+  .stats-toggle-btn:hover {
+    background: #f6f8fa;
+    color: #24292e;
   }
 
   /* Statistics dashboard */
@@ -919,5 +930,33 @@ export const TAB_SCRIPT = String.raw`
         }
       });
     });
+  });
+
+  // Stats dashboard toggle
+  const statsToggleBtn = document.getElementById('stats-toggle-btn');
+  const statsDashboardContent = document.getElementById('stats-dashboard-content');
+  if (statsToggleBtn && statsDashboardContent) {
+    statsToggleBtn.addEventListener('click', () => {
+      const isHidden = statsDashboardContent.style.display === 'none';
+      statsDashboardContent.style.display = isHidden ? 'block' : 'none';
+      statsToggleBtn.textContent = isHidden ? 'Hide Details' : 'Show Details';
+    });
+  }
+
+  // Synchronized horizontal scrolling for side-by-side diff panels
+  document.querySelectorAll('.d2h-files-diff').forEach(container => {
+    const panels = container.querySelectorAll('.d2h-file-side-diff');
+    if (panels.length === 2) {
+      let isSyncing = false;
+      panels.forEach((panel, index) => {
+        panel.addEventListener('scroll', () => {
+          if (isSyncing) return;
+          isSyncing = true;
+          const other = panels[1 - index];
+          other.scrollLeft = panel.scrollLeft;
+          isSyncing = false;
+        });
+      });
+    }
   });
 `;

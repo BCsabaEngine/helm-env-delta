@@ -2127,11 +2127,11 @@ helm-env-delta --config config.yaml --format-only
 
 **Different output formats for different needs:**
 
-| Flag          | Output               | Use Case                     |
-| ------------- | -------------------- | ---------------------------- |
-| `--diff`      | Console unified diff | Quick review in terminal     |
-| `--diff-html` | HTML side-by-side    | Visual review, opens browser |
-| `--diff-json` | JSON to stdout       | CI/CD, programmatic analysis |
+| Flag          | Output               | Use Case                                                                                                                                     |
+| ------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--diff`      | Console unified diff | Quick review in terminal                                                                                                                     |
+| `--diff-html` | HTML side-by-side    | Visual review, opens browser. Includes collapsible stats dashboard, synchronized scrolling, sidebar search, and auto-hidden empty categories |
+| `--diff-json` | JSON to stdout       | CI/CD, programmatic analysis                                                                                                                 |
 
 **You can combine them:**
 

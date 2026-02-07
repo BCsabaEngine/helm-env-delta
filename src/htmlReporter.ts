@@ -208,7 +208,6 @@ export const generateHtmlReport = async (
     changedFileIds,
     addedSections,
     addedFileIds,
-    fileStats,
     diffStats
   );
 

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-02-07
+
+### Changed
+
+- HTML report: Stats dashboard now hidden by default with a "Show Details" toggle button, reducing visual clutter. Top changed files list expanded from 5 to 10 items.
+- HTML report: Sidebar file browser no longer shows +/- line count badges for a cleaner, less noisy navigation experience.
+- HTML report: Empty categories (0 count) are now hidden from the summary badges and tab bar. Only categories with files are shown, and the first non-empty tab is selected by default.
+- HTML report: Synchronized horizontal scrolling for side-by-side diff panels — scrolling one panel now scrolls the other.
+
 ## [1.11.0] - 2026-02-05
 
 ### Added
