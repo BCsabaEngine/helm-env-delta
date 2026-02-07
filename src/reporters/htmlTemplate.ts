@@ -10,8 +10,8 @@ const renderStatsDashboard = (diffStats: DiffStats): string => {
   const addedPercent = Math.round((diffStats.totalAdded / total) * 100);
   const removedPercent = 100 - addedPercent;
 
-  const top5 = diffStats.fileStats.slice(0, 5);
-  const topFilesHtml = top5
+  const top10 = diffStats.fileStats.slice(0, 10);
+  const topFilesHtml = top10
     .map(
       (f) =>
         `<li><span class="file-path">${escapeHtml(f.path)}</span><span class="file-stats"><span class="line-badge line-added">+${f.added}</span> <span class="line-badge line-removed">-${f.removed}</span></span></li>`
@@ -20,16 +20,19 @@ const renderStatsDashboard = (diffStats: DiffStats): string => {
 
   return `
     <div class="stats-dashboard">
-      <div class="stats-summary">
-        <span class="total-added">+${diffStats.totalAdded}</span>
-        <span class="total-removed">-${diffStats.totalRemoved}</span>
-        <span style="color: #586069; font-size: 13px;">lines across ${diffStats.fileStats.length} file${diffStats.fileStats.length === 1 ? '' : 's'}</span>
+      <button class="stats-toggle-btn" id="stats-toggle-btn">Show Details</button>
+      <div id="stats-dashboard-content" style="display: none">
+        <div class="stats-summary">
+          <span class="total-added">+${diffStats.totalAdded}</span>
+          <span class="total-removed">-${diffStats.totalRemoved}</span>
+          <span style="color: #586069; font-size: 13px;">lines across ${diffStats.fileStats.length} file${diffStats.fileStats.length === 1 ? '' : 's'}</span>
+        </div>
+        <div class="stats-bar">
+          <div class="stats-segment added-segment" style="width: ${addedPercent}%"></div>
+          <div class="stats-segment removed-segment" style="width: ${removedPercent}%"></div>
+        </div>
+        ${top10.length > 0 ? `<ul class="top-changed-files">${topFilesHtml}</ul>` : ''}
       </div>
-      <div class="stats-bar">
-        <div class="stats-segment added-segment" style="width: ${addedPercent}%"></div>
-        <div class="stats-segment removed-segment" style="width: ${removedPercent}%"></div>
-      </div>
-      ${top5.length > 0 ? `<ul class="top-changed-files">${topFilesHtml}</ul>` : ''}
     </div>`;
 };
 
@@ -72,7 +75,6 @@ export interface DiffStats {
  * @param changedFileIds - Map of changed file paths to their DOM element IDs
  * @param addedSections - Pre-rendered HTML sections for added files
  * @param addedFileIds - Map of added file paths to their DOM element IDs
- * @param fileStats - Map of file paths to their line change counts
  * @param diffStats - Aggregated diff statistics for the dashboard
  * @returns Complete HTML document as a string
  *
@@ -106,7 +108,6 @@ export const generateHtmlTemplate = (
   changedFileIds: Map<string, string> = new Map(),
   addedSections: string[] = [],
   addedFileIds: Map<string, string> = new Map(),
-  fileStats: Map<string, { added: number; removed: number }> = new Map(),
   diffStats?: DiffStats
 ): string => {
   // Build trees for all file lists
@@ -117,6 +118,100 @@ export const generateHtmlTemplate = (
   const deletedTree = buildFileTree(diffResult.deletedFiles);
   const formattedTree = buildFileTree(formattedFiles);
   const unchangedTree = buildFileTree(trulyUnchangedFiles);
+
+  const categories = [
+    { id: 'changed', label: 'Changed', count: diffResult.changedFiles.length },
+    { id: 'added', label: 'Added', count: diffResult.addedFiles.length },
+    { id: 'deleted', label: 'Deleted', count: diffResult.deletedFiles.length },
+    { id: 'formatted', label: 'Formatted', count: formattedFiles.length },
+    { id: 'unchanged', label: 'Unchanged', count: trulyUnchangedFiles.length }
+  ];
+  const activeCategories = categories.filter((c) => c.count > 0);
+  const firstActiveTab = activeCategories[0]?.id ?? 'changed';
+
+  const summaryBadges = activeCategories
+    .map((c) => `<span class="stat ${c.id}">${c.count} ${c.label}</span>`)
+    .join('\n      ');
+
+  const tabButtons = activeCategories
+    .map(
+      (c) =>
+        `<button class="tab${c.id === firstActiveTab ? ' active' : ''}" data-tab="${c.id}">${c.label} (${c.count})</button>`
+    )
+    .join('\n    ');
+
+  const renderSection = (id: string, content: string): string => {
+    const cat = categories.find((c) => c.id === id);
+    if (!cat || cat.count === 0) return '';
+    return `
+    <section id="${id}" class="tab-content${id === firstActiveTab ? ' active' : ''}">
+      ${content}
+    </section>`;
+  };
+
+  const changedContent =
+    changedSections.length > 0
+      ? `
+        <div class="sidebar-container">
+          <aside class="sidebar" id="changed-sidebar">
+            <div class="sidebar-header">
+              <span>Changed Files</span>
+              <button class="sidebar-toggle">&#9664;</button>
+            </div>
+            <div class="sidebar-content">
+              <input type="text" class="sidebar-search" placeholder="Filter files..." />
+              ${renderSidebarTree(changedTree, changedFileIds)}
+            </div>
+          </aside>
+          <button class="sidebar-expand-btn">&#9654;</button>
+          <div class="changed-content">
+            <div class="content-toolbar">
+              <button class="collapse-all-btn">Collapse All</button>
+              <button class="expand-all-btn">Expand All</button>
+            </div>
+            ${changedSections.join('\n')}
+          </div>
+        </div>
+      `
+      : '<p style="color: #586069; text-align: center; padding: 40px;">No changed files</p>';
+
+  const addedContent =
+    addedSections.length > 0
+      ? `
+        <div class="sidebar-container">
+          <aside class="sidebar" id="added-sidebar">
+            <div class="sidebar-header">
+              <span>Added Files</span>
+              <button class="sidebar-toggle" data-sidebar="added">&#9664;</button>
+            </div>
+            <div class="sidebar-content">
+              <input type="text" class="sidebar-search" placeholder="Filter files..." />
+              ${renderSidebarTree(addedTree, addedFileIds)}
+            </div>
+          </aside>
+          <button class="sidebar-expand-btn" data-sidebar="added">&#9654;</button>
+          <div class="added-content">
+            ${addedSections.join('\n')}
+          </div>
+        </div>
+      `
+      : '<p style="color: #586069; text-align: center; padding: 40px;">No added files</p>';
+
+  const deletedContent =
+    diffResult.deletedFiles.length > 0
+      ? `<div class="file-list">${renderTreeview(deletedTree)}</div>`
+      : '<p style="color: #586069; text-align: center; padding: 40px;">No deleted files</p>';
+
+  const formattedContent =
+    formattedFiles.length > 0
+      ? `<div class="file-list">${renderTreeview(formattedTree)}</div>`
+      : '<p style="color: #586069; text-align: center; padding: 40px;">No files with only formatting changes</p>';
+
+  const unchangedContent =
+    trulyUnchangedFiles.length > 0
+      ? `<div class="file-list">${renderTreeview(unchangedTree)}</div>`
+      : '<p style="color: #586069; text-align: center; padding: 40px;">No unchanged files</p>';
+
   return `
 <!DOCTYPE html>
 <html>
@@ -138,113 +233,21 @@ ${HTML_STYLES}
       ${metadata.dryRun ? '<span class="dry-run-badge">DRY RUN - No Files Modified</span>' : ''}
     </div>
     <div class="summary">
-      <span class="stat added">${diffResult.addedFiles.length} Added</span>
-      <span class="stat changed">${diffResult.changedFiles.length} Changed</span>
-      <span class="stat deleted">${diffResult.deletedFiles.length} Deleted</span>
-      <span class="stat formatted">${formattedFiles.length} Formatted</span>
-      <span class="stat unchanged">${trulyUnchangedFiles.length} Unchanged</span>
+      ${summaryBadges}
     </div>
     ${diffStats ? renderStatsDashboard(diffStats) : ''}
   </header>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="changed">Changed (${diffResult.changedFiles.length})</button>
-    <button class="tab" data-tab="added">Added (${diffResult.addedFiles.length})</button>
-    <button class="tab" data-tab="deleted">Deleted (${diffResult.deletedFiles.length})</button>
-    <button class="tab" data-tab="formatted">Formatted (${formattedFiles.length})</button>
-    <button class="tab" data-tab="unchanged">Unchanged (${trulyUnchangedFiles.length})</button>
+    ${tabButtons}
   </nav>
 
   <main>
-    <section id="changed" class="tab-content active">
-      ${
-        changedSections.length > 0
-          ? `
-        <div class="sidebar-container">
-          <aside class="sidebar" id="changed-sidebar">
-            <div class="sidebar-header">
-              <span>Changed Files</span>
-              <button class="sidebar-toggle">&#9664;</button>
-            </div>
-            <div class="sidebar-content">
-              <input type="text" class="sidebar-search" placeholder="Filter files..." />
-              ${renderSidebarTree(changedTree, changedFileIds, fileStats)}
-            </div>
-          </aside>
-          <button class="sidebar-expand-btn">&#9654;</button>
-          <div class="changed-content">
-            <div class="content-toolbar">
-              <button class="collapse-all-btn">Collapse All</button>
-              <button class="expand-all-btn">Expand All</button>
-            </div>
-            ${changedSections.join('\n')}
-          </div>
-        </div>
-      `
-          : '<p style="color: #586069; text-align: center; padding: 40px;">No changed files</p>'
-      }
-    </section>
-
-    <section id="added" class="tab-content">
-      ${
-        addedSections.length > 0
-          ? `
-        <div class="sidebar-container">
-          <aside class="sidebar" id="added-sidebar">
-            <div class="sidebar-header">
-              <span>Added Files</span>
-              <button class="sidebar-toggle" data-sidebar="added">&#9664;</button>
-            </div>
-            <div class="sidebar-content">
-              <input type="text" class="sidebar-search" placeholder="Filter files..." />
-              ${renderSidebarTree(addedTree, addedFileIds)}
-            </div>
-          </aside>
-          <button class="sidebar-expand-btn" data-sidebar="added">&#9654;</button>
-          <div class="added-content">
-            ${addedSections.join('\n')}
-          </div>
-        </div>
-      `
-          : '<p style="color: #586069; text-align: center; padding: 40px;">No added files</p>'
-      }
-    </section>
-
-    <section id="deleted" class="tab-content">
-      ${
-        diffResult.deletedFiles.length > 0
-          ? `
-        <div class="file-list">
-          ${renderTreeview(deletedTree)}
-        </div>
-      `
-          : '<p style="color: #586069; text-align: center; padding: 40px;">No deleted files</p>'
-      }
-    </section>
-
-    <section id="formatted" class="tab-content">
-      ${
-        formattedFiles.length > 0
-          ? `
-        <div class="file-list">
-          ${renderTreeview(formattedTree)}
-        </div>
-      `
-          : '<p style="color: #586069; text-align: center; padding: 40px;">No files with only formatting changes</p>'
-      }
-    </section>
-
-    <section id="unchanged" class="tab-content">
-      ${
-        trulyUnchangedFiles.length > 0
-          ? `
-        <div class="file-list">
-          ${renderTreeview(unchangedTree)}
-        </div>
-      `
-          : '<p style="color: #586069; text-align: center; padding: 40px;">No unchanged files</p>'
-      }
-    </section>
+    ${renderSection('changed', changedContent)}
+    ${renderSection('added', addedContent)}
+    ${renderSection('deleted', deletedContent)}
+    ${renderSection('formatted', formattedContent)}
+    ${renderSection('unchanged', unchangedContent)}
   </main>
 
   <button class="scroll-to-top" title="Scroll to top">&#9650;</button>

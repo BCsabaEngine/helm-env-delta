@@ -412,9 +412,9 @@ describe('htmlReporter', () => {
       await generateHtmlReport(diffResult, [], config, false, createMockLogger());
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
-      expect(htmlContent).toContain('0 Added');
-      expect(htmlContent).toContain('0 Changed');
-      expect(htmlContent).toContain('0 Deleted');
+      expect(htmlContent).not.toContain('0 Added');
+      expect(htmlContent).not.toContain('0 Changed');
+      expect(htmlContent).not.toContain('0 Deleted');
     });
 
     it('should handle files in formatted but not unchanged', async () => {
@@ -429,6 +429,9 @@ describe('htmlReporter', () => {
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('1 Formatted');
       expect(htmlContent).toContain('1 Unchanged');
+      expect(htmlContent).not.toContain('0 Added');
+      expect(htmlContent).not.toContain('0 Changed');
+      expect(htmlContent).not.toContain('0 Deleted');
     });
 
     it('should handle files in both formatted and unchanged', async () => {
