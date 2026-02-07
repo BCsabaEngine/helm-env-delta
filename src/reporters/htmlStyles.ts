@@ -943,7 +943,7 @@ export const TAB_SCRIPT = String.raw`
     });
   }
 
-  // Synchronized vertical scrolling for side-by-side diff panels
+  // Synchronized horizontal scrolling for side-by-side diff panels
   document.querySelectorAll('.d2h-files-diff').forEach(container => {
     const panels = container.querySelectorAll('.d2h-file-side-diff');
     if (panels.length === 2) {
@@ -953,7 +953,7 @@ export const TAB_SCRIPT = String.raw`
           if (isSyncing) return;
           isSyncing = true;
           const other = panels[1 - index];
-          other.scrollTop = panel.scrollTop;
+          other.scrollLeft = panel.scrollLeft;
           isSyncing = false;
         });
       });
