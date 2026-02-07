@@ -422,6 +422,10 @@ parseCommandLine → loadConfigFile → loadFiles → computeFileDiff → valida
 - **yamlFormatter.ts**: YAML output formatting
 - **stopRulesValidator.ts**: Safety validation
 - **fileUpdater.ts**: Deep merge and file sync
+- **htmlReporter.ts**: HTML report generation (diff stats, copy diff)
+- **htmlTemplate.ts**: HTML template (collapsible stats dashboard, zero-count hiding, sidebar search)
+- **htmlStyles.ts**: Report styles and scripts (scroll sync, toggle interactions)
+- **treeRenderer.ts**: Sidebar file tree rendering
 
 ### Design Patterns
 

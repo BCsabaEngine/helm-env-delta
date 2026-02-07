@@ -46,7 +46,7 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
 - `arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)
 - `suggestionEngine.ts` - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules)
-- Reporters: `htmlReporter.ts` (diff stats, line count badges, copy diff), `consoleDiffReporter.ts`, `jsonReporter.ts`, `treeBuilder.ts`, `treeRenderer.ts` (sidebar badges), `htmlStyles.ts` (inlined diff2html CSS, styles, scripts), `htmlTemplate.ts` (DiffStats, stats dashboard, sidebar search, collapse/expand)
+- Reporters: `htmlReporter.ts` (diff stats, copy diff), `consoleDiffReporter.ts`, `jsonReporter.ts`, `treeBuilder.ts`, `treeRenderer.ts` (sidebar tree), `htmlStyles.ts` (inlined diff2html CSS, styles, scripts, scroll sync), `htmlTemplate.ts` (DiffStats, collapsible stats dashboard, sidebar search, collapse/expand, zero-count category hiding)
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
 
 **Config Schema:**
