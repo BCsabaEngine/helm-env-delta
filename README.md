@@ -52,7 +52,7 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 🛡️ **Safety Rules** - Block major version upgrades, scaling violations, and forbidden patterns. Load validation rules from external files. Scan globally or target specific fields.
 
-🎨 **Format Enforcement** - Standardize YAML across all environments: key ordering, indentation, quoting, array sorting.
+🎨 **Format Enforcement** - Standardize YAML across all environments: key ordering, alphabetical key sorting, indentation, quoting, array sorting.
 
 📦 **Config Inheritance** - Reuse base configurations with environment-specific overrides.
 
@@ -208,6 +208,9 @@ outputFormat:
       - 'kind'
       - 'metadata'
       - 'spec'
+  keySort:
+    '**/*.yaml':
+      - path: 'spec.template.metadata.labels'
   arraySort:
     '**/*.yaml':
       - path: 'env'
@@ -677,12 +680,17 @@ outputFormat:
   indent: 2 # Indentation size
   keySeparator: true # Blank line between top-level keys (or second-level keys when single top-level key)
 
-  keyOrders: # Custom key ordering
+  keyOrders: # Custom key ordering (pin specific keys to top)
     'apps/*.yaml':
       - 'apiVersion'
       - 'kind'
       - 'metadata'
       - 'spec'
+
+  keySort: # Sort all keys alphabetically at path
+    '**/*.yaml':
+      - path: 'spec.template.metadata.labels'
+      - path: 'env.vars'
 
   arraySort: # Sort arrays
     'services/**/values.yaml':

@@ -124,6 +124,9 @@ const arraySortRuleSchema = z.object({
   order: z.enum(['asc', 'desc']).default('asc')
 });
 
+// Key Sort Schema
+const keySortRuleSchema = z.object({ path: z.string().min(1) });
+
 // Fixed Value Schema
 /**
  * Fixed value rule that sets a specific JSONPath location to a constant value.
@@ -213,6 +216,7 @@ const baseConfigSchema = z.object({
       keySeparator: z.boolean().optional(),
       quoteValues: z.record(z.string(), z.array(z.string())).optional(),
       keyOrders: z.record(z.string(), z.array(z.string())).optional(),
+      keySort: z.record(z.string(), z.array(keySortRuleSchema)).optional(),
       arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
     })
     .optional(),
@@ -239,6 +243,7 @@ const finalConfigSchema = baseConfigSchema
         keySeparator: z.boolean().default(false),
         quoteValues: z.record(z.string(), z.array(z.string())).optional(),
         keyOrders: z.record(z.string(), z.array(z.string())).optional(),
+        keySort: z.record(z.string(), z.array(keySortRuleSchema)).optional(),
         arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
       })
       .optional()
@@ -271,6 +276,7 @@ const formatOnlyConfigSchema = baseConfigSchema
         keySeparator: z.boolean().default(false),
         quoteValues: z.record(z.string(), z.array(z.string())).optional(),
         keyOrders: z.record(z.string(), z.array(z.string())).optional(),
+        keySort: z.record(z.string(), z.array(keySortRuleSchema)).optional(),
         arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
       })
       .optional()
@@ -291,6 +297,7 @@ export type RegexFileRule = z.infer<typeof regexFileRuleSchema>;
 export type RegexFileKeyRule = z.infer<typeof regexFileKeyRuleSchema>;
 export type VersionFormatRule = z.infer<typeof versionFormatRuleSchema>;
 export type ArraySortRule = z.infer<typeof arraySortRuleSchema>;
+export type KeySortRule = z.infer<typeof keySortRuleSchema>;
 export type TransformRule = z.infer<typeof transformRuleSchema>;
 export type TransformRules = z.infer<typeof transformRulesSchema>;
 export type TransformConfig = Record<string, TransformRules>;

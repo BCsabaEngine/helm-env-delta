@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-02-10
+
+### Added
+
+- Alphabetical key sorting: New `keySort` option in `outputFormat` lets you sort YAML keys alphabetically at specific paths. Use JSONPath targeting to sort only where it matters (e.g., sort environment variables or labels alphabetically) while keeping the rest of your file structure intact. Works alongside existing `keyOrders` for precise control over key arrangement.
+- Stop rule violations in HTML report: When using `--dry-run` with `--diff-html`, stop rule violations now appear directly in the HTML report as a collapsible table with file, rule type, path, old/new values, and message. A violations count badge is also shown in the summary header for quick visibility.
+
 ## [1.11.1] - 2026-02-07
 
 ### Changed

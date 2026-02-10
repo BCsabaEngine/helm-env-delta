@@ -41,7 +41,7 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 - `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
 - `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
 - `fileDiff.ts` - YAML diff pipeline (parse → transforms → fixedValues → skipPath → normalize → deepEqual)
-- `yamlFormatter.ts` - AST formatting (key order, quoting, array sort, keySeparator with whitespace filtering)
+- `yamlFormatter.ts` - AST formatting (key order, key sort, quoting, array sort, keySeparator with whitespace filtering)
 - `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
 - `arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)
@@ -58,7 +58,7 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 - `transforms`: Object with `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
 - `stopRules`: semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey
 - `fixedValues`: Set JSONPath locations to constant values (glob pattern → array of {path, value}), applied after merge
-- `outputFormat`: indent, keySeparator, quoteValues, keyOrders, arraySort
+- `outputFormat`: indent, keySeparator, quoteValues, keyOrders, keySort, arraySort
 
 **Config Inheritance Merging (`configMerger.ts`):**
 
@@ -107,7 +107,7 @@ Barrel exports via `index.ts`:
 2. **Diff** - parse → content transforms → **fixedValues** → skipPath (early return) → normalize (cached stringify) → deepEqual
 3. **Stop Rules** - Validate JSONPath values (memoized, semver, versionFormat, numeric, regex), fail unless --force
 4. **Update** - Deep merge → fixedValues (safety net) → yamlFormatter (batched patterns) → write/dry-run
-5. **Format** - Parse AST → apply rules → serialize
+5. **Format** - Parse AST → apply rules (keyOrders → keySort → arraySort → quoteValues → multiline → keySeparator) → serialize
 
 ## SkipPath Filter Expressions
 

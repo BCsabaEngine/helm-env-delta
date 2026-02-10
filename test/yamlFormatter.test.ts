@@ -658,4 +658,189 @@ env:
       expect(result).toContain('value: "false"');
     });
   });
+
+  describe('keySort', () => {
+    it('should sort keys alphabetically at specified path', () => {
+      const input = `env:
+  vars:
+    ZEBRA: z
+    ALPHA: a
+    MANGO: m`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keySort: {
+          '*.yaml': [{ path: 'env.vars' }]
+        }
+      });
+
+      const lines = result.split('\n').filter((l) => l.trim() && !l.includes('env:') && !l.includes('vars:'));
+      expect(lines[0]).toContain('ALPHA');
+      expect(lines[1]).toContain('MANGO');
+      expect(lines[2]).toContain('ZEBRA');
+    });
+
+    it('should only sort targeted path and leave others unchanged', () => {
+      const input = `env:
+  vars:
+    ZEBRA: z
+    ALPHA: a
+  config:
+    ZEBRA: z
+    ALPHA: a`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keySort: {
+          '*.yaml': [{ path: 'env.vars' }]
+        }
+      });
+
+      const variablesSection = result.split('vars:')[1].split('config:')[0];
+      const variablesKeys = variablesSection.split('\n').filter((l) => l.trim());
+      expect(variablesKeys[0]).toContain('ALPHA');
+      expect(variablesKeys[1]).toContain('ZEBRA');
+
+      const configSection = result.split('config:')[1];
+      const configKeys = configSection.split('\n').filter((l) => l.trim());
+      expect(configKeys[0]).toContain('ZEBRA');
+      expect(configKeys[1]).toContain('ALPHA');
+    });
+
+    it('should sort at multiple paths', () => {
+      const input = `env:
+  vars:
+    ZEBRA: z
+    ALPHA: a
+  config:
+    ZEBRA: z
+    ALPHA: a`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keySort: {
+          '*.yaml': [{ path: 'env.vars' }, { path: 'env.config' }]
+        }
+      });
+
+      const variablesSection = result.split('vars:')[1].split('config:')[0];
+      const variablesKeys = variablesSection.split('\n').filter((l) => l.trim());
+      expect(variablesKeys[0]).toContain('ALPHA');
+      expect(variablesKeys[1]).toContain('ZEBRA');
+
+      const configSection = result.split('config:')[1];
+      const configKeys = configSection.split('\n').filter((l) => l.trim());
+      expect(configKeys[0]).toContain('ALPHA');
+      expect(configKeys[1]).toContain('ZEBRA');
+    });
+
+    it('should handle nested paths', () => {
+      const input = `spec:
+  template:
+    metadata:
+      labels:
+        zebra: z
+        alpha: a
+        beta: b`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keySort: {
+          '*.yaml': [{ path: 'spec.template.metadata.labels' }]
+        }
+      });
+
+      const labelsSection = result.split('labels:')[1];
+      const keys = labelsSection.split('\n').filter((l) => l.trim());
+      expect(keys[0]).toContain('alpha');
+      expect(keys[1]).toContain('beta');
+      expect(keys[2]).toContain('zebra');
+    });
+
+    it('should skip silently when path does not exist', () => {
+      const input = `data:
+  value: 123`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keySort: {
+          '*.yaml': [{ path: 'nonexistent.path' }]
+        }
+      });
+
+      expect(result).toContain('data:');
+      expect(result).toContain('value: 123');
+    });
+
+    it('should skip when file pattern does not match', () => {
+      const input = `vars:
+  ZEBRA: z
+  ALPHA: a`;
+
+      const result = formatYaml(input, 'other/config.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keySort: {
+          'svc/**/values.yaml': [{ path: 'vars' }]
+        }
+      });
+
+      const keys = result.split('\n').filter((l) => l.trim() && !l.includes('vars:'));
+      expect(keys[0]).toContain('ZEBRA');
+      expect(keys[1]).toContain('ALPHA');
+    });
+
+    it('should work alongside keyOrders, arraySort, and quoteValues', () => {
+      const input = `metadata:
+  name: test
+kind: Pod
+labels:
+  zebra: z
+  alpha: a
+env:
+  - name: ZEBRA
+    value: true
+  - name: ALPHA
+    value: false`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        keyOrders: {
+          '*.yaml': ['kind', 'metadata']
+        },
+        keySort: {
+          '*.yaml': [{ path: 'labels' }]
+        },
+        arraySort: {
+          '*.yaml': [{ path: 'env', sortBy: 'name', order: 'asc' }]
+        },
+        quoteValues: {
+          '*.yaml': ['env[*].value']
+        }
+      });
+
+      const topKeys = result.split('\n').filter((l) => l && !l.startsWith(' '));
+      expect(topKeys[0]).toBe('kind: Pod');
+      expect(topKeys[1]).toBe('metadata:');
+
+      const labelsSection = result.split('labels:')[1].split('env:')[0];
+      const labelKeys = labelsSection.split('\n').filter((l) => l.trim());
+      expect(labelKeys[0]).toContain('alpha');
+      expect(labelKeys[1]).toContain('zebra');
+
+      const environmentSection = result.split('env:')[1];
+      const names = environmentSection.split('\n').filter((l) => l.includes('name:'));
+      expect(names[0]).toContain('ALPHA');
+      expect(names[1]).toContain('ZEBRA');
+
+      expect(result).toContain('value: "true"');
+      expect(result).toContain('value: "false"');
+    });
+  });
 });
