@@ -1,6 +1,6 @@
 import YAML, { Document, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
 
-import { ArraySortRule, OutputFormat } from './configFile';
+import { ArraySortRule, KeySortRule, OutputFormat } from './configFile';
 import { YAML_DEFAULT_INDENT, YAML_LINE_WIDTH_UNLIMITED } from './constants';
 import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
@@ -31,16 +31,19 @@ const getFormattingRules = (
   outputFormat: OutputFormat
 ): {
   keyOrders: string[][];
+  keySort: KeySortRule[][];
   arraySort: ArraySortRule[][];
   quoteValues: string[][];
 } => {
   const keyOrders: string[][] = [];
+  const keySort: KeySortRule[][] = [];
   const arraySort: ArraySortRule[][] = [];
   const quoteValues: string[][] = [];
 
-  // Get all unique patterns from all three configs
+  // Get all unique patterns from all configs
   const allPatterns = new Set<string>();
   if (outputFormat?.keyOrders) for (const pattern of Object.keys(outputFormat.keyOrders)) allPatterns.add(pattern);
+  if (outputFormat?.keySort) for (const pattern of Object.keys(outputFormat.keySort)) allPatterns.add(pattern);
   if (outputFormat?.arraySort) for (const pattern of Object.keys(outputFormat.arraySort)) allPatterns.add(pattern);
   if (outputFormat?.quoteValues) for (const pattern of Object.keys(outputFormat.quoteValues)) allPatterns.add(pattern);
 
@@ -51,6 +54,9 @@ const getFormattingRules = (
     const keyOrder = outputFormat?.keyOrders?.[pattern];
     if (keyOrder) keyOrders.push(keyOrder);
 
+    const keySortRule = outputFormat?.keySort?.[pattern];
+    if (keySortRule) keySort.push(keySortRule);
+
     const arrayRule = outputFormat?.arraySort?.[pattern];
     if (arrayRule) arraySort.push(arrayRule);
 
@@ -58,7 +64,7 @@ const getFormattingRules = (
     if (quoteValue) quoteValues.push(quoteValue);
   }
 
-  return { keyOrders, arraySort, quoteValues };
+  return { keyOrders, keySort, arraySort, quoteValues };
 };
 
 const preserveMultilineStrings = (yamlDocument: Document): void => {
@@ -99,6 +105,7 @@ export const formatYaml = (content: string, filePath: string, outputFormat?: Out
 
     // Apply formatting rules (only if they matched)
     if (rules.keyOrders.length > 0) applyKeyOrdering(yamlDocument, rules.keyOrders);
+    if (rules.keySort.length > 0) applyKeySort(yamlDocument, rules.keySort);
     if (rules.arraySort.length > 0) applyArraySorting(yamlDocument, rules.arraySort);
     if (rules.quoteValues.length > 0) applyValueQuoting(yamlDocument, rules.quoteValues);
 
@@ -209,6 +216,50 @@ const applyOrderingToMap = (map: YAMLMap, currentPath: string[], orderHierarchy:
       applyOrderingToMap(item.value as YAMLMap, childPath, orderHierarchy);
     }
   }
+};
+
+// ============================================================================
+// Key Sort (alphabetical)
+// ============================================================================
+
+const applyKeySort = (yamlDocument: Document, sortRules: KeySortRule[][]): void => {
+  if (sortRules.length === 0) return;
+
+  const allRules = sortRules.flat();
+
+  for (const rule of allRules) {
+    const pathParts = parseJsonPath(rule.path);
+    if (pathParts.length === 0) continue;
+
+    if (yamlDocument.contents) traverseAndSortKeys(yamlDocument.contents, [], pathParts);
+  }
+};
+
+const traverseAndSortKeys = (node: unknown, currentPath: string[], targetPath: string[]): void => {
+  if (!node || typeof node !== 'object') return;
+
+  if (matchPath(currentPath, targetPath)) {
+    if (isYamlMap(node)) sortMapKeysAlphabetically(node);
+    return;
+  }
+
+  if (isYamlMap(node))
+    for (const item of node.items) {
+      const keyValue = extractKeyValue(item);
+
+      if (keyValue && item.value) {
+        const childPath = [...currentPath, keyValue];
+        if (isPotentialMatch(childPath, targetPath)) traverseAndSortKeys(item.value, childPath, targetPath);
+      }
+    }
+};
+
+const sortMapKeysAlphabetically = (map: YAMLMap): void => {
+  map.items.sort((a, b) => {
+    const aKey = a.key && typeof a.key === 'object' && 'value' in a.key ? String(a.key.value) : '';
+    const bKey = b.key && typeof b.key === 'object' && 'value' in b.key ? String(b.key.value) : '';
+    return aKey.localeCompare(bKey);
+  });
 };
 
 // ============================================================================
