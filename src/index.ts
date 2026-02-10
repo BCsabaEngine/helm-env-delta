@@ -400,7 +400,14 @@ const main = async (): Promise<void> => {
 
   // Generate HTML report if requested (suppress in quiet mode)
   if (command.diffHtml && !command.quiet)
-    await generateHtmlReport(diffResult, formattedFiles, syncConfig, command.dryRun, logger);
+    await generateHtmlReport(
+      diffResult,
+      formattedFiles,
+      syncConfig,
+      command.dryRun,
+      logger,
+      command.dryRun ? validationResult : undefined
+    );
 
   // Generate JSON report if requested (always outputs regardless of verbosity)
   if (command.diffJson)

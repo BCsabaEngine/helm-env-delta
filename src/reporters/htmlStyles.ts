@@ -634,6 +634,79 @@ export const HTML_STYLES = `
     white-space: nowrap;
     flex-shrink: 0;
   }
+
+  /* Stop rules violations badge */
+  .stat.violations { background: #f8d7da; color: #721c24; }
+
+  /* Violations section */
+  .violations-section {
+    margin: 15px 0 0;
+    padding: 12px 0 0;
+    border-top: 1px solid #e1e4e8;
+  }
+
+  .violations-toggle-btn {
+    padding: 4px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: #586069;
+    transition: all 0.2s;
+  }
+
+  .violations-toggle-btn:hover {
+    background: #f6f8fa;
+    color: #24292e;
+  }
+
+  .violations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+
+  .violations-table th {
+    background: #f6f8fa;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 2px solid #d0d7de;
+    font-weight: 600;
+    color: #24292e;
+  }
+
+  .violations-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e1e4e8;
+    color: #24292e;
+    vertical-align: top;
+  }
+
+  .violations-table tr:hover td {
+    background: #f6f8fa;
+  }
+
+  .violation-rule-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #fff3cd;
+    color: #856404;
+    white-space: nowrap;
+  }
+
+  .violation-value {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+    background: #f6f8fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid #e1e4e8;
+  }
 `;
 
 /**
@@ -940,6 +1013,18 @@ export const TAB_SCRIPT = String.raw`
       const isHidden = statsDashboardContent.style.display === 'none';
       statsDashboardContent.style.display = isHidden ? 'block' : 'none';
       statsToggleBtn.textContent = isHidden ? 'Hide Details' : 'Show Details';
+    });
+  }
+
+  // Violations section toggle
+  const violationsToggleBtn = document.getElementById('violations-toggle-btn');
+  const violationsContent = document.getElementById('violations-content');
+  if (violationsToggleBtn && violationsContent) {
+    violationsToggleBtn.addEventListener('click', () => {
+      const isHidden = violationsContent.style.display === 'none';
+      violationsContent.style.display = isHidden ? 'block' : 'none';
+      const count = violationsToggleBtn.textContent.match(/\d+/)?.[0] || '0';
+      violationsToggleBtn.textContent = isHidden ? 'Hide Violations (' + count + ')' : 'Show Violations (' + count + ')';
     });
   }
 
