@@ -16,8 +16,9 @@ You have YAML files with inconsistent formatting - different indentation, random
 
 1. **Standardizes indentation**: All files use 2-space indentation
 2. **Orders keys consistently**: `apiVersion`, `kind`, `metadata` always come first
-3. **Sorts arrays**: Arrays with `name` keys are sorted alphabetically
-4. **Normalizes spacing**: Consistent `key: value` separator
+3. **Sorts label keys alphabetically**: `metadata.labels` keys are sorted A-Z via `keySort`
+4. **Sorts arrays**: Arrays with `name` keys are sorted alphabetically
+5. **Normalizes spacing**: Consistent `key: value` separator
 
 ## Try It
 
@@ -75,6 +76,10 @@ outputFormat:
       - 'metadata'
       # ... more keys
 
+  keySort:
+    '**/*.yaml':
+      - path: 'metadata.labels'
+
   arraySort:
     '**/*.yaml':
       - path: 'env'
@@ -92,6 +97,8 @@ spec:
 kind: Deployment
 metadata:
     labels:
+        tier: backend
+        env: production
         app: web
     name: web-deployment
 apiVersion: apps/v1
@@ -105,7 +112,9 @@ kind: Deployment
 metadata:
   name: web-deployment
   labels:
-    app: web
+    app: web          # ← keySort: labels sorted A-Z
+    env: production
+    tier: backend
   ...
 spec:
   replicas: 3

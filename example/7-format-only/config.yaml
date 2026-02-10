@@ -39,6 +39,11 @@ outputFormat:
       - 'requests'
       - 'limits'
 
+  # Sort all keys alphabetically at specific paths (glob pattern -> array of paths)
+  keySort:
+    '**/*.yaml':
+      - path: 'metadata.labels'
+
   # Sort arrays alphabetically by 'name' key (glob pattern -> array of rules)
   arraySort:
     '**/*.yaml':
