@@ -625,6 +625,55 @@ describe('configFile', () => {
     });
   });
 
+  describe('keySort rules', () => {
+    it('should parse valid keySort config', () => {
+      const config: FinalConfig = {
+        source: './src',
+        destination: './dest',
+        outputFormat: {
+          keySort: {
+            '**/*.yaml': [{ path: 'env.vars' }]
+          }
+        }
+      };
+
+      const result = parseFinalConfig(config);
+      expect(result.outputFormat.keySort?.['**/*.yaml'][0]).toEqual({ path: 'env.vars' });
+    });
+
+    it('should reject empty path', () => {
+      const config = {
+        source: './src',
+        destination: './dest',
+        outputFormat: {
+          keySort: {
+            '*.yaml': [{ path: '' }]
+          }
+        }
+      };
+
+      expect(() => parseFinalConfig(config)).toThrow(ZodValidationError);
+    });
+
+    it('should accept multiple rules per pattern', () => {
+      const config: FinalConfig = {
+        source: './src',
+        destination: './dest',
+        outputFormat: {
+          keySort: {
+            '**/*.yaml': [{ path: 'env.vars' }, { path: 'env.config' }]
+          }
+        }
+      };
+
+      const result = parseFinalConfig(config);
+      const rules = result.outputFormat.keySort?.['**/*.yaml'];
+      expect(rules).toHaveLength(2);
+      expect(rules?.[0]).toEqual({ path: 'env.vars' });
+      expect(rules?.[1]).toEqual({ path: 'env.config' });
+    });
+  });
+
   describe('parseConfig alias', () => {
     it('should be an alias for parseFinalConfig', () => {
       const config = { source: './src', destination: './dest' };
