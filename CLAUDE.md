@@ -46,7 +46,7 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 - `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
 - `arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)
 - `suggestionEngine.ts` - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules)
-- Reporters: `htmlReporter.ts` (diff stats, copy diff), `consoleDiffReporter.ts`, `jsonReporter.ts`, `treeBuilder.ts`, `treeRenderer.ts` (sidebar tree), `htmlStyles.ts` (inlined diff2html CSS, styles, scripts, scroll sync), `htmlTemplate.ts` (DiffStats, collapsible stats dashboard, sidebar search, collapse/expand, zero-count category hiding)
+- Reporters: `htmlReporter.ts` (diff stats, copy diff, stop rule violations in dry-run), `consoleDiffReporter.ts`, `jsonReporter.ts`, `treeBuilder.ts`, `treeRenderer.ts` (sidebar tree), `htmlStyles.ts` (inlined diff2html CSS, styles, scripts, scroll sync), `htmlTemplate.ts` (DiffStats, HtmlStopRuleViolation, collapsible stats dashboard, collapsible violations table, sidebar search, collapse/expand, zero-count category hiding)
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
 
 **Config Schema:**
@@ -184,6 +184,8 @@ fixedValues:
 7. **regexFileKey** - Use transform file keys as patterns
 
 **Path Modes:** With `path` checks specific JSONPath field. Without `path` recursively scans ALL values.
+
+**Report Visibility:** Violations appear in console, JSON, and HTML reports (HTML only in `--dry-run` mode, shown as collapsible table in header).
 
 ## Pattern Usage Validation
 
