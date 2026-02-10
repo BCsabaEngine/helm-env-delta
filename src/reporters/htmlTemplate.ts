@@ -3,6 +3,68 @@ import { DIFF2HTML_STYLES, HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
 import { buildFileTree } from './treeBuilder';
 import { escapeHtml, renderSidebarTree, renderTreeview } from './treeRenderer';
 
+// ============================================================================
+// Stop Rules Violations
+// ============================================================================
+
+export interface HtmlStopRuleViolation {
+  file: string;
+  rule: { type: string; path?: string };
+  path: string;
+  oldValue: unknown;
+  updatedValue: unknown;
+  message: string;
+}
+
+const formatViolationValue = (value: unknown): string => {
+  if (value === undefined || value === null) return '<span class="violation-value">-</span>';
+  return `<span class="violation-value">${escapeHtml(String(value))}</span>`;
+};
+
+const renderStopRulesSection = (violations: HtmlStopRuleViolation[]): string => {
+  if (violations.length === 0) return '';
+
+  const rows = violations
+    .map(
+      (v) =>
+        `<tr>
+          <td>${escapeHtml(v.file)}</td>
+          <td><span class="violation-rule-badge">${escapeHtml(v.rule.type)}</span></td>
+          <td>${escapeHtml(v.path)}</td>
+          <td>${formatViolationValue(v.oldValue)}</td>
+          <td>${formatViolationValue(v.updatedValue)}</td>
+          <td>${escapeHtml(v.message)}</td>
+        </tr>`
+    )
+    .join('');
+
+  return `
+    <div class="violations-section">
+      <button class="violations-toggle-btn" id="violations-toggle-btn">Show Violations (${violations.length})</button>
+      <div id="violations-content" style="display: none">
+        <table class="violations-table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Rule</th>
+              <th>Path</th>
+              <th>Old Value</th>
+              <th>New Value</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+};
+
+// ============================================================================
+// Stats Dashboard
+// ============================================================================
+
 const renderStatsDashboard = (diffStats: DiffStats): string => {
   const total = diffStats.totalAdded + diffStats.totalRemoved;
   if (total === 0) return '';
@@ -108,7 +170,8 @@ export const generateHtmlTemplate = (
   changedFileIds: Map<string, string> = new Map(),
   addedSections: string[] = [],
   addedFileIds: Map<string, string> = new Map(),
-  diffStats?: DiffStats
+  diffStats?: DiffStats,
+  stopRuleViolations?: HtmlStopRuleViolation[]
 ): string => {
   // Build trees for all file lists
   const changedFilePaths = diffResult.changedFiles.map((f) => f.path);
@@ -129,9 +192,14 @@ export const generateHtmlTemplate = (
   const activeCategories = categories.filter((c) => c.count > 0);
   const firstActiveTab = activeCategories[0]?.id ?? 'changed';
 
-  const summaryBadges = activeCategories
-    .map((c) => `<span class="stat ${c.id}">${c.count} ${c.label}</span>`)
-    .join('\n      ');
+  const violationsBadge =
+    stopRuleViolations && stopRuleViolations.length > 0
+      ? `<span class="stat violations">${stopRuleViolations.length} Violation${stopRuleViolations.length === 1 ? '' : 's'}</span>`
+      : '';
+
+  const summaryBadges =
+    activeCategories.map((c) => `<span class="stat ${c.id}">${c.count} ${c.label}</span>`).join('\n      ') +
+    (violationsBadge ? `\n      ${violationsBadge}` : '');
 
   const tabButtons = activeCategories
     .map(
@@ -236,6 +304,7 @@ ${HTML_STYLES}
       ${summaryBadges}
     </div>
     ${diffStats ? renderStatsDashboard(diffStats) : ''}
+    ${stopRuleViolations && stopRuleViolations.length > 0 ? renderStopRulesSection(stopRuleViolations) : ''}
   </header>
 
   <nav class="tabs">

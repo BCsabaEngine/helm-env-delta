@@ -55,6 +55,7 @@ import { Config } from '../src/configFile';
 import { AddedFile, ChangedFile, FileDiffResult } from '../src/fileDiff';
 import { generateHtmlReport, HtmlReporterError, isHtmlReporterError } from '../src/htmlReporter';
 import { Logger } from '../src/logger';
+import type { ValidationResult } from '../src/stopRulesValidator';
 import { deepEqual } from '../src/utils/deepEqual';
 import { generateUnifiedDiff } from '../src/utils/diffGenerator';
 import { isYamlFile } from '../src/utils/fileType';
@@ -593,6 +594,100 @@ describe('htmlReporter', () => {
 
       const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
       expect(htmlContent).toContain('1 Formatted');
+    });
+
+    it('should render stop rule violations section when validationResult has violations', async () => {
+      const diffResult = createMockDiffResult({
+        changedFiles: [createMockChangedFile()]
+      });
+      const config = createMockConfig();
+      const validationResult: ValidationResult = {
+        violations: [
+          {
+            file: 'values.yaml',
+            rule: { type: 'semverMajorUpgrade', path: 'version' },
+            path: 'version',
+            oldValue: '1.0.0',
+            updatedValue: '2.0.0',
+            message: 'Major version upgrade detected: 1.0.0 → 2.0.0'
+          }
+        ],
+        isValid: false
+      };
+
+      await generateHtmlReport(diffResult, [], config, true, createMockLogger(), validationResult);
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('violations-section');
+      expect(htmlContent).toContain('violations-toggle-btn');
+      expect(htmlContent).toContain('violations-table');
+      expect(htmlContent).toContain('values.yaml');
+      expect(htmlContent).toContain('semverMajorUpgrade');
+      expect(htmlContent).toContain('1.0.0');
+      expect(htmlContent).toContain('2.0.0');
+      expect(htmlContent).toContain('Major version upgrade detected');
+      expect(htmlContent).toContain('1 Violation');
+    });
+
+    it('should render violations badge with plural label for multiple violations', async () => {
+      const diffResult = createMockDiffResult({
+        changedFiles: [createMockChangedFile()]
+      });
+      const config = createMockConfig();
+      const validationResult: ValidationResult = {
+        violations: [
+          {
+            file: 'a.yaml',
+            rule: { type: 'semverMajorUpgrade', path: 'version' },
+            path: 'version',
+            oldValue: '1.0.0',
+            updatedValue: '2.0.0',
+            message: 'Major upgrade'
+          },
+          {
+            file: 'b.yaml',
+            rule: { type: 'numeric', path: 'replicas', min: 1 },
+            path: 'replicas',
+            oldValue: 3,
+            updatedValue: 0,
+            message: 'Value below minimum'
+          }
+        ],
+        isValid: false
+      };
+
+      await generateHtmlReport(diffResult, [], config, true, createMockLogger(), validationResult);
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).toContain('2 Violations');
+    });
+
+    it('should not render violations section when validationResult is undefined', async () => {
+      const diffResult = createMockDiffResult();
+      const config = createMockConfig();
+
+      await generateHtmlReport(diffResult, [], config, true, createMockLogger());
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).not.toContain('<div class="violations-section">');
+      expect(htmlContent).not.toContain('id="violations-toggle-btn"');
+      expect(htmlContent).not.toContain('class="stat violations"');
+    });
+
+    it('should not render violations section when validationResult has empty violations', async () => {
+      const diffResult = createMockDiffResult();
+      const config = createMockConfig();
+      const validationResult: ValidationResult = {
+        violations: [],
+        isValid: true
+      };
+
+      await generateHtmlReport(diffResult, [], config, true, createMockLogger(), validationResult);
+
+      const htmlContent = vi.mocked(writeFile).mock.calls[0][1] as string;
+      expect(htmlContent).not.toContain('<div class="violations-section">');
+      expect(htmlContent).not.toContain('id="violations-toggle-btn"');
+      expect(htmlContent).not.toContain('class="stat violations"');
     });
   });
 });

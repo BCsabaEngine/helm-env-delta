@@ -8,8 +8,9 @@ import { html as diff2html } from 'diff2html';
 import { Config } from './configFile';
 import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
 import { openInBrowser } from './reporters/browserLauncher';
-import { DiffStats, generateHtmlTemplate, ReportMetadata } from './reporters/htmlTemplate';
+import { DiffStats, generateHtmlTemplate, HtmlStopRuleViolation, ReportMetadata } from './reporters/htmlTemplate';
 import { escapeHtml } from './reporters/treeRenderer';
+import type { ValidationResult } from './stopRulesValidator';
 import { generateUnifiedDiff } from './utils/diffGenerator';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { isYamlFile } from './utils/fileType';
@@ -148,7 +149,8 @@ export const generateHtmlReport = async (
   formattedFiles: string[],
   config: Config,
   dryRun: boolean,
-  logger?: import('./logger').Logger
+  logger?: import('./logger').Logger,
+  validationResult?: ValidationResult
 ): Promise<void> => {
   // Generate random temp file path
   const reportPath = generateTemporaryFilePath();
@@ -198,6 +200,19 @@ export const generateHtmlReport = async (
   statsArray.sort((a, b) => b.added + b.removed - (a.added + a.removed));
   const diffStats: DiffStats = { totalAdded, totalRemoved, fileStats: statsArray };
 
+  // Map stop rule violations for HTML display
+  const stopRuleViolations: HtmlStopRuleViolation[] | undefined =
+    validationResult && validationResult.violations.length > 0
+      ? validationResult.violations.map((violation) => ({
+          file: violation.file,
+          rule: { type: violation.rule.type, path: violation.rule.path },
+          path: violation.path,
+          oldValue: violation.oldValue,
+          updatedValue: violation.updatedValue,
+          message: violation.message
+        }))
+      : undefined;
+
   // Generate complete HTML
   const htmlContent = generateHtmlTemplate(
     diffResult,
@@ -208,7 +223,8 @@ export const generateHtmlReport = async (
     changedFileIds,
     addedSections,
     addedFileIds,
-    diffStats
+    diffStats,
+    stopRuleViolations
   );
 
   // Write HTML file
