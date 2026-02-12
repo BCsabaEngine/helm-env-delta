@@ -6,6 +6,7 @@ Demonstrates the `extends` pattern for reusing base configuration across multipl
 
 - **Base configuration**: Shared settings across all environments
 - **Config inheritance**: Child configs extend and override base
+- **Required version**: Base config enforces minimum tool version (inherited by all children)
 - **Array concatenation**: skipPath rules are merged
 - **Object merging**: Child-specific stopRules added to parent
 
@@ -54,11 +55,12 @@ helm-env-delta --config example-1-config-inheritance/config.uat-to-prod.yaml
 
 1. **Base Config**: Common settings defined once, reused everywhere
 2. **Inheritance**: Child configs extend base with `extends: "./config.base.yaml"`
-3. **Merging Rules**:
+3. **Required Version**: `requiredVersion` in base config ensures all team members run a compatible version
+4. **Merging Rules**:
+   - Primitives (`requiredVersion`, `prune`, etc.) are inherited, child overrides parent
    - Arrays (include, exclude, skipPath) are **concatenated**
    - Objects (outputFormat) are **deep merged**
-   - Child overrides parent when keys conflict
-4. **Environment-Specific**: Each child adds its own transforms and stopRules
+5. **Environment-Specific**: Each child adds its own transforms and stopRules
 
 ## What You'll Learn
 
