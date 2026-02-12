@@ -70,7 +70,7 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 
 ## Testing
 
-Vitest, describe/it, Arrange-Act-Assert. 38 test files, 1320+ tests. 8 perf benchmark files using `bench()` API. Coverage thresholds: lines 80%, functions 95%, branches 75%. Barrel exports and `src/index.ts` excluded from coverage.
+Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests. 8 perf benchmark files using `bench()` API. Coverage thresholds: lines 80%, functions 95%, branches 75%. Barrel exports and `src/index.ts` excluded from coverage.
 
 ## Config Schema
 
