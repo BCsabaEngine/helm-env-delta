@@ -624,4 +624,33 @@ describe('configMerger', () => {
       expect(isConfigMergerError(123)).toBe(false);
     });
   });
+
+  describe('mergeConfigs - requiredVersion', () => {
+    it('should override parent requiredVersion with child', () => {
+      const parent: BaseConfig = { requiredVersion: '1.0.0' };
+      const child: BaseConfig = { requiredVersion: '2.0.0' };
+
+      const result = mergeConfigs(parent, child);
+
+      expect(result.requiredVersion).toBe('2.0.0');
+    });
+
+    it('should inherit requiredVersion from parent when child omits', () => {
+      const parent: BaseConfig = { requiredVersion: '1.0.0' };
+      const child: BaseConfig = { source: './child-source' };
+
+      const result = mergeConfigs(parent, child);
+
+      expect(result.requiredVersion).toBe('1.0.0');
+    });
+
+    it('should be undefined when neither specifies requiredVersion', () => {
+      const parent: BaseConfig = { source: './parent-source' };
+      const child: BaseConfig = { source: './child-source' };
+
+      const result = mergeConfigs(parent, child);
+
+      expect(result.requiredVersion).toBeUndefined();
+    });
+  });
 });

@@ -845,4 +845,37 @@ describe('configFile', () => {
       }
     });
   });
+
+  describe('parseBaseConfig - requiredVersion', () => {
+    it('should accept valid semver version', () => {
+      const result = parseBaseConfig({ requiredVersion: '1.2.3' });
+      expect(result.requiredVersion).toBe('1.2.3');
+    });
+
+    it('should accept version with v prefix', () => {
+      const result = parseBaseConfig({ requiredVersion: 'v1.2.3' });
+      expect(result.requiredVersion).toBe('v1.2.3');
+    });
+
+    it('should allow undefined (optional)', () => {
+      const result = parseBaseConfig({});
+      expect(result.requiredVersion).toBeUndefined();
+    });
+
+    it('should reject empty string', () => {
+      expect(() => parseBaseConfig({ requiredVersion: '' })).toThrow(ZodValidationError);
+    });
+
+    it('should reject non-semver string', () => {
+      expect(() => parseBaseConfig({ requiredVersion: 'not-semver' })).toThrow(ZodValidationError);
+    });
+
+    it('should reject pre-release version', () => {
+      expect(() => parseBaseConfig({ requiredVersion: '1.2.3-beta' })).toThrow(ZodValidationError);
+    });
+
+    it('should reject incomplete version', () => {
+      expect(() => parseBaseConfig({ requiredVersion: '1.2' })).toThrow(ZodValidationError);
+    });
+  });
 });

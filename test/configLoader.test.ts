@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as YAML from 'yaml';
 
-import { loadConfigFile } from '../src/configLoader';
+import packageJson from '../package.json';
+import { ConfigLoaderError, isConfigLoaderError, loadConfigFile } from '../src/configLoader';
 import { ConfigMergerError, isConfigMergerError } from '../src/configMerger';
 
 vi.mock('node:fs', () => ({
@@ -433,6 +434,79 @@ describe('configLoader', () => {
       loadConfigFile('format-only.yaml', false, undefined, { formatOnly: true });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('./src -> ./dest'));
+    });
+  });
+
+  describe('requiredVersion', () => {
+    it('should throw when installed version is older than requiredVersion', () => {
+      const config = {
+        source: './path/to/source',
+        destination: './path/to/destination',
+        requiredVersion: '99.0.0'
+      };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
+
+      expect(() => loadConfigFile('config.yaml')).toThrow(ConfigLoaderError);
+      expect(() => loadConfigFile('config.yaml')).toThrow('v99.0.0');
+    });
+
+    it('should not throw when installed version meets requiredVersion', () => {
+      const config = {
+        source: './path/to/source',
+        destination: './path/to/destination',
+        requiredVersion: '0.0.1'
+      };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
+
+      expect(() => loadConfigFile('config.yaml')).not.toThrow();
+    });
+
+    it('should not throw when installed version equals requiredVersion', () => {
+      const config = {
+        source: './path/to/source',
+        destination: './path/to/destination',
+        requiredVersion: packageJson.version
+      };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
+
+      expect(() => loadConfigFile('config.yaml')).not.toThrow();
+    });
+
+    it('should not throw when requiredVersion is omitted', () => {
+      const config = {
+        source: './path/to/source',
+        destination: './path/to/destination'
+      };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
+
+      expect(() => loadConfigFile('config.yaml')).not.toThrow();
+    });
+
+    it('should include required version, current version, and npm install hint in error', () => {
+      const config = {
+        source: './path/to/source',
+        destination: './path/to/destination',
+        requiredVersion: '99.0.0'
+      };
+      vi.mocked(readFileSync).mockReturnValue(YAML.stringify(config));
+
+      try {
+        loadConfigFile('config.yaml');
+        expect.fail('Should have thrown');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(ConfigLoaderError);
+        const message = (error as Error).message;
+        expect(message).toContain('99.0.0');
+        expect(message).toContain('Current version');
+        expect(message).toContain('npm install');
+      }
+    });
+
+    it('should be identified by isConfigLoaderError type guard', () => {
+      const error = new ConfigLoaderError('test', { code: 'VERSION_REQUIREMENT' });
+
+      expect(isConfigLoaderError(error)).toBe(true);
+      expect(isConfigLoaderError(new Error('other'))).toBe(false);
     });
   });
 });
