@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import packageJson from '../package.json';
 import {
   type BaseConfig,
   type FinalConfig,
@@ -10,7 +11,46 @@ import {
   type TransformRules
 } from './configFile';
 import { resolveConfigWithExtends } from './configMerger';
-import { loadTransformFiles } from './utils';
+import { createErrorClass, createErrorTypeGuard, isNewerVersion, loadTransformFiles } from './utils';
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+const ConfigLoaderErrorClass = createErrorClass(
+  'Config Loader Error',
+  {
+    VERSION_REQUIREMENT: 'Installed version does not meet the required version'
+  },
+  (message, options) => {
+    let fullMessage = `Config Loader Error: ${message}`;
+
+    if (options['requiredVersion']) fullMessage += `\n  Required version: ${options['requiredVersion']}`;
+    if (options['currentVersion']) fullMessage += `\n  Current version: ${options['currentVersion']}`;
+
+    fullMessage += '\n\n  Hint: Run "npm install" to update helm-env-delta to the required version.';
+
+    return fullMessage;
+  }
+);
+
+export class ConfigLoaderError extends ConfigLoaderErrorClass {}
+export const isConfigLoaderError = createErrorTypeGuard(ConfigLoaderError);
+
+// ============================================================================
+// Version Check
+// ============================================================================
+
+const checkRequiredVersion = (requiredVersion: string): void => {
+  const currentVersion = packageJson.version;
+
+  if (isNewerVersion(currentVersion, requiredVersion))
+    throw new ConfigLoaderError(`This config requires helm-env-delta v${requiredVersion} or newer`, {
+      code: 'VERSION_REQUIREMENT',
+      requiredVersion,
+      currentVersion
+    });
+};
 
 // Note: Config type is now an alias for FinalConfig
 export type Config = FinalConfig;
@@ -72,6 +112,9 @@ export const loadConfigFile = (
 
   // Expand file-based transform configs (contentFile, filenameFile)
   const expandedConfig = expandTransformFiles(mergedConfig, configDirectory);
+
+  // Check requiredVersion before final validation
+  if (expandedConfig.requiredVersion) checkRequiredVersion(expandedConfig.requiredVersion);
 
   // Validate expanded config (format-only mode only requires destination)
   const config = options.formatOnly

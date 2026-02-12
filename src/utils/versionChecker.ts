@@ -23,7 +23,7 @@ export const isVersionCheckerError = createErrorTypeGuard(VersionCheckerError);
 // Types
 // ============================================================================
 
-interface SemverParts {
+export interface SemverParts {
   major: number;
   minor: number;
   patch: number;
@@ -58,7 +58,7 @@ const isCiEnvironment = (): boolean => {
 // Version Comparison
 // ============================================================================
 
-const parseVersion = (version: string): SemverParts | undefined => {
+export const parseVersion = (version: string): SemverParts | undefined => {
   const semverRegex = /^v?(\d+)\.(\d+)\.(\d+)/;
   const match = semverRegex.exec(version);
 
@@ -71,7 +71,7 @@ const parseVersion = (version: string): SemverParts | undefined => {
   };
 };
 
-const isNewerVersion = (current: string, latest: string): boolean => {
+export const isNewerVersion = (current: string, latest: string): boolean => {
   const currentParts = parseVersion(current);
   const latestParts = parseVersion(latest);
 

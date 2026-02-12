@@ -196,6 +196,14 @@ const transformRulesSchema = z
 const baseConfigSchema = z.object({
   extends: z.string().min(1).optional(),
 
+  requiredVersion: z
+    .string()
+    .min(1)
+    .regex(/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/, {
+      message: 'Must be a valid semver version (e.g., "1.2.3" or "v1.2.3")'
+    })
+    .optional(),
+
   source: z.string().min(1).optional(),
 
   destination: z.string().min(1).optional(),

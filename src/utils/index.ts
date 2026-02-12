@@ -31,7 +31,14 @@ export { globalMatcher, PatternMatcher } from './patternMatcher';
 export { generateUnifiedDiff } from './diffGenerator';
 
 // Version checking utilities
-export { checkForUpdates, isVersionCheckerError, VersionCheckerError } from './versionChecker';
+export type { SemverParts } from './versionChecker';
+export {
+  checkForUpdates,
+  isNewerVersion,
+  isVersionCheckerError,
+  parseVersion,
+  VersionCheckerError
+} from './versionChecker';
 
 // YAML file loading utilities
 export { escapeRegex, isYamlFileLoaderError, loadYamlFile, YamlFileLoaderError } from './yamlFileLoader';
