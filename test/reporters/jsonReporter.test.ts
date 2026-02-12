@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Config } from '../src/configFile';
-import { AddedFile, ChangedFile, FileDiffResult } from '../src/fileDiff';
-import { generateJsonReport, JsonReport } from '../src/jsonReporter';
-import { ValidationResult } from '../src/stopRulesValidator';
+import { Config } from '../../src/config/configFile';
+import { AddedFile, ChangedFile, FileDiffResult } from '../../src/pipeline/fileDiff';
+import { ValidationResult } from '../../src/pipeline/stopRulesValidator';
+import { generateJsonReport, JsonReport } from '../../src/reporters/jsonReporter';
 
 const createMockAddedFile = (path: string): AddedFile => ({
   path,

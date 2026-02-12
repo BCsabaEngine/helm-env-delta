@@ -1,12 +1,12 @@
 import YAML, { Document, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
 
-import { ArraySortRule, KeySortRule, OutputFormat } from './configFile';
-import { YAML_DEFAULT_INDENT, YAML_LINE_WIDTH_UNLIMITED } from './constants';
-import { isCommentOnlyContent } from './utils/commentOnlyDetector';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
-import { parseJsonPath } from './utils/jsonPath';
-import { globalMatcher } from './utils/patternMatcher';
-import { extractKeyValue, isScalar, isYamlMap, isYamlSeq } from './utils/yamlTypeGuards';
+import { ArraySortRule, KeySortRule, OutputFormat } from '../config';
+import { YAML_DEFAULT_INDENT, YAML_LINE_WIDTH_UNLIMITED } from '../constants';
+import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
+import { parseJsonPath } from '../utils/jsonPath';
+import { globalMatcher } from '../utils/patternMatcher';
+import { extractKeyValue, isScalar, isYamlMap, isYamlSeq } from '../utils/yamlTypeGuards';
 
 // ============================================================================
 // Error Handling

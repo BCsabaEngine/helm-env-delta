@@ -1,7 +1,7 @@
 import { bench, describe } from 'vitest';
 import * as YAML from 'yaml';
 
-import { computeFileDiff } from '../../src/fileDiff';
+import { computeFileDiff } from '../../src/pipeline/fileDiff';
 import { deepEqual } from '../../src/utils/deepEqual';
 import { normalizeForComparison } from '../../src/utils/serialization';
 import { generateFileMap, generateYaml } from './fixtures/dataGenerator';

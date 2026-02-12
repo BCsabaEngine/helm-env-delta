@@ -1,9 +1,9 @@
 import type { SpyInstance } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { FinalConfig } from '../src/configFile';
-import { showConsoleDiff } from '../src/consoleDiffReporter';
-import type { AddedFile, ChangedFile, FileDiffResult } from '../src/fileDiff';
+import type { FinalConfig } from '../../src/config/configFile';
+import type { AddedFile, ChangedFile, FileDiffResult } from '../../src/pipeline/fileDiff';
+import { showConsoleDiff } from '../../src/reporters/consoleDiffReporter';
 
 const createAddedFile = (path: string): AddedFile => ({
   path,

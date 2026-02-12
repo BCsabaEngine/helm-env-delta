@@ -28,6 +28,9 @@ export default defineConfig({
         'dist/**',
         'node_modules/**',
         'src/utils/index.ts', // Barrel exports only
+        'src/config/index.ts', // Barrel exports only
+        'src/pipeline/index.ts', // Barrel exports only
+        'src/reporters/index.ts', // Barrel exports only
         'src/index.ts' // Entry point, needs refactoring for testability
       ],
       thresholds: {

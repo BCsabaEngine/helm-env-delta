@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { Config } from '../src/configFile';
-import { ChangedFile, FileDiffResult } from '../src/fileDiff';
+import { Config } from '../src/config/configFile';
+import { ChangedFile, FileDiffResult } from '../src/pipeline/fileDiff';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml } from '../src/suggestionEngine';
 
 const createMinimalConfig = (): Config => ({

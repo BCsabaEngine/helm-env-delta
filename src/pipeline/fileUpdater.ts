@@ -3,22 +3,22 @@ import path from 'node:path';
 
 import YAML from 'yaml';
 
-import { Config } from './configFile';
-import { formatProgressMessage } from './consoleFormatter';
-import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
-import { FileMap } from './fileLoader';
-import { Logger } from './logger';
+import { Config } from '../config';
+import { formatProgressMessage } from '../consoleFormatter';
+import { Logger } from '../logger';
 import {
   findMatchingTargetItem,
   getApplicableArrayFilters,
   itemMatchesAnyFilter,
   shouldPreserveItem
-} from './utils/arrayMerger';
-import { isCommentOnlyContent } from './utils/commentOnlyDetector';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
-import { isYamlFile } from './utils/fileType';
-import { applyFixedValues, getFixedValuesForFile } from './utils/fixedValues';
-import { applyTransforms } from './utils/transformer';
+} from '../utils/arrayMerger';
+import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
+import { isYamlFile } from '../utils/fileType';
+import { applyFixedValues, getFixedValuesForFile } from '../utils/fixedValues';
+import { applyTransforms } from '../utils/transformer';
+import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
+import { FileMap } from './fileLoader';
 import { formatYaml } from './yamlFormatter';
 
 // Types

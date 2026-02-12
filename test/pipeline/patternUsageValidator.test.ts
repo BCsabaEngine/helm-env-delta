@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FinalConfig } from '../src/configFile';
-import type { FileMap } from '../src/fileLoader';
-import { validatePatternUsage } from '../src/patternUsageValidator';
+import type { FinalConfig } from '../../src/config/configFile';
+import type { FileMap } from '../../src/pipeline/fileLoader';
+import { validatePatternUsage } from '../../src/pipeline/patternUsageValidator';
 
 const createBaseConfig = (): FinalConfig => ({
   source: './source',

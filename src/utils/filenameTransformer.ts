@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import type { TransformConfig, TransformRule } from '../configFile';
+import type { TransformConfig, TransformRule } from '../config';
 import { createErrorClass, createErrorTypeGuard } from './errors';
 import { globalMatcher } from './patternMatcher';
 import { applyRegexRulesSequentially } from './regexTransform';

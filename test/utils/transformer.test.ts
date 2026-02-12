@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TransformConfig } from '../../src/configFile';
+import type { TransformConfig } from '../../src/config/configFile';
 import { applyTransforms, getTransformsForFile } from '../../src/utils/transformer';
 
 describe('utils/transformer', () => {

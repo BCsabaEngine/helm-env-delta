@@ -6,7 +6,7 @@ import {
   ProgressStyle,
   ViolationMode
 } from './consoleFormatter';
-import { StopRuleViolation } from './stopRulesValidator';
+import { StopRuleViolation } from './pipeline/stopRulesValidator';
 
 // ============================================================================
 // Types

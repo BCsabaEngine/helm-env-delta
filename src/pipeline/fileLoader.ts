@@ -3,10 +3,10 @@ import path from 'node:path';
 
 import { glob } from 'tinyglobby';
 
-import type { TransformConfig } from './configFile';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
-import { transformFilename, transformFilenameMap } from './utils/filenameTransformer';
-import { globalMatcher } from './utils/patternMatcher';
+import type { TransformConfig } from '../config';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
+import { transformFilename, transformFilenameMap } from '../utils/filenameTransformer';
+import { globalMatcher } from '../utils/patternMatcher';
 
 // Types
 export interface FileLoaderOptions {
@@ -202,7 +202,7 @@ const readFilesIntoMap = async (baseDirectory: string, absoluteFilePaths: string
 // Loads files from a directory based on include/exclude glob patterns.
 export const loadFiles = async (
   options: FileLoaderOptions,
-  logger?: import('./logger').Logger
+  logger?: import('../logger').Logger
 ): Promise<FileLoaderResult> => {
   const absoluteBaseDirectory = await validateAndResolveBaseDirectory(options.baseDirectory);
 

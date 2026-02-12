@@ -8,20 +8,34 @@ import * as YAML from 'yaml';
 
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
-import type { FinalConfig } from './configFile';
-import { isConfigLoaderError, loadConfigFile } from './configLoader';
-import { isConfigMergerError } from './configMerger';
-import { validateConfigWarnings } from './configWarnings';
-import { showConsoleDiff } from './consoleDiffReporter';
+import type { FinalConfig } from './config';
+import {
+  isConfigLoaderError,
+  isConfigMergerError,
+  isZodValidationError,
+  loadConfigFile,
+  validateConfigWarnings
+} from './config';
 import { formatProgressMessage } from './consoleFormatter';
-import { computeFileDiff, isFileDiffError } from './fileDiff';
-import { isFileLoaderError, loadFiles } from './fileLoader';
-import { isFileUpdaterError, updateFiles } from './fileUpdater';
-import { generateHtmlReport, isHtmlReporterError } from './htmlReporter';
-import { generateJsonReport, isJsonReporterError } from './jsonReporter';
 import { Logger, VerbosityLevel } from './logger';
-import { validatePatternUsage } from './patternUsageValidator';
-import { validateStopRules } from './stopRulesValidator';
+import {
+  computeFileDiff,
+  formatYaml,
+  isFileDiffError,
+  isFileLoaderError,
+  isFileUpdaterError,
+  loadFiles,
+  updateFiles,
+  validatePatternUsage,
+  validateStopRules
+} from './pipeline';
+import {
+  generateHtmlReport,
+  generateJsonReport,
+  isHtmlReporterError,
+  isJsonReporterError,
+  showConsoleDiff
+} from './reporters';
 import { analyzeDifferencesForSuggestions, formatSuggestionsAsYaml, isSuggestionEngineError } from './suggestionEngine';
 import { detectCollisions, isCollisionDetectorError, validateNoCollisions } from './utils/collisionDetector';
 import { isCommentOnlyContent } from './utils/commentOnlyDetector';
@@ -29,8 +43,6 @@ import { filterDiffResultByMode, filterFileMap, filterFileMaps, isFilterParseErr
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
 import { checkForUpdates } from './utils/versionChecker';
-import { formatYaml } from './yamlFormatter';
-import { isZodValidationError } from './ZodError';
 
 /**
  * Main entry point for helm-env-delta CLI tool.

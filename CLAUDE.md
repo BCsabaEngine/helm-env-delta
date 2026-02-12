@@ -17,7 +17,7 @@ npm run fix           # Format + lint + format
 npm run all           # Fix + build + test
 
 # Run single test file
-npx vitest run test/fileLoader.test.ts
+npx vitest run test/pipeline/fileLoader.test.ts
 
 # Run tests matching pattern
 npx vitest run -t "skipExclude"
@@ -32,21 +32,59 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 
 **Entry:** `bin/index.js` → `src/index.ts` (parseCommandLine → loadConfigFile → loadFiles → computeFileDiff → validateStopRules → updateFiles → reports)
 
+**Folder Structure:**
+
+```
+src/
+├── index.ts                  (orchestrator entry point)
+├── commandLine.ts            (CLI parsing, standalone)
+├── constants.ts              (cross-cutting)
+├── logger.ts                 (cross-cutting)
+├── consoleFormatter.ts       (cross-cutting)
+├── suggestionEngine.ts       (large standalone module)
+├── config/                   (config schema, loading, merging, warnings)
+│   ├── index.ts              (barrel)
+│   ├── configFile.ts
+│   ├── configLoader.ts
+│   ├── configMerger.ts
+│   ├── configWarnings.ts
+│   └── ZodError.ts
+├── pipeline/                 (core data processing steps)
+│   ├── index.ts              (barrel)
+│   ├── fileLoader.ts
+│   ├── fileDiff.ts
+│   ├── fileUpdater.ts
+│   ├── yamlFormatter.ts
+│   ├── stopRulesValidator.ts
+│   └── patternUsageValidator.ts
+├── reporters/                (all output generation)
+│   ├── index.ts              (barrel)
+│   ├── htmlReporter.ts
+│   ├── consoleDiffReporter.ts
+│   ├── jsonReporter.ts
+│   ├── arrayDiffer.ts
+│   ├── htmlTemplate.ts
+│   ├── htmlStyles.ts
+│   ├── treeBuilder.ts
+│   ├── treeRenderer.ts
+│   └── browserLauncher.ts
+└── utils/                    (shared utilities, barrel exports)
+```
+
 **Core Modules:**
 
-- `commandLine.ts` - CLI parsing (commander), help examples, flag validation
-- `configFile.ts` - Zod validation (BaseConfig/FinalConfig/FormatOnlyConfig), source==dest validation
-- `configLoader.ts` / `configMerger.ts` - YAML loading, inheritance (max 5 levels)
-- `configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts)
-- `patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
-- `fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
-- `fileDiff.ts` - YAML diff pipeline (parse → transforms → fixedValues → skipPath → normalize → deepEqual)
-- `yamlFormatter.ts` - AST formatting (key order, key sort, quoting, array sort, keySeparator with whitespace filtering)
-- `stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
-- `fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
-- `arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)
+- `config/configFile.ts` - Zod validation (BaseConfig/FinalConfig/FormatOnlyConfig), source==dest validation
+- `config/configLoader.ts` / `config/configMerger.ts` - YAML loading, inheritance (max 5 levels)
+- `config/configWarnings.ts` - Config validation warnings (inefficient globs, duplicates, conflicts)
+- `pipeline/patternUsageValidator.ts` - Unused pattern detection (validates exclude, skipPath, stopRules, fixedValues match files)
+- `pipeline/fileLoader.ts` - Glob-based parallel loading (tinyglobby → Map), supports `skipExclude` for validation
+- `pipeline/fileDiff.ts` - YAML diff pipeline (parse → transforms → fixedValues → skipPath → normalize → deepEqual)
+- `pipeline/yamlFormatter.ts` - AST formatting (key order, key sort, quoting, array sort, keySeparator with whitespace filtering)
+- `pipeline/stopRulesValidator.ts` - Validation (semver, versionFormat, numeric, regex)
+- `pipeline/fileUpdater.ts` - Deep merge sync (preserves skipped paths, skipPath-aware array merging)
+- `reporters/arrayDiffer.ts` - Array diffing for reports (added/removed/unchanged items)
 - `suggestionEngine.ts` - Heuristic config suggestions (analyzes diffs → suggests transforms/stop rules)
-- Reporters: `htmlReporter.ts` (diff stats, copy diff, stop rule violations in dry-run), `consoleDiffReporter.ts`, `jsonReporter.ts`, `treeBuilder.ts`, `treeRenderer.ts` (sidebar tree), `htmlStyles.ts` (inlined diff2html CSS, styles, scripts, scroll sync), `htmlTemplate.ts` (DiffStats, HtmlStopRuleViolation, collapsible stats dashboard, collapsible violations table, sidebar search, collapse/expand, zero-count category hiding)
+- Reporters: `reporters/htmlReporter.ts` (diff stats, copy diff, stop rule violations in dry-run), `reporters/consoleDiffReporter.ts`, `reporters/jsonReporter.ts`, `reporters/treeBuilder.ts`, `reporters/treeRenderer.ts` (sidebar tree), `reporters/htmlStyles.ts` (inlined diff2html CSS, styles, scripts, scroll sync), `reporters/htmlTemplate.ts` (DiffStats, HtmlStopRuleViolation, collapsible stats dashboard, collapsible violations table, sidebar search, collapse/expand, zero-count category hiding)
 - Utils: `filenameTransformer.ts`, `collisionDetector.ts`, `versionChecker.ts`
 
 **Config Schema:**
@@ -60,7 +98,7 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 - `fixedValues`: Set JSONPath locations to constant values (glob pattern → array of {path, value}), applied after merge
 - `outputFormat`: indent, keySeparator, quoteValues, keyOrders, keySort, arraySort
 
-**Config Inheritance Merging (`configMerger.ts`):**
+**Config Inheritance Merging (`config/configMerger.ts`):**
 
 1. Primitives (`source`, `destination`, `prune`, `confirmationDelay`, `requiredVersion`): Child overrides parent
 2. Arrays (`include`, `exclude`): Concatenate `[...parent, ...child]`
@@ -193,8 +231,8 @@ Validates that config patterns actually match files and JSONPaths exist. Trigger
 
 **Two-Phase Validation:**
 
-1. **Phase 1 (Static)** - `configWarnings.ts` validates syntax, inefficient patterns, duplicates
-2. **Phase 2 (File-Based)** - `patternUsageValidator.ts` validates pattern usage against actual files
+1. **Phase 1 (Static)** - `config/configWarnings.ts` validates syntax, inefficient patterns, duplicates
+2. **Phase 2 (File-Based)** - `pipeline/patternUsageValidator.ts` validates pattern usage against actual files
 
 **What Gets Validated:** exclude patterns, skipPath patterns (glob + JSONPath), stopRules patterns (glob + path field), fixedValues patterns (glob + path field)
 

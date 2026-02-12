@@ -2,7 +2,7 @@
 // Fixed Values Utilities
 // ============================================================================
 
-import type { FixedValueConfig, FixedValueRule } from '../configFile';
+import type { FixedValueConfig, FixedValueRule } from '../config';
 import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './jsonPath';
 import { globalMatcher } from './patternMatcher';
 

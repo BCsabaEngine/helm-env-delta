@@ -1,6 +1,7 @@
 import path from 'node:path';
 
-import packageJson from '../package.json';
+import packageJson from '../../package.json';
+import { createErrorClass, createErrorTypeGuard, isNewerVersion, loadTransformFiles } from '../utils';
 import {
   type BaseConfig,
   type FinalConfig,
@@ -11,7 +12,6 @@ import {
   type TransformRules
 } from './configFile';
 import { resolveConfigWithExtends } from './configMerger';
-import { createErrorClass, createErrorTypeGuard, isNewerVersion, loadTransformFiles } from './utils';
 
 // ============================================================================
 // Error Handling
@@ -102,7 +102,7 @@ const expandTransformFiles = (config: BaseConfig, configDirectory: string): Base
 export const loadConfigFile = (
   configPath: string,
   quiet = false,
-  logger?: import('./logger').Logger,
+  logger?: import('../logger').Logger,
   options: LoadConfigOptions = {}
 ): FinalConfig | FormatOnlyConfig => {
   const configDirectory = path.dirname(path.resolve(configPath));

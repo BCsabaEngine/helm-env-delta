@@ -1,16 +1,16 @@
 import YAML from 'yaml';
 
-import { Config, FixedValueConfig, OutputFormat, TransformConfig } from './configFile';
+import { Config, FixedValueConfig, OutputFormat, TransformConfig } from '../config';
+import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
+import { deepEqual } from '../utils/deepEqual';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
+import { isYamlFile } from '../utils/fileType';
+import { applyFixedValues, getFixedValuesForFile } from '../utils/fixedValues';
+import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from '../utils/jsonPath';
+import { globalMatcher } from '../utils/patternMatcher';
+import { normalizeForComparison } from '../utils/serialization';
+import { applyTransforms } from '../utils/transformer';
 import { FileMap } from './fileLoader';
-import { isCommentOnlyContent } from './utils/commentOnlyDetector';
-import { deepEqual } from './utils/deepEqual';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
-import { isYamlFile } from './utils/fileType';
-import { applyFixedValues, getFixedValuesForFile } from './utils/fixedValues';
-import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
-import { globalMatcher } from './utils/patternMatcher';
-import { normalizeForComparison } from './utils/serialization';
-import { applyTransforms } from './utils/transformer';
 import { formatYaml } from './yamlFormatter';
 
 // Types
@@ -359,7 +359,7 @@ export const computeFileDiff = (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
   config: Config,
-  logger?: import('./logger').Logger,
+  logger?: import('../logger').Logger,
   originalPaths?: Map<string, string>
 ): FileDiffResult => {
   // Add verbose debug output

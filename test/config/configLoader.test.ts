@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as YAML from 'yaml';
 
-import packageJson from '../package.json';
-import { ConfigLoaderError, isConfigLoaderError, loadConfigFile } from '../src/configLoader';
-import { ConfigMergerError, isConfigMergerError } from '../src/configMerger';
+import packageJson from '../../package.json';
+import { ConfigLoaderError, isConfigLoaderError, loadConfigFile } from '../../src/config/configLoader';
+import { ConfigMergerError, isConfigMergerError } from '../../src/config/configMerger';
 
 vi.mock('node:fs', () => ({
   readFileSync: vi.fn()

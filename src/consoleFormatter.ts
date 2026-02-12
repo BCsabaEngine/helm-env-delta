@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { StopRuleViolation } from './stopRulesValidator';
+import { StopRuleViolation } from './pipeline/stopRulesValidator';
 
 // ============================================================================
 // Types

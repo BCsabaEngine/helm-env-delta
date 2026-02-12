@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AddedFile } from '../src/fileDiff';
-import { updateFiles } from '../src/fileUpdater';
-import { Logger } from '../src/logger';
+import { Logger } from '../../src/logger';
+import { AddedFile } from '../../src/pipeline/fileDiff';
+import { updateFiles } from '../../src/pipeline/fileUpdater';
 
 const createAddedFile = (path: string): AddedFile => ({
   path,

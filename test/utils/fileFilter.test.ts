@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FileDiffResult } from '../../src/fileDiff';
+import type { FileDiffResult } from '../../src/pipeline/fileDiff';
 import {
   fileMatchesFilter,
   filterDiffResultByMode,

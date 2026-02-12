@@ -8,8 +8,8 @@ import {
   parseConfig,
   parseFinalConfig,
   parseFormatOnlyConfig
-} from '../src/configFile';
-import { ZodValidationError } from '../src/ZodError';
+} from '../../src/config/configFile';
+import { ZodValidationError } from '../../src/config/ZodError';
 
 describe('configFile', () => {
   describe('parseBaseConfig - basic structure', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateStopRules } from '../src/stopRulesValidator';
+import { validateStopRules } from '../../src/pipeline/stopRulesValidator';
 
 describe('stopRulesValidator', () => {
   describe('validateStopRules', () => {

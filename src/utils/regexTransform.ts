@@ -3,7 +3,7 @@
  * Consolidates duplicated regex application logic across transformer and filenameTransformer.
  */
 
-import type { TransformRule } from '../configFile';
+import type { TransformRule } from '../config';
 
 /**
  * Applies multiple regex transformation rules sequentially to a string.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { diffArrays, findArrayPaths, hasArrays } from '../src/arrayDiffer';
+import { diffArrays, findArrayPaths, hasArrays } from '../../src/reporters/arrayDiffer';
 
 describe('arrayDiffer', () => {
   describe('diffArrays', () => {

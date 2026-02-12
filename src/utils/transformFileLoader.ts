@@ -1,4 +1,4 @@
-import type { TransformRule } from '../configFile';
+import type { TransformRule } from '../config';
 import { createErrorClass, createErrorTypeGuard } from './errors';
 import { escapeRegex, isYamlFileLoaderError, loadYamlFile } from './yamlFileLoader';
 
