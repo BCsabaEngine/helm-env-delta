@@ -413,9 +413,12 @@ exclude: # Optional: Exclude patterns
 
 prune: false # Optional: Delete dest files not in source
 confirmationDelay: 3000 # Optional: Delay in ms before sync (default: 3000, 0 to disable)
+requiredVersion: '1.10.0' # Optional: Minimum tool version required to process this config
 ```
 
 **Note:** Source and destination paths cannot resolve to the same folder.
+
+**`requiredVersion`:** When set, the CLI checks that the installed version of helm-env-delta meets this minimum. If the installed version is older, the CLI exits immediately with a clear upgrade message. This prevents running configs that depend on newer features with an outdated tool version. Supports `"1.2.3"` or `"v1.2.3"` format.
 
 ---
 
@@ -777,7 +780,7 @@ stopRules: # Add production safety rules
 
 **Merging:**
 
-- Primitives (`source`, `destination`, `prune`, `confirmationDelay`): Child overrides parent
+- Primitives (`source`, `destination`, `prune`, `confirmationDelay`, `requiredVersion`): Child overrides parent
 - Arrays (`include`, `exclude`): Concatenated (parent + child)
 - Per-file Records (`skipPath`, `transforms`, `stopRules`, `fixedValues`): Keys merged, arrays concatenated
 - `outputFormat`: Shallow merged (child fields override parent)
