@@ -346,6 +346,75 @@ Run with: `helm-env-delta --config config.prod.yaml`
 
 ---
 
+### How do I enforce a minimum tool version for my config?
+
+**Use `requiredVersion`** to ensure everyone on your team has a compatible version of helm-env-delta:
+
+```yaml
+requiredVersion: '1.12.0'
+source: './uat'
+destination: './prod'
+```
+
+**Behavior:**
+
+- If the installed version is older than `requiredVersion`, the CLI exits immediately with a clear upgrade message
+- Supports `"1.2.3"` or `"v1.2.3"` format
+- Works with config inheritance (`extends`) — set it once in a base config and all child configs inherit it
+- The check runs before any file processing
+
+**When to use:**
+
+- Your config relies on features from a specific version (e.g., `keySort` requires 1.12.0+)
+- Team members might have different versions installed
+- CI/CD environments need a guaranteed minimum version
+
+---
+
+### How do I sort YAML keys alphabetically?
+
+**Use `keySort`** in `outputFormat` to sort keys alphabetically at specific paths:
+
+```yaml
+outputFormat:
+  keySort:
+    '**/*.yaml':
+      - path: 'spec.template.metadata.labels'
+      - path: 'data'
+```
+
+**How it works:**
+
+- Sorts all keys alphabetically at the specified JSONPath locations
+- Only affects keys at the targeted paths — the rest of your file structure stays intact
+- Works alongside `keyOrders` (which pins specific keys to the top)
+
+**Use cases:**
+
+- Sort environment variables or labels alphabetically for easier scanning
+- Standardize key ordering in ConfigMaps or Secrets
+- Reduce diff noise from inconsistent key ordering
+
+**Combining with `keyOrders`:**
+
+```yaml
+outputFormat:
+  keyOrders:
+    '**/*.yaml':
+      - 'apiVersion'
+      - 'kind'
+      - 'metadata'
+      - 'spec'
+  keySort:
+    '**/*.yaml':
+      - path: 'metadata.labels'
+      - path: 'metadata.annotations'
+```
+
+`keyOrders` pins important keys to the top, `keySort` alphabetizes everything else at specific paths.
+
+---
+
 ### How deep can config inheritance go?
 
 Maximum **5 levels** of inheritance to prevent excessive nesting.
@@ -384,7 +453,7 @@ helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
 - Suggests transform patterns automatically based on smart algorithms
 - Recommends stop rules for version changes, numeric values using heuristics
 - Provides confidence scores (0-100%) and occurrence counts for each suggestion
-- **NEW:** Configurable threshold allows you to control suggestion sensitivity (0-1)
+- Configurable threshold allows you to control suggestion sensitivity (0-1)
 - **Enhanced noise filtering:**
   - Filters out UUIDs, timestamps, single-character edits
   - Filters antonym pairs (enable/disable, true/false, on/off, yes/no, active/inactive)
@@ -1318,7 +1387,7 @@ npm run test:perf  # Shows detailed timing
 
 **Yes!** Use CLI filters, specific include patterns, or multiple config files:
 
-**Option 1: CLI Filter (NEW - Recommended for ad-hoc filtering)**
+**Option 1: CLI Filter (Recommended for ad-hoc filtering)**
 
 Use `-f, --filter` to filter files by filename or content, and `-m, --mode` to filter by change type:
 
@@ -1918,7 +1987,7 @@ helm-env-delta --config config.yaml --validate
 - ✅ Empty skipPath arrays (no effect)
 - ✅ Empty transform arrays (no content or filename transforms)
 
-**Phase 2 - Pattern Usage Validation (NEW):**
+**Phase 2 - Pattern Usage Validation:**
 
 - ✅ Unused exclude patterns (patterns that match no files)
 - ✅ Unused skipPath glob patterns (patterns that match no files)
@@ -2202,4 +2271,4 @@ include:
 
 ---
 
-**Last Updated:** 2026-01-30 (Added CLI filter/mode options, command-line shortcuts)
+**Last Updated:** 2026-02-12 (Added requiredVersion, keySort, HTML violations table, updated test counts)
