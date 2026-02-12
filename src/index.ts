@@ -9,7 +9,7 @@ import * as YAML from 'yaml';
 import packageJson from '../package.json';
 import { parseCommandLine } from './commandLine';
 import type { FinalConfig } from './configFile';
-import { loadConfigFile } from './configLoader';
+import { isConfigLoaderError, loadConfigFile } from './configLoader';
 import { isConfigMergerError } from './configMerger';
 import { validateConfigWarnings } from './configWarnings';
 import { showConsoleDiff } from './consoleDiffReporter';
@@ -422,6 +422,7 @@ const main = async (): Promise<void> => {
   } catch (error: unknown) {
     // Errors are always critical and should be shown regardless of verbosity
     if (isConfigMergerError(error)) console.error(error.message);
+    else if (isConfigLoaderError(error)) console.error(error.message);
     else if (isZodValidationError(error)) console.error(error.message);
     else if (isFileLoaderError(error)) console.error(error.message);
     else if (isFilenameTransformerError(error)) console.error(error.message);

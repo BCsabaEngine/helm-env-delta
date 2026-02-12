@@ -1,6 +1,9 @@
 # Base configuration - shared across all environments
 # Can be partial (source/destination not required)
 
+# Minimum tool version required (inherited by all child configs)
+requiredVersion: '1.12.0'
+
 include:
   - '**/*.yaml'
 

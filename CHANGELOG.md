@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-02-12
+
+### Added
+
+- Required version enforcement: New `requiredVersion` config option lets you specify the minimum version of helm-env-delta needed to process a config file. If someone runs your config with an older version, they get a clear error message telling them to update. Supports inheritance via `extends`, so you can set it once in a base config. Perfect for teams where configs rely on features from a specific version.
+
 ## [1.12.0] - 2026-02-10
 
 ### Added

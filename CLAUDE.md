@@ -51,7 +51,7 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 
 **Config Schema:**
 
-- Core: `source`, `destination` (required for sync, source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`
+- Core: `source`, `destination` (required for sync, source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`, `requiredVersion`
 - Validation: source and destination cannot resolve to the same path
 - Inheritance: Single parent via `extends`, max 5 levels, circular detection
 - `skipPath`: JSONPath patterns per-file (glob patterns), supports CSS-style filter expressions `[prop=value]`, `[prop^=prefix]`, `[prop$=suffix]`, `[prop*=substring]`
@@ -62,7 +62,7 @@ helm-env-delta -c config.yaml [--validate] [--suggest] [-D|--dry-run] [--force] 
 
 **Config Inheritance Merging (`configMerger.ts`):**
 
-1. Primitives (`source`, `destination`, `prune`, `confirmationDelay`): Child overrides parent
+1. Primitives (`source`, `destination`, `prune`, `confirmationDelay`, `requiredVersion`): Child overrides parent
 2. Arrays (`include`, `exclude`): Concatenate `[...parent, ...child]`
 3. Per-file Records (`skipPath`, `transforms`, `stopRules`, `fixedValues`): Merge keys, concatenate arrays per key
 4. `outputFormat`: Shallow merge (child fields override parent fields)

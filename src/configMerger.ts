@@ -75,6 +75,9 @@ export const mergeConfigs = (parent: BaseConfig, child: BaseConfig): BaseConfig 
   if (child.confirmationDelay !== undefined) merged.confirmationDelay = child.confirmationDelay;
   else if (parent.confirmationDelay !== undefined) merged.confirmationDelay = parent.confirmationDelay;
 
+  if (child.requiredVersion !== undefined) merged.requiredVersion = child.requiredVersion;
+  else if (parent.requiredVersion !== undefined) merged.requiredVersion = parent.requiredVersion;
+
   // Arrays - concatenate parent and child
   const parentInclude = parent.include ?? [];
   const childInclude = child.include ?? [];
