@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatYaml } from '../src/yamlFormatter';
+import { formatYaml } from '../../src/pipeline/yamlFormatter';
 
 describe('yamlFormatter', () => {
   describe('indent', () => {

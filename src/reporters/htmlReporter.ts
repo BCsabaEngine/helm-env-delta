@@ -5,19 +5,19 @@ import path from 'node:path';
 
 import { html as diff2html } from 'diff2html';
 
-import { Config } from './configFile';
-import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
-import { openInBrowser } from './reporters/browserLauncher';
-import { DiffStats, generateHtmlTemplate, HtmlStopRuleViolation, ReportMetadata } from './reporters/htmlTemplate';
-import { escapeHtml } from './reporters/treeRenderer';
-import type { ValidationResult } from './stopRulesValidator';
-import { generateUnifiedDiff } from './utils/diffGenerator';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
-import { isYamlFile } from './utils/fileType';
-import { serializeForDiff } from './utils/serialization';
+import { Config } from '../config';
+import type { ValidationResult } from '../pipeline';
+import { AddedFile, ChangedFile, FileDiffResult } from '../pipeline';
+import { generateUnifiedDiff } from '../utils/diffGenerator';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
+import { isYamlFile } from '../utils/fileType';
+import { serializeForDiff } from '../utils/serialization';
+import { openInBrowser } from './browserLauncher';
+import { DiffStats, generateHtmlTemplate, HtmlStopRuleViolation, ReportMetadata } from './htmlTemplate';
+import { escapeHtml } from './treeRenderer';
 
 // Re-export types for backward compatibility
-export type { DiffStats, ReportMetadata } from './reporters/htmlTemplate';
+export type { DiffStats, ReportMetadata } from './htmlTemplate';
 
 // Error Handling
 const HtmlReporterErrorClass = createErrorClass('HTML Reporter Error', {
@@ -149,7 +149,7 @@ export const generateHtmlReport = async (
   formattedFiles: string[],
   config: Config,
   dryRun: boolean,
-  logger?: import('./logger').Logger,
+  logger?: import('../logger').Logger,
   validationResult?: ValidationResult
 ): Promise<void> => {
   // Generate random temp file path

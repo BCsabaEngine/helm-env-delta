@@ -1,5 +1,4 @@
-import type { FileDiffResult } from '../fileDiff';
-import type { FileMap } from '../fileLoader';
+import type { FileDiffResult, FileMap } from '../pipeline';
 import { createErrorClass, createErrorTypeGuard } from './errors';
 
 // ============================================================================

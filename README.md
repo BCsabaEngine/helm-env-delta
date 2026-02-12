@@ -226,6 +226,14 @@ outputFormat:
 
 The repository includes ready-to-run examples:
 
+### 🟢 Example 0: Basic
+
+The simplest possible setup — syncs changes from UAT to Production while preserving environment-specific values.
+
+```bash
+helm-env-delta --config example/0-basic/config.yaml --dry-run --diff
+```
+
 ### 📁 Example 1: Config Inheritance
 
 Shows how to reuse base configuration across multiple environment pairs.
@@ -236,7 +244,7 @@ helm-env-delta --config example/1-config-inheritance/config.uat-to-prod.yaml --d
 
 ### 🚦 Example 2: Stop Rules
 
-Demonstrates all 5 stop rule types and how violations block execution.
+Demonstrates all 7 stop rule types and how violations block execution.
 
 ```bash
 helm-env-delta --config example/2-stop-rules/config.yaml --dry-run --diff
@@ -331,7 +339,7 @@ helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
 - 🎯 Suggests transform patterns (regex find/replace) based on semantic patterns
 - 🛡️ Recommends stop rules for safety validation using pattern recognition
 - 📊 Provides confidence scores and occurrence counts for each suggestion
-- 🎛️ **NEW:** Configurable threshold filters suggestions by confidence level (0-1)
+- 🎛️ Configurable threshold filters suggestions by confidence level (0-1)
 - 📝 Outputs copy-paste ready YAML configuration
 - ✨ **Enhanced noise filtering:**
   - Ignores UUIDs, timestamps, single-character changes
@@ -627,7 +635,7 @@ stopRules:
       path: 'image.tag'
       regex: '^v0\.'
 
-    # NEW: Regex without path (global - scans all values)
+    # Regex without path (global - scans all values)
     - type: 'regex'
       regex: '^127\.' # Block localhost IPs anywhere
 ```
@@ -954,7 +962,7 @@ git push origin main
 
 ✅ **Flexibility** - Per-file patterns. Config inheritance. Regex transforms.
 
-✅ **Reliability** - 1150+ tests, 84% coverage. Battle-tested.
+✅ **Reliability** - 1400+ tests, 92% coverage. Battle-tested.
 
 ---
 

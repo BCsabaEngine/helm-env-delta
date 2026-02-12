@@ -1,9 +1,8 @@
-import { Config } from './configFile';
-import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
-import { ValidationResult } from './stopRulesValidator';
-import { deepEqual } from './utils/deepEqual';
-import { generateUnifiedDiff } from './utils/diffGenerator';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
+import { Config } from '../config';
+import { AddedFile, ChangedFile, FileDiffResult, ValidationResult } from '../pipeline';
+import { deepEqual } from '../utils/deepEqual';
+import { generateUnifiedDiff } from '../utils/diffGenerator';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
 
 // ============================================================================
 // Error Handling

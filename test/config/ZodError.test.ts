@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { isZodValidationError, ZodValidationError } from '../src/ZodError';
+import { isZodValidationError, ZodValidationError } from '../../src/config/ZodError';
 
 describe('ZodError', () => {
   describe('ZodValidationError - basic formatting', () => {

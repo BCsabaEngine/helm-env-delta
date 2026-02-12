@@ -17,30 +17,30 @@ vi.mock('diff2html', () => ({
   html: vi.fn()
 }));
 
-vi.mock('../src/arrayDiffer', () => ({
+vi.mock('../../src/reporters/arrayDiffer', () => ({
   diffArrays: vi.fn(),
   findArrayPaths: vi.fn(),
   hasArrays: vi.fn()
 }));
 
-vi.mock('../src/utils/diffGenerator', () => ({
+vi.mock('../../src/utils/diffGenerator', () => ({
   generateUnifiedDiff: vi.fn()
 }));
 
-vi.mock('../src/utils/fileType', () => ({
+vi.mock('../../src/utils/fileType', () => ({
   isYamlFile: vi.fn()
 }));
 
-vi.mock('../src/utils/serialization', () => ({
+vi.mock('../../src/utils/serialization', () => ({
   serializeForDiff: vi.fn(),
   normalizeForComparison: vi.fn()
 }));
 
-vi.mock('../src/utils/deepEqual', () => ({
+vi.mock('../../src/utils/deepEqual', () => ({
   deepEqual: vi.fn()
 }));
 
-vi.mock('../src/utils/jsonPath', () => ({
+vi.mock('../../src/utils/jsonPath', () => ({
   getValueAtPath: vi.fn()
 }));
 
@@ -50,17 +50,17 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { html as diff2html } from 'diff2html';
 import open from 'open';
 
-import { diffArrays, findArrayPaths, hasArrays } from '../src/arrayDiffer';
-import { Config } from '../src/configFile';
-import { AddedFile, ChangedFile, FileDiffResult } from '../src/fileDiff';
-import { generateHtmlReport, HtmlReporterError, isHtmlReporterError } from '../src/htmlReporter';
-import { Logger } from '../src/logger';
-import type { ValidationResult } from '../src/stopRulesValidator';
-import { deepEqual } from '../src/utils/deepEqual';
-import { generateUnifiedDiff } from '../src/utils/diffGenerator';
-import { isYamlFile } from '../src/utils/fileType';
-import { getValueAtPath } from '../src/utils/jsonPath';
-import { normalizeForComparison, serializeForDiff } from '../src/utils/serialization';
+import { Config } from '../../src/config/configFile';
+import { Logger } from '../../src/logger';
+import { AddedFile, ChangedFile, FileDiffResult } from '../../src/pipeline/fileDiff';
+import type { ValidationResult } from '../../src/pipeline/stopRulesValidator';
+import { diffArrays, findArrayPaths, hasArrays } from '../../src/reporters/arrayDiffer';
+import { generateHtmlReport, HtmlReporterError, isHtmlReporterError } from '../../src/reporters/htmlReporter';
+import { deepEqual } from '../../src/utils/deepEqual';
+import { generateUnifiedDiff } from '../../src/utils/diffGenerator';
+import { isYamlFile } from '../../src/utils/fileType';
+import { getValueAtPath } from '../../src/utils/jsonPath';
+import { normalizeForComparison, serializeForDiff } from '../../src/utils/serialization';
 
 // Helper to create a mock logger
 const createMockLogger = (): Logger => {

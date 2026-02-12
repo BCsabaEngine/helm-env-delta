@@ -3,7 +3,6 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
     include: ['test/**/*.test.ts', 'test/perf/**/*.perf.test.ts'],
     exclude: [
       '**/node_modules/**',
@@ -28,6 +27,9 @@ export default defineConfig({
         'dist/**',
         'node_modules/**',
         'src/utils/index.ts', // Barrel exports only
+        'src/config/index.ts', // Barrel exports only
+        'src/pipeline/index.ts', // Barrel exports only
+        'src/reporters/index.ts', // Barrel exports only
         'src/index.ts' // Entry point, needs refactoring for testability
       ],
       thresholds: {

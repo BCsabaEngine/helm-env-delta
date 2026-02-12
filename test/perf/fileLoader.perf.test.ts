@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { bench, describe } from 'vitest';
 
-import { loadFiles } from '../../src/fileLoader';
+import { loadFiles } from '../../src/pipeline/fileLoader';
 import { generateYaml } from './fixtures/dataGenerator';
 
 const createFileStructure = async (baseDirectory: string, fileCount: number): Promise<void> => {

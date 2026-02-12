@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeFileDiff, getSkipPathsForFile } from '../src/fileDiff';
+import { computeFileDiff, getSkipPathsForFile } from '../../src/pipeline/fileDiff';
 
 describe('fileDiff', () => {
   describe('computeFileDiff', () => {

@@ -1,10 +1,10 @@
 import chalk from 'chalk';
 
-import { Config } from './configFile';
-import { AddedFile, ChangedFile, FileDiffResult, getSkipPathsForFile } from './fileDiff';
-import { generateUnifiedDiff } from './utils/diffGenerator';
-import { isYamlFile } from './utils/fileType';
-import { serializeForDiff } from './utils/serialization';
+import { Config } from '../config';
+import { AddedFile, ChangedFile, FileDiffResult, getSkipPathsForFile } from '../pipeline';
+import { generateUnifiedDiff } from '../utils/diffGenerator';
+import { isYamlFile } from '../utils/fileType';
+import { serializeForDiff } from '../utils/serialization';
 
 // ============================================================================
 // Helper Functions

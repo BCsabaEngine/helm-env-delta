@@ -3,9 +3,9 @@ import path from 'node:path';
 
 import * as YAML from 'yaml';
 
+import { MAX_CONFIG_EXTENDS_DEPTH } from '../constants';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
 import { type BaseConfig, parseBaseConfig, type TransformRules } from './configFile';
-import { MAX_CONFIG_EXTENDS_DEPTH } from './constants';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 
 // ============================================================================
 // Error Handling
@@ -194,7 +194,7 @@ export const resolveConfigWithExtends = (
   configPath: string,
   visited: Set<string> = new Set(),
   depth: number = 0,
-  logger?: import('./logger').Logger
+  logger?: import('../logger').Logger
 ): BaseConfig => {
   // Check depth limit
   if (depth > MAX_CONFIG_EXTENDS_DEPTH) {

@@ -4,12 +4,12 @@ import path from 'node:path';
 import { glob as tinyglobbyGlob } from 'tinyglobby';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FileLoaderError, isFileLoaderError, loadFiles } from '../src/fileLoader';
-import { transformFilename, transformFilenameMap, TransformMapResult } from '../src/utils/filenameTransformer';
+import { FileLoaderError, isFileLoaderError, loadFiles } from '../../src/pipeline/fileLoader';
+import { transformFilename, transformFilenameMap, TransformMapResult } from '../../src/utils/filenameTransformer';
 
 vi.mock('node:fs/promises');
 vi.mock('tinyglobby');
-vi.mock('../src/utils/filenameTransformer');
+vi.mock('../../src/utils/filenameTransformer');
 
 const mockStat = vi.mocked(fsPromisesStat);
 const mockReadFile = vi.mocked(fsPromisesReadFile);

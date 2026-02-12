@@ -1,15 +1,15 @@
-import type { RegexFileKeyRule, RegexFileRule, RegexRule, StopRule } from './configFile';
-import type { ChangedFile, FileDiffResult } from './fileDiff';
+import type { RegexFileKeyRule, RegexFileRule, RegexRule, StopRule } from '../config';
 import {
   loadRegexPatternArray,
   loadRegexPatternsFromKeys,
   validatePathlessRegex,
   validateTargetedRegex,
   validateVersionString
-} from './utils';
-import { createErrorClass, createErrorTypeGuard } from './utils/errors';
-import { getValueAtPath, parseJsonPath } from './utils/jsonPath';
-import { globalMatcher } from './utils/patternMatcher';
+} from '../utils';
+import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
+import { getValueAtPath, parseJsonPath } from '../utils/jsonPath';
+import { globalMatcher } from '../utils/patternMatcher';
+import type { ChangedFile, FileDiffResult } from './fileDiff';
 
 // ============================================================================
 // Error Handling
@@ -74,7 +74,7 @@ export const validateStopRules = (
   diffResult: FileDiffResult,
   stopRulesConfig?: Record<string, StopRule[]>,
   configDirectory?: string,
-  logger?: import('./logger').Logger
+  logger?: import('../logger').Logger
 ): ValidationResult => {
   if (!stopRulesConfig) return { violations: [], isValid: true };
 

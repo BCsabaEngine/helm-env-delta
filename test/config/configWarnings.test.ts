@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FinalConfig } from '../src/configFile';
-import { validateConfigWarnings } from '../src/configWarnings';
+import type { FinalConfig } from '../../src/config/configFile';
+import { validateConfigWarnings } from '../../src/config/configWarnings';
 
 const createBaseConfig = (): FinalConfig => ({
   source: './source',

@@ -1,4 +1,4 @@
-import type { TransformConfig } from '../configFile';
+import type { TransformConfig } from '../config';
 import { createErrorClass, createErrorTypeGuard } from './errors';
 import { transformFilename } from './filenameTransformer';
 

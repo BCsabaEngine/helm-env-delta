@@ -40,9 +40,9 @@
     "test:coverage": "vitest run --coverage",
     "test:perf": "vitest bench --run",
     "test:perf:json": "vitest bench --run --reporter=json --outputFile=benchmark-results.json",
-    "test:all": "npm test && npm run test:perf",
+    "test:all": "node --run test && node --run test:perf",
     "clean": "tsc --build --clean",
-    "build": "tsc --build --clean && tsc --build --force",
+    "build": "tsc --build --clean && tsc --build",
     "format:check": "prettier --check .",
     "format:fix": "prettier --write . | grep -v 'unchanged' | sed G",
     "lint:check": "eslint .",
@@ -63,15 +63,10 @@
     "sync",
     "automation"
   ],
-  "overrides": {
-    "mkdirp": "3.0.1"
-  },
   "devDependencies": {
-    "@types/hogan.js": "^3.0.5",
     "@types/node": "^25.2.3",
     "@types/picomatch": "^4.0.2",
     "@typescript-eslint/eslint-plugin": "^8.55.0",
-    "@typescript-eslint/parser": "^8.55.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",

@@ -1,6 +1,6 @@
 import { bench, describe } from 'vitest';
 
-import { findArrayDifferences } from '../../src/arrayDiffer';
+import { findArrayDifferences } from '../../src/reporters/arrayDiffer';
 import { normalizeForComparison } from '../../src/utils/serialization';
 import { generateObjectArray } from './fixtures/dataGenerator';
 

@@ -3,7 +3,7 @@
  * Handles both targeted (with path) and global (pathless) validation modes.
  */
 
-import type { StopRule } from '../configFile';
+import type { StopRule } from '../config';
 
 // ============================================================================
 // Types

@@ -1,7 +1,7 @@
 import { bench, describe } from 'vitest';
 import * as YAML from 'yaml';
 
-import { validateStopRules } from '../../src/stopRulesValidator';
+import { validateStopRules } from '../../src/pipeline/stopRulesValidator';
 import { generateFileMap } from './fixtures/dataGenerator';
 
 const generateChangedFiles = (count: number) => {

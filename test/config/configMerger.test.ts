@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as YAML from 'yaml';
 
-import type { BaseConfig } from '../src/configFile';
-import { ConfigMergerError, isConfigMergerError, mergeConfigs, resolveConfigWithExtends } from '../src/configMerger';
+import type { BaseConfig } from '../../src/config/configFile';
+import {
+  ConfigMergerError,
+  isConfigMergerError,
+  mergeConfigs,
+  resolveConfigWithExtends
+} from '../../src/config/configMerger';
 
 vi.mock('node:fs', () => ({
   readFileSync: vi.fn()

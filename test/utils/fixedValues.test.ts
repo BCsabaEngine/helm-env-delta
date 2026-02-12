@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FixedValueConfig, FixedValueRule } from '../../src/configFile';
+import type { FixedValueConfig, FixedValueRule } from '../../src/config/configFile';
 import { applyFixedValues, getFixedValuesForFile, setValueAtPath } from '../../src/utils/fixedValues';
 import { parseJsonPath } from '../../src/utils/jsonPath';
 

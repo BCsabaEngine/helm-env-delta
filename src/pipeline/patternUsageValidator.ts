@@ -1,9 +1,9 @@
 import YAML from 'yaml';
 
-import type { FinalConfig, StopRule } from './configFile';
+import type { FinalConfig, StopRule } from '../config';
+import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from '../utils/jsonPath';
+import { globalMatcher } from '../utils/patternMatcher';
 import type { FileMap } from './fileLoader';
-import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } from './utils/jsonPath';
-import { globalMatcher } from './utils/patternMatcher';
 
 /**
  * Result of pattern usage validation.

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Logger } from '../src/logger';
-import { StopRuleViolation } from '../src/stopRulesValidator';
+import { StopRuleViolation } from '../src/pipeline/stopRulesValidator';
 
 describe('Logger', () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;

@@ -1,6 +1,6 @@
 import { bench, describe } from 'vitest';
 
-import { formatYaml } from '../../src/yamlFormatter';
+import { formatYaml } from '../../src/pipeline/yamlFormatter';
 import { generateYaml } from './fixtures/dataGenerator';
 
 describe('yamlFormatter performance', () => {

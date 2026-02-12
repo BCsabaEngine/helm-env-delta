@@ -1,5 +1,5 @@
-import { Config, StopRule } from './configFile';
-import { ChangedFile, FileDiffResult } from './fileDiff';
+import { Config, StopRule } from './config';
+import { ChangedFile, FileDiffResult } from './pipeline';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { parseJsonPath } from './utils/jsonPath';
 import {
