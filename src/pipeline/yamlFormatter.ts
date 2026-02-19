@@ -421,7 +421,7 @@ const compareSortKeys = (
   if (a === undefined) return 1;
   if (b === undefined) return -1;
 
-  let result = 0;
+  let result: number;
 
   if (typeof a === 'string' && typeof b === 'string') result = a.toLowerCase().localeCompare(b.toLowerCase());
   else if (typeof a === 'number' && typeof b === 'number') result = a - b;
