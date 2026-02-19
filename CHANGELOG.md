@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-02-19
+
+### Changed
+
+- Source restructure: `src/` files reorganized into `config/`, `pipeline/`, and `reporters/` subdirectories with barrel exports for cleaner imports and better separation of concerns.
+- Dev dependencies updated: eslint upgraded to v10, `@types/node` to v25, `@typescript-eslint` to v8. Build now uses `tsc --build` (project references mode) for faster incremental builds.
+- New `test:all` npm script runs both unit tests and performance benchmarks in sequence.
+
 ## [1.13.0] - 2026-02-12
 
 ### Added

@@ -9,10 +9,12 @@ HelmEnvDelta (`helm-env-delta`/`hed`) — CLI for environment-aware YAML delta a
 ## Development Commands
 
 ```bash
-npm run build         # Clean build (tsc)
+npm run build         # Clean build (tsc --build --clean + tsc --build)
+npm run clean         # Clean tsc build artifacts only
 npm run dev           # Run with tsx and example config
 npm test              # Run all tests
 npm run test:perf     # Performance benchmarks
+npm run test:all      # Run all tests + perf benchmarks
 npm run fix           # Format + lint + format
 npm run all           # Fix + build + test (pre-commit gate)
 npm run lint:check    # ESLint only
@@ -70,7 +72,7 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 
 ## Testing
 
-Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests. 8 perf benchmark files using `bench()` API. Coverage thresholds: lines 80%, functions 95%, branches 75%. Barrel exports and `src/index.ts` excluded from coverage.
+Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests (use `test:all` to run both). 8 perf benchmark files using `bench()` API. Coverage thresholds: lines 80%, functions 95%, branches 75%. Barrel exports and `src/index.ts` excluded from coverage.
 
 ## Config Schema
 
