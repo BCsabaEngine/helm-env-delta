@@ -561,7 +561,7 @@ const calculateTransformConfidence = (occurrence: PatternOccurrence): number => 
   const fileCount = occurrence.files.size;
   const occurrenceCount = occurrence.examples.length;
 
-  let confidence = 0;
+  let confidence: number;
 
   if (fileCount === 1)
     confidence =
