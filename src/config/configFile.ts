@@ -120,7 +120,7 @@ const stopRuleSchema = z.discriminatedUnion('type', [
 // Array Sort Schema
 const arraySortRuleSchema = z.object({
   path: z.string().min(1),
-  sortBy: z.string().min(1),
+  sortBy: z.string().min(1).optional(),
   order: z.enum(['asc', 'desc']).default('asc')
 });
 

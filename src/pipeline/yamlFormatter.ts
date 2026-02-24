@@ -342,7 +342,7 @@ const traverseAndSort = (
   node: unknown,
   currentPath: string[],
   targetPath: string[],
-  sortByField: string,
+  sortByField: string | undefined,
   order: 'asc' | 'desc'
 ): void => {
   if (!node || typeof node !== 'object') return;
@@ -374,8 +374,14 @@ const isPotentialMatch = (currentPath: string[], targetPath: string[]): boolean 
   return true;
 };
 
-const sortYamlSeq = (seq: YAMLSeq, sortByField: string, order: 'asc' | 'desc'): void => {
+const sortYamlSeq = (seq: YAMLSeq, sortByField: string | undefined, order: 'asc' | 'desc'): void => {
   if (!seq.items || seq.items.length === 0) return;
+
+  const firstItem = seq.items.find((item) => item != undefined);
+  if (firstItem !== undefined) {
+    if (sortByField === undefined && isYamlMap(firstItem)) return;
+    if (sortByField !== undefined && isScalar(firstItem)) return;
+  }
 
   const itemsWithSortKeys: Array<{ item: unknown; sortKey: string | number | undefined }> = [];
 
@@ -392,7 +398,16 @@ const sortYamlSeq = (seq: YAMLSeq, sortByField: string, order: 'asc' | 'desc'): 
   seq.items = [...itemsWithKeys, ...itemsWithoutKeys].map((entry) => entry.item);
 };
 
-const extractSortKey = (item: unknown, sortByField: string): string | number | undefined => {
+const extractSortKey = (item: unknown, sortByField: string | undefined): string | number | undefined => {
+  if (sortByField === undefined) {
+    if (isScalar(item)) {
+      const value = item.value;
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number') return value;
+    }
+    return undefined;
+  }
+
   if (!isYamlMap(item)) return undefined;
 
   for (const pair of item.items) {
