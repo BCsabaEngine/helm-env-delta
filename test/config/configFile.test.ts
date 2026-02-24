@@ -610,7 +610,7 @@ describe('configFile', () => {
       expect(() => parseFinalConfig(config)).toThrow(ZodValidationError);
     });
 
-    it('should require sortBy field', () => {
+    it('should allow omitting sortBy field (scalar array mode)', () => {
       const config = {
         source: './src',
         destination: './dest',
@@ -621,7 +621,7 @@ describe('configFile', () => {
         }
       };
 
-      expect(() => parseFinalConfig(config)).toThrow(ZodValidationError);
+      expect(() => parseFinalConfig(config)).not.toThrow();
     });
   });
 
