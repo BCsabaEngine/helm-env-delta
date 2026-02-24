@@ -20,6 +20,12 @@ spec:
               value: info
             - name: DEBUG
               value: 'false'
+main:
+  volumes:
+    - ccc
+    - aaa
+    - bbb
+    - 111
 kind: Deployment
 metadata:
   labels:

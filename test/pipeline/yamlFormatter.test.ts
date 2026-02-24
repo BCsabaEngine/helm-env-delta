@@ -657,6 +657,149 @@ env:
       expect(result).toContain('value: "true"');
       expect(result).toContain('value: "false"');
     });
+
+    it('should sort scalar string array ascending (no sortBy)', () => {
+      const input = `volumes:
+  - ccc
+  - aaa
+  - bbb`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'volumes', order: 'asc' }]
+        }
+      });
+
+      const items = result
+        .split('\n')
+        .filter((l) => l.trim().startsWith('- '))
+        .map((l) => l.trim().slice(2));
+
+      expect(items).toEqual(['aaa', 'bbb', 'ccc']);
+    });
+
+    it('should sort scalar string array descending (no sortBy)', () => {
+      const input = `volumes:
+  - ccc
+  - aaa
+  - bbb`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'volumes', order: 'desc' }]
+        }
+      });
+
+      const items = result
+        .split('\n')
+        .filter((l) => l.trim().startsWith('- '))
+        .map((l) => l.trim().slice(2));
+
+      expect(items).toEqual(['ccc', 'bbb', 'aaa']);
+    });
+
+    it('should sort scalar number array ascending (no sortBy)', () => {
+      const input = `ids:
+  - 30
+  - 5
+  - 100
+  - 20`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'ids', order: 'asc' }]
+        }
+      });
+
+      const items = result
+        .split('\n')
+        .filter((l) => l.trim().startsWith('- '))
+        .map((l) => Number(l.trim().slice(2)));
+
+      expect(items).toEqual([5, 20, 30, 100]);
+    });
+
+    it('should sort scalar array at nested path (no sortBy)', () => {
+      const input = `main:
+  volumes:
+    - ccc
+    - aaa
+    - bbb
+    - 111`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'main.volumes', order: 'asc' }]
+        }
+      });
+
+      const volumesSection = result.split('volumes:')[1];
+      const items = volumesSection
+        .split('\n')
+        .filter((l) => l.trim().startsWith('- '))
+        .map((l) => l.trim().slice(2));
+
+      expect(items[0]).toBe('111');
+      expect(items[1]).toBe('aaa');
+      expect(items[2]).toBe('bbb');
+      expect(items[3]).toBe('ccc');
+    });
+
+    it('should skip sorting (no sortBy) when items are objects', () => {
+      const input = `env:
+  - name: ZEBRA
+    value: z
+  - name: ALPHA
+    value: a`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'env', order: 'asc' }]
+        }
+      });
+
+      // No sortBy → scalar mode; items are objects → skip, order preserved
+      const names = result
+        .split('\n')
+        .filter((l) => l.includes('name:'))
+        .map((l) => l.split(':')[1].trim());
+
+      expect(names[0]).toBe('ZEBRA');
+      expect(names[1]).toBe('ALPHA');
+    });
+
+    it('should skip sorting (with sortBy) when items are scalars', () => {
+      const input = `volumes:
+  - ccc
+  - aaa
+  - bbb`;
+
+      const result = formatYaml(input, 'test.yaml', {
+        indent: 2,
+        keySeparator: false,
+        arraySort: {
+          '*.yaml': [{ path: 'volumes', sortBy: 'name', order: 'asc' }]
+        }
+      });
+
+      // sortBy provided → object mode; items are scalars → skip, order preserved
+      const items = result
+        .split('\n')
+        .filter((l) => l.trim().startsWith('- '))
+        .map((l) => l.trim().slice(2));
+
+      expect(items).toEqual(['ccc', 'aaa', 'bbb']);
+    });
   });
 
   describe('keySort', () => {

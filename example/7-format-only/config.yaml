@@ -53,3 +53,5 @@ outputFormat:
         sortBy: 'name'
       - path: 'spec.ports'
         sortBy: 'name'
+      - path: 'main.volumes'
+        order: 'asc'

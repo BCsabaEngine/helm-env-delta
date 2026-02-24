@@ -706,7 +706,9 @@ outputFormat:
   arraySort: # Sort arrays
     'services/**/values.yaml':
       - path: 'env'
-        sortBy: 'name'
+        sortBy: 'name' # Sort object array by field
+        order: 'asc'
+      - path: 'volumes' # No sortBy → sort scalar array by value
         order: 'asc'
 
   quoteValues: # Force quoting
