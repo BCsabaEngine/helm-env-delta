@@ -81,7 +81,7 @@ Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests (use `test:a
 - **transforms:** `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
 - **stopRules:** semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey. With `path`: checks specific JSONPath. Without: scans ALL values
 - **fixedValues:** glob → array of `{path, value}`. All filter operators supported. Last rule wins for same path
-- **outputFormat:** indent, keySeparator, quoteValues, keyOrders, keySort, arraySort
+- **outputFormat:** indent, keySeparator, quoteValues, keyOrders, keySort, arraySort. `arraySort` rules: `path` (required), `sortBy` (optional — omit for scalar/keyless arrays, required for object arrays), `order` (asc/desc)
 
 ## CLI Filter (`-f/--filter`)
 

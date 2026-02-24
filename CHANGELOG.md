@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-02-24
+
+### Added
+
+- Scalar array sorting: `arraySort` can now sort plain value arrays (strings, numbers) without a `sortBy` field. Simply omit `sortBy` and the array items themselves are used as the sort key. Great for sorting volume lists, tag arrays, or any sequence of plain values. Object arrays still require `sortBy` as before. Mismatched modes are silently skipped, so mixing scalar and object array rules in the same config is safe.
+
 ## [1.13.1] - 2026-02-19
 
 ### Changed
