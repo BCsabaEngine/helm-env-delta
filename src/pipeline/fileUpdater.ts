@@ -6,12 +6,7 @@ import YAML from 'yaml';
 import { Config } from '../config';
 import { formatProgressMessage } from '../consoleFormatter';
 import { Logger } from '../logger';
-import {
-  findMatchingTargetItem,
-  getApplicableArrayFilters,
-  itemMatchesAnyFilter,
-  shouldPreserveItem
-} from '../utils/arrayMerger';
+import { findMatchingTargetItem, getApplicableArrayFilters, itemMatchesAnyFilter } from '../utils/arrayMerger';
 import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
 import { isYamlFile } from '../utils/fileType';
@@ -157,8 +152,25 @@ const deepMerge = (
       result.push(sourceItem);
     }
 
+    // Build O(1) lookup set for duplicate detection before iterating fullTargetArray
+    const resultKeySet = new Set<string>(
+      result
+        .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+        .map((item) => JSON.stringify(applicableFilters.map((f) => item[f.filter.property])))
+    );
+
     // Add back items from fullTarget that match skipPath filters but aren't in source
-    for (const item of fullTargetArray) if (shouldPreserveItem(item, applicableFilters, result)) result.push(item);
+    for (const item of fullTargetArray) {
+      if (!item || typeof item !== 'object') continue;
+      const { matches } = itemMatchesAnyFilter(item, applicableFilters);
+      if (!matches) continue;
+
+      const key = JSON.stringify(applicableFilters.map((f) => (item as Record<string, unknown>)[f.filter.property]));
+      if (!resultKeySet.has(key)) {
+        result.push(item);
+        resultKeySet.add(key);
+      }
+    }
 
     return result;
   }
@@ -198,7 +210,7 @@ const mergeYamlContent = (
   filteredDestinationContent: unknown,
   filePath: string,
   skipPaths: string[] = []
-): string => {
+): { content: string; merged: unknown } => {
   // 1. Parse current destination (full, unfiltered)
   let destinationParsed: unknown;
   try {
@@ -232,7 +244,7 @@ const mergeYamlContent = (
 
   // 3. Serialize back to YAML
   try {
-    return YAML.stringify(merged);
+    return { content: YAML.stringify(merged), merged };
   } catch (error) {
     throw new FileUpdaterError('Failed to serialize merged YAML', {
       code: 'YAML_SERIALIZE_ERROR',
@@ -302,23 +314,31 @@ const updateFile = async (options: UpdateFileOptions): Promise<void> => {
     return;
   }
 
-  let contentToWrite: string = isYamlFile(changedFile.path)
-    ? mergeYamlContent(
-        changedFile.destinationContent,
-        changedFile.rawParsedSource,
-        changedFile.rawParsedDest,
-        changedFile.path,
-        changedFile.skipPaths
-      )
-    : changedFile.sourceContent;
+  let contentToWrite: string;
+  let mergedObject: unknown | undefined;
 
   if (isYamlFile(changedFile.path)) {
-    // Apply fixed values after merge, before formatting
-    const fixedValueRules = getFixedValuesForFile(changedFile.path, config.fixedValues);
+    const mergeResult = mergeYamlContent(
+      changedFile.destinationContent,
+      changedFile.rawParsedSource,
+      changedFile.rawParsedDest,
+      changedFile.path,
+      changedFile.skipPaths
+    );
+    contentToWrite = mergeResult.content;
+    mergedObject = mergeResult.merged;
+  } else contentToWrite = changedFile.sourceContent;
+
+  if (isYamlFile(changedFile.path)) {
+    // Apply fixed values after merge, before formatting.
+    // fixedValueRules are pre-computed in fileDiff to avoid redundant glob matching;
+    // fall back to on-demand lookup for manually constructed ChangedFile objects (e.g. tests).
+    const fixedValueRules = changedFile.fixedValueRules ?? getFixedValuesForFile(changedFile.path, config.fixedValues);
     if (fixedValueRules.length > 0) {
-      const parsed = YAML.parse(contentToWrite);
-      applyFixedValues(parsed, fixedValueRules);
-      contentToWrite = YAML.stringify(parsed);
+      // Reuse the already-parsed merged object to avoid an extra YAML.parse round-trip
+      const target = mergedObject ?? YAML.parse(contentToWrite);
+      applyFixedValues(target, fixedValueRules);
+      contentToWrite = YAML.stringify(target);
     }
 
     const effectiveOutputFormat = skipFormat ? undefined : config.outputFormat;

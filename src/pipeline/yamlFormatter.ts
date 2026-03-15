@@ -25,16 +25,28 @@ export const isYamlFormatterError = createErrorTypeGuard(YamlFormatterError);
 // Helper Functions
 // ============================================================================
 
-// Batch all pattern matching in a single pass for better performance
-const getFormattingRules = (
-  filePath: string,
-  outputFormat: OutputFormat
-): {
+type FormattingRules = {
   keyOrders: string[][];
   keySort: KeySortRule[][];
   arraySort: ArraySortRule[][];
   quoteValues: string[][];
-} => {
+};
+
+// Two-level cache: outputFormat object → filePath → computed rules
+// WeakMap allows the config object to be GC'd; inner Map is per file path.
+const formattingRulesCache = new WeakMap<object, Map<string, FormattingRules>>();
+
+// Batch all pattern matching in a single pass for better performance
+const getFormattingRules = (filePath: string, outputFormat: NonNullable<OutputFormat>): FormattingRules => {
+  let fileMap = formattingRulesCache.get(outputFormat);
+  if (!fileMap) {
+    fileMap = new Map();
+    formattingRulesCache.set(outputFormat, fileMap);
+  }
+
+  const cached = fileMap.get(filePath);
+  if (cached) return cached;
+
   const keyOrders: string[][] = [];
   const keySort: KeySortRule[][] = [];
   const arraySort: ArraySortRule[][] = [];
@@ -64,7 +76,9 @@ const getFormattingRules = (
     if (quoteValue) quoteValues.push(quoteValue);
   }
 
-  return { keyOrders, keySort, arraySort, quoteValues };
+  const rules: FormattingRules = { keyOrders, keySort, arraySort, quoteValues };
+  fileMap.set(filePath, rules);
+  return rules;
 };
 
 const preserveMultilineStrings = (yamlDocument: Document): void => {

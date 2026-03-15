@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
+import { isSafeRegex } from '../utils/regexSafety';
 import { ZodValidationError } from './ZodError';
 
 // Stop Rule Schemas (Discriminated Union)
@@ -70,7 +71,11 @@ const regexRuleSchema = z
       message: 'Invalid regular expression pattern',
       path: ['regex']
     }
-  );
+  )
+  .refine((data) => isSafeRegex(data.regex), {
+    message: 'Potentially unsafe regex pattern (may cause catastrophic backtracking / ReDoS)',
+    path: ['regex']
+  });
 
 /**
  * Validates field values against regex patterns loaded from a YAML array file.
@@ -133,9 +138,26 @@ const keySortRuleSchema = z.object({ path: z.string().min(1) });
  * Applied after merge, before formatting.
  * Supports all JSONPath filter operators: =, ^=, $=, *=
  */
+
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const hasDangerousKeys = (value: unknown): boolean => {
+  if (value === null || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some((item) => hasDangerousKeys(item));
+  for (const key of Object.keys(value as object))
+    if (DANGEROUS_KEYS.has(key) || hasDangerousKeys((value as Record<string, unknown>)[key])) return true;
+  return false;
+};
+
+const safeFixedValue = z
+  .union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown()), z.record(z.string(), z.unknown())])
+  .refine((value) => !hasDangerousKeys(value), {
+    message: 'Value must not contain prototype-polluting keys (__proto__, constructor, prototype)'
+  });
+
 const fixedValueRuleSchema = z.object({
   path: z.string().min(1).describe('JSONPath to the value to set'),
-  value: z.unknown().describe('The constant value to set (any type: string, number, boolean, null, object, array)')
+  value: safeFixedValue.describe('The constant value to set (any type: string, number, boolean, null, object, array)')
 });
 
 // ============================================================================
@@ -164,7 +186,11 @@ const transformRuleSchema = z
       message: 'Invalid regular expression pattern',
       path: ['find']
     }
-  );
+  )
+  .refine((data) => isSafeRegex(data.find), {
+    message: 'Potentially unsafe regex pattern (may cause catastrophic backtracking / ReDoS)',
+    path: ['find']
+  });
 
 /**
  * Transform rules configuration for a file pattern.
