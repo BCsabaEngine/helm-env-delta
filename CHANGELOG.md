@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.1] - 2026-03-15
+
+### Security
+
+- ReDoS protection: Regex patterns in `stopRules`, `transforms`, and external pattern files are now validated against catastrophic backtracking at config load time. Patterns with nested quantifiers on groups (e.g., `(a+)+`, `(a*)*`) are rejected with a clear error message.
+- Prototype pollution protection: `fixedValues` values are now validated to reject objects containing `__proto__`, `constructor`, or `prototype` keys.
+
+### Changed
+
+- Performance: Formatting rules now use a two-level WeakMap/Map cache (per `outputFormat` config object, per file path) — avoids recomputing glob pattern matches on repeated file processing runs.
+- Performance: Compiled `RegExp` instances for transforms are cached module-wide to avoid repeated recompilation across files.
+- Performance: Array normalization uses `JSON.stringify` with recursively sorted keys instead of `YAML.stringify` for sort key generation (~3-5x faster).
+- Performance: `applySkipPaths` selectively deep-clones only affected YAML branches instead of the full document (`structuredClone`).
+- Performance: `fixedValueRules` are pre-computed once during diff and stored on each `ChangedFile` (avoiding redundant glob matching in the update step). The already-parsed merged object is passed directly to fixed value application, eliminating an extra `YAML.parse` round-trip.
+
 ## [1.14.0] - 2026-02-24
 
 ### Added

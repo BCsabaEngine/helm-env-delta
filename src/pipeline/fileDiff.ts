@@ -1,6 +1,6 @@
 import YAML from 'yaml';
 
-import { Config, FixedValueConfig, OutputFormat, TransformConfig } from '../config';
+import { Config, FixedValueConfig, FixedValueRule, OutputFormat, TransformConfig } from '../config';
 import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
 import { deepEqual } from '../utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
@@ -31,6 +31,7 @@ export interface ChangedFile {
   rawParsedSource: unknown;
   rawParsedDest: unknown;
   skipPaths: string[];
+  fixedValueRules: FixedValueRule[]; // Pre-computed once in fileDiff, reused in fileUpdater
   normalizedSource?: unknown;
   normalizedDest?: unknown;
   parsedSource?: unknown;
@@ -203,11 +204,36 @@ const applySkipPaths = (data: unknown, skipPaths: string[]): unknown => {
   if (!data || typeof data !== 'object') return data;
   if (skipPaths.length === 0) return data; // Early return avoids expensive clone
 
-  const cloned = structuredClone(data) as Record<string, unknown>;
+  // Selective clone: determine which top-level keys are actually affected by skipPaths,
+  // then only deep-clone those branches. Unaffected keys are shared by reference.
+  // Fall back to full clone for wildcards or top-level filter segments on arrays.
+  const affectedKeys = new Set<string>();
+  let needsFullClone = false;
 
-  for (const path of skipPaths) deleteJsonPath(cloned, path);
+  for (const skipPath of skipPaths) {
+    const parts = parseJsonPath(skipPath);
+    if (parts.length === 0) continue;
+    const firstPart = parts[0]!;
+    if (firstPart === '*' || (isFilterSegment(firstPart) && Array.isArray(data))) {
+      needsFullClone = true;
+      break;
+    }
+    affectedKeys.add(firstPart);
+  }
 
-  return cloned;
+  if (needsFullClone) {
+    const cloned = structuredClone(data) as Record<string, unknown>;
+    for (const path of skipPaths) deleteJsonPath(cloned, path);
+    return cloned;
+  }
+
+  // Shallow-copy root, then deep-clone only the affected branches
+  const object = data as Record<string, unknown>;
+  const result = { ...object };
+  for (const key of affectedKeys) if (key in result) result[key] = structuredClone(result[key]);
+
+  for (const path of skipPaths) deleteJsonPath(result, path);
+  return result;
 };
 
 export const getSkipPathsForFile = (filePath: string, skipPath?: Record<string, string[]>): string[] => {
@@ -296,6 +322,7 @@ const processYamlFile = (options: ProcessYamlOptions): ChangedFile | undefined =
     rawParsedSource: sourceFiltered,
     rawParsedDest: destinationFiltered,
     skipPaths: pathsToSkip,
+    fixedValueRules,
     normalizedSource,
     normalizedDest: normalizedDestination,
     parsedSource: sourceParsed,
@@ -347,7 +374,8 @@ const processChangedFiles = (
         processedDestContent: destinationContent,
         rawParsedSource: sourceContent,
         rawParsedDest: destinationContent,
-        skipPaths: []
+        skipPaths: [],
+        fixedValueRules: []
       });
   }
 

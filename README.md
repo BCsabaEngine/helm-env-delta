@@ -64,7 +64,9 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 🛡️ **Safety First** - Pre-execution summary, first-run tips, improved error messages with helpful examples.
 
-⚡ **High Performance** - 45-60% faster than alternatives with intelligent caching and parallel processing.
+⚡ **High Performance** - Intelligent caching and parallel processing. Formatting rules, compiled regexes, and array normalization are all cached for fast repeated runs.
+
+🔐 **Security Hardened** - Regex inputs (stop rules, transforms, pattern files) are validated against ReDoS (catastrophic backtracking). Fixed values are validated against prototype pollution attacks.
 
 🔔 **Auto Updates** - Notifies when newer versions are available (skips in CI/CD).
 
@@ -523,7 +525,7 @@ fixedValues:
 
 **Supported filter operators:** `=` (equals), `^=` (startsWith), `$=` (endsWith), `*=` (contains) - updates ALL matching items
 
-**Value types:** String, number, boolean, null, object, array
+**Value types:** String, number, boolean, null, object, array (objects with `__proto__`, `constructor`, or `prototype` keys are rejected)
 
 **Behavior:**
 
@@ -677,6 +679,8 @@ stopRules:
 - **Without `path`**: Scan all values recursively (global)
 
 **Override:** Use `--force` to bypass stop rules when needed.
+
+**Regex safety:** All `regex` patterns (inline and from files) are validated against catastrophic backtracking (ReDoS). Patterns with nested quantifiers on groups (e.g., `(a+)+`) are rejected at config load time.
 
 **Visibility:** Stop rule violations appear in console output, JSON reports, and HTML reports (dry-run mode only, as a collapsible table in the header area).
 

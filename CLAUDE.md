@@ -40,7 +40,7 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 - `config/` — Zod schemas (BaseConfig → FinalConfig), config loading with inheritance (max 5 levels), merging, warnings
 - `pipeline/` — fileLoader (glob→Map), fileDiff (structural YAML comparison), fileUpdater (deep merge), yamlFormatter (AST-based), stopRulesValidator, patternUsageValidator
 - `reporters/` — HTML (self-contained standalone files with diff2html), console diff, JSON output, tree builder/renderer
-- `utils/` — errors (factory pattern), jsonPath (CSS-style filters), transformer, patternMatcher (cached), arrayMerger (skipPath-aware), fixedValues, fileFilter, collisionDetector, versionChecker
+- `utils/` — errors (factory pattern), jsonPath (CSS-style filters), transformer, patternMatcher (cached), arrayMerger (skipPath-aware), fixedValues, fileFilter, collisionDetector, versionChecker, regexSafety (ReDoS detection), regexTransform (cached regex compilation), serialization (deepSortKeys for fast normalization)
 
 **Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk
 
@@ -58,7 +58,9 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 
 **Data flow:** `Map<string, string>` throughout (filename → YAML content). Sorted keys for deterministic output. JSONPath uses no `$.` prefix; CSS-style filters: `[prop=val]`, `[prop^=prefix]`, `[prop$=suffix]`, `[prop*=substr]`.
 
-**Caching:** patternMatcher (global glob cache), serialization (normalized YAML strings), stop rule memoization (version comparisons).
+**Caching:** patternMatcher (global glob cache), serialization (normalized YAML strings), stop rule memoization (version comparisons), yamlFormatter (two-level WeakMap/Map cache per outputFormat config object + file path), regexTransform (module-level Map of compiled RegExp instances).
+
+**Security validation:** `regexSafety.isSafeRegex()` detects nested quantifiers (ReDoS) in all regex inputs — `stopRules` regex, `transforms` find patterns, and external pattern files. `fixedValues` values are validated against prototype-polluting keys (`__proto__`, `constructor`, `prototype`) via Zod schema.
 
 **Config inheritance:** Single parent via `extends`, max 5 levels, circular detection. Merging: primitives override, arrays concatenate, per-file records merge keys + concat arrays, outputFormat shallow merges.
 

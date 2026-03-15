@@ -1,4 +1,5 @@
 import { createErrorClass, createErrorTypeGuard } from './errors';
+import { isSafeRegex } from './regexSafety';
 import { isYamlFileLoaderError, loadYamlFile } from './yamlFileLoader';
 
 // ============================================================================
@@ -71,6 +72,12 @@ const validateRegexPattern = (pattern: string, source: string): void => {
       cause: error as Error
     });
   }
+
+  if (!isSafeRegex(pattern))
+    throw new RegexPatternFileLoaderError(
+      `Potentially unsafe regex pattern "${pattern}" ${source} — may cause catastrophic backtracking (ReDoS)`,
+      { code: 'INVALID_REGEX' }
+    );
 };
 
 // ============================================================================
