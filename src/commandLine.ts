@@ -27,6 +27,8 @@ export type SyncCommand = {
   suggestThreshold: number;
   filter?: string;
   mode: ChangeMode;
+  my: boolean;
+  myDays: number;
 };
 
 // ============================================================================
@@ -56,6 +58,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('--no-color', 'Disable colored output')
     .option('-f, --filter <string>', 'Filter files by filename or content (supports , for OR, + for AND)')
     .option('-m, --mode <type>', 'Filter by change type: new, modified, deleted, all', 'all')
+    .option('--my [days]', 'Filter source files to those you modified in the last N days (default: 30)')
     .option('--verbose', 'Show detailed debug information', false)
     .option('--quiet', 'Suppress all output except critical errors', false)
     .addHelpText(
@@ -92,6 +95,12 @@ Examples:
   # Preview modified files only
   $ helm-env-delta --config config.yaml --mode modified --dry-run --diff
 
+  # Sync only files you modified in the last 30 days
+  $ helm-env-delta --config config.yaml --my --dry-run --diff
+
+  # Sync only files you modified in the last 7 days
+  $ helm-env-delta --config config.yaml --my 7 --diff
+
 Documentation: https://github.com/balazscsaba2006/helm-env-delta
 `
     );
@@ -127,6 +136,17 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     process.exit(1);
   }
 
+  // Parse --my [days] option
+  let myDays = 30;
+  if (options['my'] !== undefined && options['my'] !== true) {
+    const parsed = Number.parseInt(options['my'], 10);
+    if (Number.isNaN(parsed) || parsed < 1) {
+      console.error('Error: --my days must be a positive integer');
+      process.exit(1);
+    }
+    myDays = parsed;
+  }
+
   return {
     config: options['config'],
     dryRun: options['dryRun'],
@@ -145,6 +165,8 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     suggest: options['suggest'],
     suggestThreshold: threshold,
     filter: options['filter'],
-    mode: options['mode'] as ChangeMode
+    mode: options['mode'] as ChangeMode,
+    my: options['my'] !== undefined && options['my'] !== false,
+    myDays
   };
 };

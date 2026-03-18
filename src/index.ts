@@ -42,6 +42,7 @@ import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { filterDiffResultByMode, filterFileMap, filterFileMaps, isFilterParseError } from './utils/fileFilter';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
+import { filterFileMapsByGitAuthor, getGitUser, isGitFilterError } from './utils/gitFilter';
 import { checkForUpdates } from './utils/versionChecker';
 
 /**
@@ -143,6 +144,27 @@ const main = async (): Promise<void> => {
       const filtered = filterFileMaps(sourceFiles, destinationFiles, command.filter);
       sourceFiles = filtered.sourceFiles;
       destinationFiles = filtered.destinationFiles;
+    }
+
+    // Apply --my git author filter if provided
+    if (command.my) {
+      const absoluteSourceDirectory = path.isAbsolute(validationConfig.source)
+        ? validationConfig.source
+        : path.resolve(process.cwd(), validationConfig.source);
+      const author = await getGitUser();
+      const filtered = await filterFileMapsByGitAuthor(
+        sourceFiles,
+        destinationFiles,
+        absoluteSourceDirectory,
+        author,
+        command.myDays
+      );
+      sourceFiles = filtered.sourceFiles;
+      destinationFiles = filtered.destinationFiles;
+      logger.progress(
+        `--my filter (${command.myDays} days, author: "${author}") matched ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`,
+        'info'
+      );
     }
 
     logger.progress(`Loaded ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`, 'success');
@@ -302,6 +324,27 @@ const main = async (): Promise<void> => {
     );
   }
 
+  // Apply --my git author filter if provided
+  if (command.my) {
+    const absoluteSourceDirectory = path.isAbsolute(syncConfig.source)
+      ? syncConfig.source
+      : path.resolve(process.cwd(), syncConfig.source);
+    const author = await getGitUser();
+    const filtered = await filterFileMapsByGitAuthor(
+      sourceFiles,
+      destinationFiles,
+      absoluteSourceDirectory,
+      author,
+      command.myDays
+    );
+    sourceFiles = filtered.sourceFiles;
+    destinationFiles = filtered.destinationFiles;
+    logger.progress(
+      `--my filter (${command.myDays} days, author: "${author}") matched ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`,
+      'info'
+    );
+  }
+
   // Early exit for list-files mode
   if (command.listFiles) {
     const sourceFilesList = [...sourceFiles.keys()].toSorted();
@@ -445,6 +488,7 @@ const main = async (): Promise<void> => {
     else if (isJsonReporterError(error)) console.error(error.message);
     else if (isSuggestionEngineError(error)) console.error(error.message);
     else if (isFilterParseError(error)) console.error(error.message);
+    else if (isGitFilterError(error)) console.error(error.message);
     else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);
