@@ -69,6 +69,8 @@ const generateAddedFileSummary = (file: AddedFile): string => {
   return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
 };
 
+const JUMP_TO_SIDEBAR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 2h3v12H2V2zm0-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm5 4h7v1H7V5zm0 3h7v1H7V8zm0 3h5v1H7v-1z"/></svg>`;
+
 const generateAddedFileSection = (file: AddedFile, fileId: string, open: boolean): string => {
   const summary = generateAddedFileSummary(file);
   const escapedContent = escapeHtml(file.processedContent);
@@ -76,7 +78,7 @@ const generateAddedFileSection = (file: AddedFile, fileId: string, open: boolean
 
   return `
     <details class="file-section" id="${fileId}" data-file-id="${fileId}"${open ? ' open' : ''}>
-      <summary>${summary}</summary>
+      <summary><a class="jump-to-sidebar-link" data-file-id="${fileId}" href="#" title="Show in file browser">${JUMP_TO_SIDEBAR_ICON}</a><span class="summary-expand-icon"></span>${summary}</summary>
       <div class="content-container">
         <div class="content-actions">
           <button class="copy-btn" data-file-id="${fileId}" title="Copy to clipboard">📋 Copy</button>
@@ -104,7 +106,7 @@ const generateChangedFileSection = (
 
   const html = `
     <details class="file-section" id="${fileId}" data-file-id="${fileId}"${open ? ' open' : ''}>
-      <summary>${summary}<span class="summary-badges"><span class="line-badge line-added">+${added}</span><span class="line-badge line-removed">-${removed}</span></span></summary>
+      <summary><a class="jump-to-sidebar-link" data-file-id="${fileId}" href="#" title="Show in file browser">${JUMP_TO_SIDEBAR_ICON}</a><span class="summary-expand-icon"></span>${summary}<span class="summary-badges"><span class="line-badge line-added">+${added}</span><span class="line-badge line-removed">-${removed}</span></span></summary>
       <div class="diff-toolbar">
         <button class="copy-diff-btn" data-file-id="${fileId}">Copy Diff</button>
       </div>

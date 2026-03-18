@@ -136,6 +136,40 @@ export const HTML_STYLES = `
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     font-size: 13px;
     color: #24292e;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    list-style: none;
+  }
+
+  .file-section summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .summary-expand-icon::before {
+    content: '\u25B6';
+    font-size: 10px;
+    color: #6a737d;
+  }
+
+  .file-section[open] > summary .summary-expand-icon::before {
+    content: '\u25BC';
+  }
+
+  .jump-to-sidebar-link {
+    display: inline-flex;
+    align-items: center;
+    color: #6a737d;
+    text-decoration: none;
+    padding: 2px 3px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .jump-to-sidebar-link:hover {
+    color: #0969da;
+    background: rgba(9, 105, 218, 0.08);
   }
 
   .file-section summary:hover {
@@ -462,10 +496,9 @@ export const HTML_STYLES = `
 
   /* Line change count badges */
   .summary-badges {
-    float: right;
     display: inline-flex;
     gap: 6px;
-    margin-left: 12px;
+    margin-left: auto;
   }
 
   .line-badge {
@@ -795,6 +828,37 @@ export const TAB_SCRIPT = String.raw`
         }
         link.closest('.tree-file').classList.add('active');
       }
+    });
+  });
+
+  // Jump-to-sidebar link in file block headers
+  document.querySelectorAll('.jump-to-sidebar-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // prevent <details> toggle
+      const fileId = link.getAttribute('data-file-id');
+      const tabContent = link.closest('.tab-content');
+      if (!tabContent || !fileId) return;
+
+      const treeFile = tabContent.querySelector('.tree-file[data-file-id="' + fileId + '"]');
+      if (!treeFile) return;
+
+      // Expand any collapsed parent folders
+      let el = treeFile.parentElement;
+      while (el) {
+        if (el.classList.contains('tree-children')) {
+          el.style.display = '';
+          if (el.parentElement) el.parentElement.classList.remove('collapsed');
+        }
+        el = el.parentElement;
+      }
+
+      // Highlight in sidebar
+      tabContent.querySelectorAll('.sidebar-tree .tree-file').forEach(f => f.classList.remove('active'));
+      treeFile.classList.add('active');
+
+      // Scroll sidebar to the file entry
+      treeFile.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   });
 
