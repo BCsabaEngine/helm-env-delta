@@ -179,6 +179,7 @@ const main = async (): Promise<void> => {
       for (const warning of usageResult.warnings) {
         const contextString = warning.context ? chalk.dim(` (${warning.context})`) : '';
         console.warn(chalk.yellow(`  • ${warning.message}${contextString}`));
+        if (warning.hint) console.warn(chalk.dim(`    Hint: ${warning.hint}`));
       }
     }
 
@@ -432,14 +433,20 @@ const main = async (): Promise<void> => {
     console.log(`  ${chalk.blue('Unchanged:')} ${diffResult.unchangedFiles.length} files`);
     console.log(chalk.dim('─'.repeat(60)));
 
-    if (diffResult.deletedFiles.length > 0 && syncConfig.prune)
-      console.warn(chalk.red('⚠️  Warning: Prune is enabled. Files will be permanently deleted!'));
+    if (diffResult.deletedFiles.length > 0 && syncConfig.prune) {
+      console.warn(chalk.red('⚠️  Warning: Prune is enabled. The following files will be permanently deleted:'));
+      for (const f of diffResult.deletedFiles) console.warn(chalk.red(`    - ${f}`));
+    }
 
-    console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
-
-    // Pause to let user cancel (skip if delay is 0)
-    if (syncConfig.confirmationDelay > 0)
-      await new Promise((resolve) => setTimeout(resolve, syncConfig.confirmationDelay));
+    if (syncConfig.confirmationDelay > 0) {
+      const totalSeconds = Math.ceil(syncConfig.confirmationDelay / 1000);
+      console.log(chalk.dim('\nPress Ctrl+C to cancel.\n'));
+      for (let remaining = totalSeconds; remaining > 0; remaining--) {
+        process.stdout.write(chalk.dim(`  Proceeding in ${remaining}s...\r`));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      process.stdout.write(' '.repeat(40) + '\r'); // Clear line
+    } else console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
   }
 
   // Update files

@@ -169,6 +169,53 @@ describe('consoleDiffReporter', () => {
       expect(output).not.toContain('Deleted Files');
       expect(output).not.toContain('Changed Files');
     });
+
+    it('should show "No files matched" when unchangedFiles is empty', () => {
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [],
+        unchangedFiles: []
+      };
+      const config = createMockConfig();
+
+      showConsoleDiff(diffResult, config);
+
+      const output = consoleLogSpy.mock.calls.map((call: unknown[]) => call[0]).join('\n');
+      expect(output).toContain('No files matched the include/exclude patterns');
+      expect(output).not.toContain('No differences found');
+    });
+
+    it('should show file count when there are unchanged files', () => {
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [],
+        unchangedFiles: ['file1.yaml', 'file2.yaml', 'file3.yaml']
+      };
+      const config = createMockConfig();
+
+      showConsoleDiff(diffResult, config);
+
+      const output = consoleLogSpy.mock.calls.map((call: unknown[]) => call[0]).join('\n');
+      expect(output).toContain('3 file(s) compared');
+      expect(output).toContain('No differences found');
+    });
+
+    it('should show skipPath note when skipPath is configured', () => {
+      const diffResult: FileDiffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [],
+        unchangedFiles: ['file1.yaml', 'file2.yaml']
+      };
+      const config = createMockConfig({ skipPath: { '**/*.yaml': ['metadata.labels'] } });
+
+      showConsoleDiff(diffResult, config);
+
+      const output = consoleLogSpy.mock.calls.map((call: unknown[]) => call[0]).join('\n');
+      expect(output).toContain('skipPath');
+    });
   });
 
   describe('showConsoleDiff - added files', () => {
@@ -408,7 +455,7 @@ describe('consoleDiffReporter', () => {
       showConsoleDiff(diffResult, config);
 
       const output = consoleLogSpy.mock.calls.map((call: unknown[]) => call[0]).join('\n');
-      expect(output).toContain('No differences found');
+      expect(output).toContain('No files matched the include/exclude patterns');
     });
 
     it('should handle files with long paths', () => {

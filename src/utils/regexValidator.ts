@@ -71,6 +71,34 @@ export const getAllValuesRecursive = (data: unknown): unknown[] => {
   return values;
 };
 
+const getAllValuesWithPaths = (data: unknown): Array<{ path: string; value: unknown }> => {
+  const results: Array<{ path: string; value: unknown }> = [];
+  const traverse = (node: unknown, currentPath: string): void => {
+    if (node === null || node === undefined) return;
+    if (typeof node === 'object')
+      if (Array.isArray(node))
+        for (const [index, item] of node.entries())
+          traverse(item, currentPath ? `${currentPath}.${index}` : String(index));
+      else
+        for (const [key, value] of Object.entries(node as Record<string, unknown>))
+          traverse(value, currentPath ? `${currentPath}.${key}` : key);
+    else results.push({ path: currentPath, value: node });
+  };
+  traverse(data, '');
+  return results;
+};
+
+const getValueAtDotPath = (data: unknown, dotPath: string): unknown => {
+  if (!dotPath) return data;
+  const parts = dotPath.split('.');
+  let current: unknown = data;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+};
+
 // ============================================================================
 // Validation Functions
 // ============================================================================
@@ -111,10 +139,10 @@ export const validatePathlessRegex = (options: RegexValidationOptions): StopRule
   const dataToCheck = options.updatedData === undefined ? options.oldData : options.updatedData;
   if (dataToCheck === undefined) return undefined;
 
-  const allValues = getAllValuesRecursive(dataToCheck);
+  const allEntries = getAllValuesWithPaths(dataToCheck);
 
-  for (const value of allValues) {
-    const stringValue = String(value);
+  for (const entry of allEntries) {
+    const stringValue = String(entry.value);
     for (const patternString of options.patterns) {
       const pattern = new RegExp(patternString);
       if (pattern.test(stringValue)) {
@@ -124,9 +152,9 @@ export const validatePathlessRegex = (options: RegexValidationOptions): StopRule
         return {
           file: options.filePath,
           rule: options.rule,
-          path: '(global scan)',
-          oldValue: options.oldData,
-          updatedValue: options.updatedData,
+          path: entry.path,
+          oldValue: getValueAtDotPath(options.oldData, entry.path),
+          updatedValue: entry.value,
           message: `Value "${stringValue}" matches forbidden pattern${patternInfo} (found during global scan)`
         };
       }

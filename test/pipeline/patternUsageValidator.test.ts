@@ -225,18 +225,22 @@ describe('patternUsageValidator', () => {
       const result = validatePatternUsage(config, sourceFiles, destinationFiles);
 
       expect(result.hasWarnings).toBe(true);
-      expect(result.warnings).toContainEqual({
-        type: 'unused-skipPath-jsonpath',
-        pattern: '**/*.yaml',
-        message: "skipPath JSONPath 'metadata.nonexistent' not found in any matched files",
-        context: 'Pattern: **/*.yaml, matches 1 file(s)'
-      });
-      expect(result.warnings).toContainEqual({
-        type: 'unused-skipPath-jsonpath',
-        pattern: '**/*.yaml',
-        message: "skipPath JSONPath 'spec.missing' not found in any matched files",
-        context: 'Pattern: **/*.yaml, matches 1 file(s)'
-      });
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath',
+          pattern: '**/*.yaml',
+          message: "skipPath JSONPath 'metadata.nonexistent' not found in any matched files",
+          context: 'Pattern: **/*.yaml, matches 1 file(s)'
+        })
+      );
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-skipPath-jsonpath',
+          pattern: '**/*.yaml',
+          message: "skipPath JSONPath 'spec.missing' not found in any matched files",
+          context: 'Pattern: **/*.yaml, matches 1 file(s)'
+        })
+      );
     });
 
     it('should not warn when skipPath JSONPath exists in at least one file', () => {
@@ -286,6 +290,19 @@ describe('patternUsageValidator', () => {
           message: "skipPath JSONPath 'spec.template.containers[*].image' not found in any matched files"
         })
       );
+    });
+
+    it('should include hint in unused-skipPath-jsonpath warning', () => {
+      const config = createBaseConfig();
+      config.skipPath = { '**/*.yaml': ['metadata.nonexistent'] };
+      const sourceFiles = createFileMap({ 'app.yaml': 'version: 1.0.0' });
+      const destinationFiles = createFileMap({ 'app.yaml': 'version: 1.0.0' });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      const warning = result.warnings.find((w) => w.type === 'unused-skipPath-jsonpath');
+      expect(warning).toBeDefined();
+      expect(warning!.hint).toBeTruthy();
     });
   });
 
@@ -358,12 +375,14 @@ describe('patternUsageValidator', () => {
       const result = validatePatternUsage(config, sourceFiles, destinationFiles);
 
       expect(result.hasWarnings).toBe(true);
-      expect(result.warnings).toContainEqual({
-        type: 'unused-stopRule-path',
-        pattern: '**/*.yaml',
-        message: "stopRules JSONPath 'spec.replicas' not found in any matched files",
-        context: 'Rule type: semverMajorUpgrade, matches 1 file(s)'
-      });
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-stopRule-path',
+          pattern: '**/*.yaml',
+          message: "stopRules JSONPath 'spec.replicas' not found in any matched files",
+          context: 'Rule type: semverMajorUpgrade, matches 1 file(s)'
+        })
+      );
     });
 
     it('should not warn when stopRule path exists in at least one file', () => {
@@ -532,17 +551,34 @@ describe('patternUsageValidator', () => {
 
       // Version exists, replicas doesn't
       expect(result.hasWarnings).toBe(true);
-      expect(result.warnings).toContainEqual({
-        type: 'unused-stopRule-path',
-        pattern: '**/*.yaml',
-        message: "stopRules JSONPath 'replicas' not found in any matched files",
-        context: 'Rule type: numeric, matches 1 file(s)'
-      });
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-stopRule-path',
+          pattern: '**/*.yaml',
+          message: "stopRules JSONPath 'replicas' not found in any matched files",
+          context: 'Rule type: numeric, matches 1 file(s)'
+        })
+      );
       expect(result.warnings).not.toContainEqual(
         expect.objectContaining({
           message: expect.stringContaining('version')
         })
       );
+    });
+
+    it('should include hint in unused-stopRule-path warning', () => {
+      const config = createBaseConfig();
+      config.stopRules = {
+        '**/*.yaml': [{ type: 'semverMajorUpgrade', path: 'spec.replicas' }]
+      };
+      const sourceFiles = createFileMap({ 'app.yaml': 'version: 1.0.0' });
+      const destinationFiles = createFileMap({ 'app.yaml': 'version: 1.0.0' });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      const warning = result.warnings.find((w) => w.type === 'unused-stopRule-path');
+      expect(warning).toBeDefined();
+      expect(warning!.hint).toBeTruthy();
     });
   });
 
@@ -833,18 +869,22 @@ describe('patternUsageValidator', () => {
       const result = validatePatternUsage(config, sourceFiles, destinationFiles);
 
       expect(result.hasWarnings).toBe(true);
-      expect(result.warnings).toContainEqual({
-        type: 'unused-fixedValues-jsonpath',
-        pattern: '**/*.yaml',
-        message: "fixedValues JSONPath 'metadata.nonexistent' not found in any matched files",
-        context: 'Pattern: **/*.yaml, matches 1 file(s)'
-      });
-      expect(result.warnings).toContainEqual({
-        type: 'unused-fixedValues-jsonpath',
-        pattern: '**/*.yaml',
-        message: "fixedValues JSONPath 'spec.missing' not found in any matched files",
-        context: 'Pattern: **/*.yaml, matches 1 file(s)'
-      });
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath',
+          pattern: '**/*.yaml',
+          message: "fixedValues JSONPath 'metadata.nonexistent' not found in any matched files",
+          context: 'Pattern: **/*.yaml, matches 1 file(s)'
+        })
+      );
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          type: 'unused-fixedValues-jsonpath',
+          pattern: '**/*.yaml',
+          message: "fixedValues JSONPath 'spec.missing' not found in any matched files",
+          context: 'Pattern: **/*.yaml, matches 1 file(s)'
+        })
+      );
     });
 
     it('should not warn when fixedValues JSONPath exists in at least one file', () => {
@@ -986,6 +1026,19 @@ describe('patternUsageValidator', () => {
           type: 'unused-fixedValues-jsonpath'
         })
       );
+    });
+
+    it('should include hint in unused-fixedValues-jsonpath warning', () => {
+      const config = createBaseConfig();
+      config.fixedValues = { '**/*.yaml': [{ path: 'metadata.nonexistent', value: 'foo' }] };
+      const sourceFiles = createFileMap({ 'app.yaml': 'version: 1.0.0' });
+      const destinationFiles = createFileMap({ 'app.yaml': 'version: 1.0.0' });
+
+      const result = validatePatternUsage(config, sourceFiles, destinationFiles);
+
+      const warning = result.warnings.find((w) => w.type === 'unused-fixedValues-jsonpath');
+      expect(warning).toBeDefined();
+      expect(warning!.hint).toBeTruthy();
     });
   });
 });

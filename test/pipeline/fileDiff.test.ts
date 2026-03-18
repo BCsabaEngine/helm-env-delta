@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { computeFileDiff, getSkipPathsForFile } from '../../src/pipeline/fileDiff';
 
@@ -1011,6 +1011,20 @@ describe('fileDiff', () => {
       // Fixed value applied to prod, not to dev
       expect(result.unchangedFiles).toContain('prod/values.yaml');
       expect(result.unchangedFiles).toContain('dev/values.yaml');
+    });
+
+    it('should warn via logger and return raw content when added file has malformed YAML', () => {
+      const malformedYaml = 'this is: [invalid yaml: {';
+      const source = new Map([['broken.yaml', malformedYaml]]);
+      const destination = new Map();
+      const config = { source: './src', destination: './dest' };
+      const logger = { warn: vi.fn(), log: vi.fn(), debug: vi.fn(), progress: vi.fn(), shouldShow: vi.fn() };
+
+      const result = computeFileDiff(source, destination, config, logger as never);
+
+      expect(result.addedFiles).toHaveLength(1);
+      expect(result.addedFiles[0]?.processedContent).toBe(malformedYaml);
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('broken.yaml'), 'normal');
     });
   });
 });
