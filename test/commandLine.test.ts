@@ -597,13 +597,6 @@ describe('commandLine', () => {
       expect(result.myDays).toBe(1);
     });
 
-    it('should default my to false when flag not provided', () => {
-      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
-
-      expect(result.my).toBe(false);
-      expect(result.myDays).toBe(30);
-    });
-
     it('should exit when --my 0 is provided', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 

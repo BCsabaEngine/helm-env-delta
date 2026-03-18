@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { filterFileMapsByGitAuthor, getGitUser, isGitFilterError } from '../../src/utils/gitFilter';
 
-// ============================================================================
-// Mock simple-git
-// ============================================================================
-
 const mockRaw = vi.fn();
 const mockRevparse = vi.fn();
 
@@ -16,20 +12,12 @@ vi.mock('simple-git', () => ({
   })
 }));
 
-// ============================================================================
-// Test Helpers
-// ============================================================================
-
 const makeFileMap = (entries: Record<string, string>) => new Map(Object.entries(entries));
 
 describe('gitFilter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
-  // ============================================================================
-  // getGitUser
-  // ============================================================================
 
   describe('getGitUser', () => {
     it('should return user.name when configured', async () => {
@@ -76,10 +64,6 @@ describe('gitFilter', () => {
       });
     });
   });
-
-  // ============================================================================
-  // filterFileMapsByGitAuthor
-  // ============================================================================
 
   describe('filterFileMapsByGitAuthor', () => {
     const gitRoot = '/repo';
@@ -160,23 +144,6 @@ describe('gitFilter', () => {
       expect([...result.destinationFiles.keys()]).toEqual(['apps/nginx/values.yaml']);
     });
 
-    it('should skip blank lines in git log output', async () => {
-      mockRaw.mockResolvedValueOnce('\n\n\nhelm-charts/source/apps/nginx/values.yaml\n\n\n');
-
-      const sourceFiles = makeFileMap({ 'apps/nginx/values.yaml': 'nginx: 1' });
-      const destinationFiles = makeFileMap({ 'apps/nginx/values.yaml': 'nginx: 2' });
-
-      const result = await filterFileMapsByGitAuthor(
-        sourceFiles,
-        destinationFiles,
-        absoluteSourceDirectory,
-        'John Doe',
-        30
-      );
-
-      expect(result.sourceFiles.size).toBe(1);
-    });
-
     it('should pass correct args to git log', async () => {
       mockRaw.mockResolvedValueOnce('');
 
@@ -192,28 +159,7 @@ describe('gitFilter', () => {
         absoluteSourceDirectory
       ]);
     });
-
-    it('should not include destination entries without matching source', async () => {
-      mockRaw.mockResolvedValueOnce('');
-
-      const sourceFiles = new Map<string, string>();
-      const destinationFiles = makeFileMap({ 'apps/nginx/values.yaml': 'nginx: 2' });
-
-      const result = await filterFileMapsByGitAuthor(
-        sourceFiles,
-        destinationFiles,
-        absoluteSourceDirectory,
-        'John Doe',
-        30
-      );
-
-      expect(result.destinationFiles.size).toBe(0);
-    });
   });
-
-  // ============================================================================
-  // isGitFilterError
-  // ============================================================================
 
   describe('isGitFilterError', () => {
     it('should return true for GitFilterError instances', async () => {

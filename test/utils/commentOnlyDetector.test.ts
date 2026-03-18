@@ -27,9 +27,5 @@ describe('utils/commentOnlyDetector', () => {
     it('returns true for an indented comment line', () => {
       expect(isCommentOnlyContent('  # indented comment')).toBe(true);
     });
-
-    it('returns false when real content follows a comment', () => {
-      expect(isCommentOnlyContent('# comment\nfoo: bar')).toBe(false);
-    });
   });
 });

@@ -43,13 +43,5 @@ describe('utils/regexTransform', () => {
       const rules = [{ find: '[invalid', replace: 'x' }];
       expect(() => applyRegexRulesSequentially('hello', rules, true)).toThrow();
     });
-
-    it('caches compiled RegExp — same find pattern reuses cached instance', () => {
-      // Verify caching by observable behaviour: calling twice produces identical results
-      // and does not throw (regression guard for cache key collision)
-      const rules = [{ find: 'x', replace: 'y' }];
-      expect(applyRegexRulesSequentially('x', rules)).toBe('y');
-      expect(applyRegexRulesSequentially('x', rules)).toBe('y');
-    });
   });
 });

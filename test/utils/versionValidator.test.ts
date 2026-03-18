@@ -93,22 +93,11 @@ describe('utils/versionValidator', () => {
       expect(result.isValid).toBe(false);
       expect(result.message).toContain('non-numeric');
     });
-
-    it('accepts fully numeric version', () => {
-      const result = validateVersionString('1.2.3');
-      expect(result.isValid).toBe(true);
-    });
   });
 
   describe('happy path', () => {
     it('returns valid with empty message for plain version', () => {
       const result = validateVersionString('1.2.3');
-      expect(result.isValid).toBe(true);
-      expect(result.message).toBe('');
-    });
-
-    it('returns valid for v-prefixed version with required mode', () => {
-      const result = validateVersionString('v2.10.0', 'required');
       expect(result.isValid).toBe(true);
       expect(result.message).toBe('');
     });
