@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-03-18
+
+### Added
+
+- `--my [days]` filter: Limits the sync to source files that **you** recently modified in git. Reads your git `user.name` (or `user.email` as fallback) automatically and filters to files you touched in the last N days (default: 30). Useful when working in a shared repo and you only want to sync your own changes. Example: `--my` (last 30 days), `--my 7` (last 7 days).
+
+### Changed
+
+- Confirmation delay now shows a live countdown (`Proceeding in 3s...`, `Proceeding in 2s...`, ...) instead of a static message, so it's clear how long until the sync starts.
+- Prune warning now lists each file that will be permanently deleted, not just a generic warning.
+- "No differences found" message now reports how many files were compared (e.g., `✓ No differences found — 42 file(s) compared, all identical`) and notes when `skipPath` rules are active.
+- Pattern usage validation warnings now include a hint line where available.
+
+### Fixed
+
+- When processing a newly added file fails (e.g., due to a transform error), the warning is now surfaced to the console instead of being silently swallowed.
+
 ## [1.14.2] - 2026-03-18
 
 ### Added

@@ -58,7 +58,7 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 📊 **Multiple Reports** - Console, HTML (visual, self-contained), and JSON (CI/CD) output formats. HTML reports include collapsible diff stats dashboard, stop rule violations table (dry-run only), synchronized side-by-side scrolling, copy diff buttons, file search, collapse/expand controls, jump-to-sidebar navigation, and auto-collapse for large file sets. Empty categories are automatically hidden.
 
-🔍 **Discovery Tools** - Preview files (`-l`), inspect config (`--show-config`), filter by filename/content (`-f`), filter by change type (`-m`), validate with comprehensive warnings including unused pattern detection.
+🔍 **Discovery Tools** - Preview files (`-l`), inspect config (`--show-config`), filter by filename/content (`-f`), filter by change type (`-m`), filter to your own git changes (`--my`), validate with comprehensive warnings including unused pattern detection.
 
 💡 **Smart Suggestions** - Heuristic analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically. Control sensitivity with `--suggest-threshold`.
 
@@ -753,6 +753,29 @@ hed -c config.yaml -f "foo\,bar" --list-files
 
 ---
 
+### 👤 Git Author Filter (`--my`)
+
+Filter the sync to only source files **you** modified in git. Your identity is read automatically from `git config user.name` (falls back to `user.email`).
+
+```bash
+# Sync only files you modified in the last 30 days (default)
+hed -c config.yaml --my
+
+# Sync only files you modified in the last 7 days
+hed -c config.yaml --my 7
+
+# Preview first
+hed -c config.yaml --my --dry-run --diff
+```
+
+**How it works:** Queries `git log` for commits by your git identity within the time window, collects modified file paths, and filters source files to that set. The matching destination files are filtered in tandem.
+
+**Requirements:** Must be run inside a git repository with a configured `user.name` or `user.email`.
+
+**Use case:** In a shared monorepo with many services, use `--my` to focus syncs on just the files you touched during your current sprint—without needing to know their exact paths.
+
+---
+
 ### 🔗 Config Inheritance
 
 Reuse base configurations across environment pairs.
@@ -813,26 +836,27 @@ hed --config <file> [options]  # Short alias
 
 ### Options
 
-| Flag                        | Short | Description                                                         |
-| --------------------------- | ----- | ------------------------------------------------------------------- |
-| `--config <path>`           | `-c`  | **Required** - Configuration file                                   |
-| `--validate`                |       | Validate config and pattern usage (shows warnings)                  |
-| `--suggest`                 |       | Analyze differences and suggest config updates                      |
-| `--suggest-threshold <0-1>` |       | Minimum confidence for suggestions (default: 0.3)                   |
-| `--dry-run`                 | `-D`  | Preview changes without writing files                               |
-| `--force`                   |       | Override stop rules                                                 |
-| `--diff`                    | `-d`  | Show console diff                                                   |
-| `--diff-html`               | `-H`  | Generate HTML report (opens in browser)                             |
-| `--diff-json`               | `-J`  | Output JSON to stdout (pipe to jq)                                  |
-| `--list-files`              | `-l`  | List files without processing (takes precedence over --format-only) |
-| `--show-config`             |       | Display resolved config after inheritance                           |
-| `--format-only`             |       | Format destination files only (source not required)                 |
-| `--skip-format`             | `-S`  | Skip YAML formatting during sync                                    |
-| `--filter <string>`         | `-f`  | Filter files by filename/content (supports `,` OR, `+` AND)         |
-| `--mode <type>`             | `-m`  | Filter by change type: new, modified, deleted, all (default: all)   |
-| `--no-color`                |       | Disable colored output (CI/accessibility)                           |
-| `--verbose`                 |       | Show detailed debug info                                            |
-| `--quiet`                   |       | Suppress output except errors                                       |
+| Flag                        | Short | Description                                                                 |
+| --------------------------- | ----- | --------------------------------------------------------------------------- |
+| `--config <path>`           | `-c`  | **Required** - Configuration file                                           |
+| `--validate`                |       | Validate config and pattern usage (shows warnings)                          |
+| `--suggest`                 |       | Analyze differences and suggest config updates                              |
+| `--suggest-threshold <0-1>` |       | Minimum confidence for suggestions (default: 0.3)                           |
+| `--dry-run`                 | `-D`  | Preview changes without writing files                                       |
+| `--force`                   |       | Override stop rules                                                         |
+| `--diff`                    | `-d`  | Show console diff                                                           |
+| `--diff-html`               | `-H`  | Generate HTML report (opens in browser)                                     |
+| `--diff-json`               | `-J`  | Output JSON to stdout (pipe to jq)                                          |
+| `--list-files`              | `-l`  | List files without processing (takes precedence over --format-only)         |
+| `--show-config`             |       | Display resolved config after inheritance                                   |
+| `--format-only`             |       | Format destination files only (source not required)                         |
+| `--skip-format`             | `-S`  | Skip YAML formatting during sync                                            |
+| `--filter <string>`         | `-f`  | Filter files by filename/content (supports `,` OR, `+` AND)                 |
+| `--mode <type>`             | `-m`  | Filter by change type: new, modified, deleted, all (default: all)           |
+| `--my [days]`               |       | Filter to source files you modified in git in the last N days (default: 30) |
+| `--no-color`                |       | Disable colored output (CI/accessibility)                                   |
+| `--verbose`                 |       | Show detailed debug info                                                    |
+| `--quiet`                   |       | Suppress output except errors                                               |
 
 ### Examples
 
@@ -884,6 +908,12 @@ hed -c config.yaml -m modified -D -d
 
 # Combine filter and mode
 hed -c config.yaml -f deployment -m modified -D -d
+
+# Sync only files you modified in the last 30 days (auto-detects your git identity)
+hed -c config.yaml --my -D -d
+
+# Sync only files you modified in the last 7 days
+hed -c config.yaml --my 7 -D -d
 
 # Format destination files only (no sync, source not required in config)
 hed -c config.yaml --format-only
