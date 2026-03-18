@@ -220,7 +220,7 @@ describe('utils/regexValidator', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result!.path).toBe('(global scan)');
+      expect(result!.path).toBe('a');
       expect(result!.message).toContain('forbidden-value');
       expect(result!.message).toContain('found during global scan');
     });
@@ -309,8 +309,8 @@ describe('utils/regexValidator', () => {
         updatedData
       });
 
-      expect(result!.oldValue).toBe(oldData);
-      expect(result!.updatedValue).toBe(updatedData);
+      expect(result!.oldValue).toBe('safe');
+      expect(result!.updatedValue).toBe('forbidden-value');
     });
 
     it('should scan nested values', () => {

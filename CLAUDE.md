@@ -23,7 +23,7 @@ npx vitest run test/pipeline/fileLoader.test.ts  # Single test file
 npx vitest run -t "skipExclude"                  # Tests matching pattern
 ```
 
-**CLI:** `helm-env-delta -c config.yaml [--validate] [--suggest] [--suggest-threshold 0-1] [-D|--dry-run] [--force] [-d|--diff] [-H|--diff-html] [-J|--diff-json] [-S|--skip-format] [--format-only] [-l|--list-files] [--show-config] [--no-color] [-f|--filter <string>] [-m|--mode <type>] [--verbose] [--quiet]`
+**CLI:** `helm-env-delta -c config.yaml [--validate] [--suggest] [--suggest-threshold 0-1] [-D|--dry-run] [--force] [-d|--diff] [-H|--diff-html] [-J|--diff-json] [-S|--skip-format] [--format-only] [-l|--list-files] [--show-config] [--no-color] [-f|--filter <string>] [-m|--mode <type>] [--my [days]] [--verbose] [--quiet]`
 
 ## Architecture
 
@@ -40,9 +40,9 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 - `config/` — Zod schemas (BaseConfig → FinalConfig), config loading with inheritance (max 5 levels), merging, warnings
 - `pipeline/` — fileLoader (glob→Map), fileDiff (structural YAML comparison), fileUpdater (deep merge), yamlFormatter (AST-based), stopRulesValidator, patternUsageValidator
 - `reporters/` — HTML (self-contained standalone files with diff2html), console diff, JSON output, tree builder/renderer
-- `utils/` — errors (factory pattern), jsonPath (CSS-style filters), transformer, patternMatcher (cached), arrayMerger (skipPath-aware), fixedValues, fileFilter, collisionDetector, versionChecker, regexSafety (ReDoS detection), regexTransform (cached regex compilation), serialization (deepSortKeys for fast normalization)
+- `utils/` — errors (factory pattern), jsonPath (CSS-style filters), transformer, patternMatcher (cached), arrayMerger (skipPath-aware), fixedValues, fileFilter, collisionDetector, versionChecker, regexSafety (ReDoS detection), regexTransform (cached regex compilation), serialization (deepSortKeys for fast normalization), gitFilter (simple-git wrapper for `--my` author filtering)
 
-**Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk
+**Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk, simple-git
 
 ## Code Style
 
@@ -85,9 +85,11 @@ Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests (use `test:a
 - **fixedValues:** glob → array of `{path, value}`. All filter operators supported. Last rule wins for same path
 - **outputFormat:** indent, keySeparator, quoteValues, keyOrders, keySort, arraySort. `arraySort` rules: `path` (required), `sortBy` (optional — omit for scalar/keyless arrays, required for object arrays), `order` (asc/desc)
 
-## CLI Filter (`-f/--filter`)
+## CLI Filters
 
-Simple: `-f prod`. OR (`,`): `-f prod,staging`. AND (`+`): `-f values+prod`. Cannot mix `+` and `,`. Case-insensitive.
+**`-f/--filter`:** Simple: `-f prod`. OR (`,`): `-f prod,staging`. AND (`+`): `-f values+prod`. Cannot mix `+` and `,`. Case-insensitive.
+
+**`--my [days]`:** Filters source files to those modified by the current git user (reads `git config user.name`, falls back to `user.email`) within the last N days (default: 30). Queries `git log --author=<name> --since=<N> days ago` against the source directory; matching destination files are filtered in tandem. Requires a git repo with a configured user identity. Applied after `-f/--filter` and `-m/--mode`.
 
 ## Pattern Usage Validation (`--validate`)
 

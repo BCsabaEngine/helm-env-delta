@@ -28,6 +28,7 @@ export interface PatternUsageWarning {
   pattern: string;
   message: string;
   context?: string;
+  hint?: string;
 }
 
 /**
@@ -125,7 +126,8 @@ const validateSkipPathPatterns = (
           type: 'unused-skipPath-jsonpath',
           pattern,
           message: `skipPath JSONPath '${jsonPath}' not found in any matched files`,
-          context: `Pattern: ${pattern}, matches ${yamlFiles.length} file(s)`
+          context: `Pattern: ${pattern}, matches ${yamlFiles.length} file(s)`,
+          hint: 'Run with --list-files to see which files matched, and --validate for full pattern analysis'
         });
     }
   }
@@ -182,7 +184,8 @@ const validateStopRulePatterns = (
           type: 'unused-stopRule-path',
           pattern: globPattern,
           message: `stopRules JSONPath '${rule.path}' not found in any matched files`,
-          context: `Rule type: ${rule.type}, matches ${yamlFiles.length} file(s)`
+          context: `Rule type: ${rule.type}, matches ${yamlFiles.length} file(s)`,
+          hint: 'Run with --list-files to see which files are loaded'
         });
     }
   }
@@ -239,7 +242,8 @@ const validateFixedValuesPatterns = (
           type: 'unused-fixedValues-jsonpath',
           pattern,
           message: `fixedValues JSONPath '${rule.path}' not found in any matched files`,
-          context: `Pattern: ${pattern}, matches ${yamlFiles.length} file(s)`
+          context: `Pattern: ${pattern}, matches ${yamlFiles.length} file(s)`,
+          hint: 'Run with --list-files to see which files matched'
         });
     }
   }

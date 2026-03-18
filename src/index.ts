@@ -42,6 +42,7 @@ import { isCommentOnlyContent } from './utils/commentOnlyDetector';
 import { filterDiffResultByMode, filterFileMap, filterFileMaps, isFilterParseError } from './utils/fileFilter';
 import { isFilenameTransformerError } from './utils/filenameTransformer';
 import { isYamlFile } from './utils/fileType';
+import { filterFileMapsByGitAuthor, getGitUser, isGitFilterError } from './utils/gitFilter';
 import { checkForUpdates } from './utils/versionChecker';
 
 /**
@@ -145,6 +146,27 @@ const main = async (): Promise<void> => {
       destinationFiles = filtered.destinationFiles;
     }
 
+    // Apply --my git author filter if provided
+    if (command.my) {
+      const absoluteSourceDirectory = path.isAbsolute(validationConfig.source)
+        ? validationConfig.source
+        : path.resolve(process.cwd(), validationConfig.source);
+      const author = await getGitUser();
+      const filtered = await filterFileMapsByGitAuthor(
+        sourceFiles,
+        destinationFiles,
+        absoluteSourceDirectory,
+        author,
+        command.myDays
+      );
+      sourceFiles = filtered.sourceFiles;
+      destinationFiles = filtered.destinationFiles;
+      logger.progress(
+        `--my filter (${command.myDays} days, author: "${author}") matched ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`,
+        'info'
+      );
+    }
+
     logger.progress(`Loaded ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`, 'success');
 
     logger.log('\n' + formatProgressMessage('Validating pattern usage...', 'info'));
@@ -157,6 +179,7 @@ const main = async (): Promise<void> => {
       for (const warning of usageResult.warnings) {
         const contextString = warning.context ? chalk.dim(` (${warning.context})`) : '';
         console.warn(chalk.yellow(`  • ${warning.message}${contextString}`));
+        if (warning.hint) console.warn(chalk.dim(`    Hint: ${warning.hint}`));
       }
     }
 
@@ -302,6 +325,27 @@ const main = async (): Promise<void> => {
     );
   }
 
+  // Apply --my git author filter if provided
+  if (command.my) {
+    const absoluteSourceDirectory = path.isAbsolute(syncConfig.source)
+      ? syncConfig.source
+      : path.resolve(process.cwd(), syncConfig.source);
+    const author = await getGitUser();
+    const filtered = await filterFileMapsByGitAuthor(
+      sourceFiles,
+      destinationFiles,
+      absoluteSourceDirectory,
+      author,
+      command.myDays
+    );
+    sourceFiles = filtered.sourceFiles;
+    destinationFiles = filtered.destinationFiles;
+    logger.progress(
+      `--my filter (${command.myDays} days, author: "${author}") matched ${sourceFiles.size} source, ${destinationFiles.size} destination file(s)`,
+      'info'
+    );
+  }
+
   // Early exit for list-files mode
   if (command.listFiles) {
     const sourceFilesList = [...sourceFiles.keys()].toSorted();
@@ -389,14 +433,20 @@ const main = async (): Promise<void> => {
     console.log(`  ${chalk.blue('Unchanged:')} ${diffResult.unchangedFiles.length} files`);
     console.log(chalk.dim('─'.repeat(60)));
 
-    if (diffResult.deletedFiles.length > 0 && syncConfig.prune)
-      console.warn(chalk.red('⚠️  Warning: Prune is enabled. Files will be permanently deleted!'));
+    if (diffResult.deletedFiles.length > 0 && syncConfig.prune) {
+      console.warn(chalk.red('⚠️  Warning: Prune is enabled. The following files will be permanently deleted:'));
+      for (const f of diffResult.deletedFiles) console.warn(chalk.red(`    - ${f}`));
+    }
 
-    console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
-
-    // Pause to let user cancel (skip if delay is 0)
-    if (syncConfig.confirmationDelay > 0)
-      await new Promise((resolve) => setTimeout(resolve, syncConfig.confirmationDelay));
+    if (syncConfig.confirmationDelay > 0) {
+      const totalSeconds = Math.ceil(syncConfig.confirmationDelay / 1000);
+      console.log(chalk.dim('\nPress Ctrl+C to cancel.\n'));
+      for (let remaining = totalSeconds; remaining > 0; remaining--) {
+        process.stdout.write(chalk.dim(`  Proceeding in ${remaining}s...\r`));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      process.stdout.write(' '.repeat(40) + '\r'); // Clear line
+    } else console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
   }
 
   // Update files
@@ -445,6 +495,7 @@ const main = async (): Promise<void> => {
     else if (isJsonReporterError(error)) console.error(error.message);
     else if (isSuggestionEngineError(error)) console.error(error.message);
     else if (isFilterParseError(error)) console.error(error.message);
+    else if (isGitFilterError(error)) console.error(error.message);
     else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
     process.exit(1);

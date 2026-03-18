@@ -124,7 +124,18 @@ export const showConsoleDiff = (diffResult: FileDiffResult, config: Config): voi
     diffResult.changedFiles.length === 0 &&
     diffResult.deletedFiles.length === 0
   ) {
-    console.log(chalk.green.bold('\n✓ No differences found\n'));
+    const totalCompared = diffResult.unchangedFiles.length;
+    const hasSkipPath = config.skipPath && Object.keys(config.skipPath).length > 0;
+    const skipNote = hasSkipPath ? chalk.dim(' (some paths may be excluded via skipPath)') : '';
+
+    if (totalCompared === 0) console.log(chalk.yellow.bold('\n⚠ No files matched the include/exclude patterns\n'));
+    else
+      console.log(
+        chalk.green.bold(`\n✓ No differences found`) +
+          chalk.dim(` — ${totalCompared} file(s) compared, all identical`) +
+          skipNote +
+          '\n'
+      );
     return;
   }
 

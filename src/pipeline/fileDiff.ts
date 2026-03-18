@@ -68,7 +68,8 @@ const processAddedFileContent = (
   content: string,
   transforms?: TransformConfig,
   fixedValues?: FixedValueConfig,
-  outputFormat?: OutputFormat
+  outputFormat?: OutputFormat,
+  logger?: import('../logger').Logger
 ): string => {
   if (!isYamlFile(filePath)) return content;
 
@@ -90,8 +91,11 @@ const processAddedFileContent = (
     processed = formatYaml(processed, filePath, outputFormat);
 
     return processed;
-  } catch {
-    // If processing fails, return original content
+  } catch (error) {
+    logger?.warn(
+      `Warning: Could not process added file '${filePath}' (${error instanceof Error ? error.message : String(error)}). Using raw content.`,
+      'normal'
+    );
     return content;
   }
 };
@@ -100,7 +104,8 @@ const detectAddedFiles = (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
   config: Config,
-  originalPaths?: Map<string, string>
+  originalPaths?: Map<string, string>,
+  logger?: import('../logger').Logger
 ): AddedFile[] => {
   const addedFiles: AddedFile[] = [];
 
@@ -112,7 +117,8 @@ const detectAddedFiles = (
         content,
         config.transforms,
         config.fixedValues,
-        config.outputFormat
+        config.outputFormat,
+        logger
       );
 
       addedFiles.push({
@@ -403,7 +409,7 @@ export const computeFileDiff = (
     if (skipPathCount > 0) logger.debug(`  SkipPath patterns: ${skipPathCount}`);
   }
 
-  const addedFiles = detectAddedFiles(sourceFiles, destinationFiles, config, originalPaths);
+  const addedFiles = detectAddedFiles(sourceFiles, destinationFiles, config, originalPaths, logger);
 
   const deletedFiles = config.prune ? detectDeletedFiles(sourceFiles, destinationFiles) : [];
 

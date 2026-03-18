@@ -1126,5 +1126,65 @@ describe('stopRulesValidator', () => {
 
       expect(result.isValid).toBe(true);
     });
+
+    it('should report specific dot-notation path for pathless regex violation', () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: 'image: forbidden-image',
+            destinationContent: 'image: allowed-image',
+            processedSourceContent: { image: 'forbidden-image' },
+            processedDestContent: { image: 'allowed-image' },
+            rawParsedSource: { image: 'forbidden-image' },
+            rawParsedDest: { image: 'allowed-image' }
+          }
+        ],
+        unchangedFiles: []
+      };
+      // Note: processedSourceContent is "updated" data (source → dest direction)
+
+      const stopRules = {
+        '*.yaml': [{ type: 'regex' as const, regex: '^forbidden' }]
+      };
+
+      const result = validateStopRules(diffResult, stopRules);
+
+      expect(result.isValid).toBe(false);
+      expect(result.violations).toHaveLength(1);
+      expect(result.violations[0]?.path).toBe('image');
+      expect(result.violations[0]?.path).not.toBe('(global scan)');
+    });
+
+    it('should report full nested path for pathless regex violation in nested structure', () => {
+      const diffResult = {
+        addedFiles: [],
+        deletedFiles: [],
+        changedFiles: [
+          {
+            path: 'values.yaml',
+            sourceContent: '',
+            destinationContent: '',
+            processedSourceContent: { containers: [{ image: 'forbidden-image' }] },
+            processedDestContent: { containers: [{ image: 'allowed' }] },
+            rawParsedSource: { containers: [{ image: 'forbidden-image' }] },
+            rawParsedDest: { containers: [{ image: 'allowed' }] }
+          }
+        ],
+        unchangedFiles: []
+      };
+
+      const stopRules = {
+        '*.yaml': [{ type: 'regex' as const, regex: '^forbidden' }]
+      };
+
+      const result = validateStopRules(diffResult, stopRules);
+
+      expect(result.isValid).toBe(false);
+      expect(result.violations).toHaveLength(1);
+      expect(result.violations[0]?.path).toBe('containers.0.image');
+    });
   });
 });
