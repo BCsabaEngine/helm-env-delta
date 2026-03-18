@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.2] - 2026-03-18
+
+### Added
+
+- HTML report: Each file block header now includes a "jump to sidebar" icon button that scrolls the sidebar file browser to the corresponding entry and highlights it, making it easy to navigate from a diff back to the file list.
+
+### Fixed
+
+- HTML report: File blocks now auto-collapse when there are more than 10 changed or added files, preventing the page from being overwhelmed when syncing large numbers of files. Reports with 10 or fewer files still open expanded as before.
+
+### Changed
+
+- Dependencies updated.
+
 ## [1.14.1] - 2026-03-15
 
 ### Security

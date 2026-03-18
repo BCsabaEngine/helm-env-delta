@@ -1,6 +1,6 @@
 {
   "name": "helm-env-delta",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "description": "HelmEnvDelta – environment-aware YAML delta and sync for GitOps",
   "author": "BCsabaEngine",
   "license": "ISC",
