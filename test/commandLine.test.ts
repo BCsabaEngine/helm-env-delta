@@ -38,7 +38,9 @@ describe('commandLine', () => {
         suggest: false,
         suggestThreshold: 0.3,
         filter: undefined,
-        mode: 'all'
+        mode: 'all',
+        my: false,
+        myDays: 30
       });
     });
 
@@ -111,7 +113,9 @@ describe('commandLine', () => {
         suggest: false,
         suggestThreshold: 0.3,
         filter: undefined,
-        mode: 'all'
+        mode: 'all',
+        my: false,
+        myDays: 30
       });
     });
 
@@ -177,7 +181,9 @@ describe('commandLine', () => {
         suggest: false,
         suggestThreshold: 0.3,
         filter: undefined,
-        mode: 'all'
+        mode: 'all',
+        my: false,
+        myDays: 30
       });
     });
 
@@ -255,7 +261,9 @@ describe('commandLine', () => {
         suggest: false,
         suggestThreshold: 0.3,
         filter: undefined,
-        mode: 'all'
+        mode: 'all',
+        my: false,
+        myDays: 30
       });
     });
 
@@ -376,7 +384,9 @@ describe('commandLine', () => {
         suggest: false,
         suggestThreshold: 0.3,
         filter: undefined,
-        mode: 'all'
+        mode: 'all',
+        my: false,
+        myDays: 30
       });
     });
 
@@ -401,7 +411,9 @@ describe('commandLine', () => {
         suggest: false,
         suggestThreshold: 0.3,
         filter: undefined,
-        mode: 'all'
+        mode: 'all',
+        my: false,
+        myDays: 30
       });
     });
 
@@ -562,6 +574,56 @@ describe('commandLine', () => {
       expect(result.mode).toBe('modified');
       expect(result.dryRun).toBe(true);
       expect(result.diff).toBe(true);
+    });
+
+    it('should parse --my alone as my: true, myDays: 30', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--my']);
+
+      expect(result.my).toBe(true);
+      expect(result.myDays).toBe(30);
+    });
+
+    it('should parse --my 7 as my: true, myDays: 7', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--my', '7']);
+
+      expect(result.my).toBe(true);
+      expect(result.myDays).toBe(7);
+    });
+
+    it('should parse --my 1 as my: true, myDays: 1', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--my', '1']);
+
+      expect(result.my).toBe(true);
+      expect(result.myDays).toBe(1);
+    });
+
+    it('should default my to false when flag not provided', () => {
+      const result = parseCommandLine(['node', 'cli', '--config', 'test.yaml']);
+
+      expect(result.my).toBe(false);
+      expect(result.myDays).toBe(30);
+    });
+
+    it('should exit when --my 0 is provided', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--my', '0']);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --my days must be a positive integer');
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should exit when --my abc is provided', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--my', 'abc']);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --my days must be a positive integer');
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });
