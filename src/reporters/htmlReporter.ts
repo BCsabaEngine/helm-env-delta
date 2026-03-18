@@ -69,14 +69,16 @@ const generateAddedFileSummary = (file: AddedFile): string => {
   return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
 };
 
-const generateAddedFileSection = (file: AddedFile, fileId: string): string => {
+const JUMP_TO_SIDEBAR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 2h3v12H2V2zm0-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm5 4h7v1H7V5zm0 3h7v1H7V8zm0 3h5v1H7v-1z"/></svg>`;
+
+const generateAddedFileSection = (file: AddedFile, fileId: string, open: boolean): string => {
   const summary = generateAddedFileSummary(file);
   const escapedContent = escapeHtml(file.processedContent);
   const filename = file.path.split('/').pop() || file.path;
 
   return `
-    <details class="file-section" id="${fileId}" data-file-id="${fileId}" open>
-      <summary>${summary}</summary>
+    <details class="file-section" id="${fileId}" data-file-id="${fileId}"${open ? ' open' : ''}>
+      <summary><a class="jump-to-sidebar-link" data-file-id="${fileId}" href="#" title="Show in file browser">${JUMP_TO_SIDEBAR_ICON}</a><span class="summary-expand-icon"></span>${summary}</summary>
       <div class="content-container">
         <div class="content-actions">
           <button class="copy-btn" data-file-id="${fileId}" title="Copy to clipboard">📋 Copy</button>
@@ -90,7 +92,8 @@ const generateAddedFileSection = (file: AddedFile, fileId: string): string => {
 
 const generateChangedFileSection = (
   file: ChangedFile,
-  fileId: string
+  fileId: string,
+  open: boolean
 ): { html: string; added: number; removed: number } => {
   const isYaml = isYamlFile(file.path);
   const summary = generateFileSummary(file);
@@ -102,8 +105,8 @@ const generateChangedFileSection = (
   const escapedDiff = escapeHtml(unifiedDiff);
 
   const html = `
-    <details class="file-section" id="${fileId}" data-file-id="${fileId}" open>
-      <summary>${summary}<span class="summary-badges"><span class="line-badge line-added">+${added}</span><span class="line-badge line-removed">-${removed}</span></span></summary>
+    <details class="file-section" id="${fileId}" data-file-id="${fileId}"${open ? ' open' : ''}>
+      <summary><a class="jump-to-sidebar-link" data-file-id="${fileId}" href="#" title="Show in file browser">${JUMP_TO_SIDEBAR_ICON}</a><span class="summary-expand-icon"></span>${summary}<span class="summary-badges"><span class="line-badge line-added">+${added}</span><span class="line-badge line-removed">-${removed}</span></span></summary>
       <div class="diff-toolbar">
         <button class="copy-diff-btn" data-file-id="${fileId}">Copy Diff</button>
       </div>
@@ -171,10 +174,15 @@ export const generateHtmlReport = async (
   const changedFileIds = new Map<string, string>();
   for (const [index, file] of diffResult.changedFiles.entries()) changedFileIds.set(file.path, `file-${index}`);
 
+  // Determine open state based on file count threshold
+  const COLLAPSE_THRESHOLD = 10;
+  const changedOpen = diffResult.changedFiles.length <= COLLAPSE_THRESHOLD;
+  const addedOpen = diffResult.addedFiles.length <= COLLAPSE_THRESHOLD;
+
   // Generate file sections with IDs and collect stats
   const fileStats = new Map<string, { added: number; removed: number }>();
   const changedSections = diffResult.changedFiles.map((file, index) => {
-    const result = generateChangedFileSection(file, `file-${index}`);
+    const result = generateChangedFileSection(file, `file-${index}`, changedOpen);
     fileStats.set(file.path, { added: result.added, removed: result.removed });
     return result.html;
   });
@@ -185,7 +193,7 @@ export const generateHtmlReport = async (
 
   // Generate added file sections with IDs
   const addedSections = diffResult.addedFiles.map((file, index) =>
-    generateAddedFileSection(file, `added-file-${index}`)
+    generateAddedFileSection(file, `added-file-${index}`, addedOpen)
   );
 
   // Build diff stats for dashboard

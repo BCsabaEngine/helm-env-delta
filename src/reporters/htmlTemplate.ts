@@ -259,6 +259,10 @@ export const generateHtmlTemplate = (
           </aside>
           <button class="sidebar-expand-btn" data-sidebar="added">&#9654;</button>
           <div class="added-content">
+            <div class="content-toolbar">
+              <button class="collapse-all-btn">Collapse All</button>
+              <button class="expand-all-btn">Expand All</button>
+            </div>
             ${addedSections.join('\n')}
           </div>
         </div>
