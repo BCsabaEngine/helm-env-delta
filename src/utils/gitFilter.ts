@@ -91,7 +91,7 @@ export const filterFileMapsByGitAuthor = async (
   author: string,
   days: number
 ): Promise<{ sourceFiles: FileMap; destinationFiles: FileMap }> => {
-  const git = simpleGit();
+  const git = simpleGit(absoluteSourceDirectory);
   const gitRoot = await getGitRoot(git);
   const gitModifiedPaths = await getGitModifiedPaths(git, author, days, absoluteSourceDirectory);
 
