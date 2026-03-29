@@ -13,8 +13,12 @@
  */
 export const isSafeRegex = (pattern: string): boolean => {
   // Detect nested quantifiers on groups (primary ReDoS trigger):
-  // Matches any group (...) that contains + or * followed by +, *, or {
-  if (/\([^()]*[*+][^()]*\)[*+{]/.test(pattern)) return false;
+  // Matches any group (...) that contains + or * followed by +, *, ?, or {
+  if (/\([^()]*[*+][^()]*\)[*+?{]/.test(pattern)) return false;
+
+  // Detect alternation with outer repetition: (a|b+)* or (a|ab)+ etc.
+  // ? is excluded: (a|b)? can only match once so it cannot cause catastrophic backtracking
+  if (/\([^()]*\|[^()]*\)[*+{]/.test(pattern)) return false;
 
   return true;
 };

@@ -183,8 +183,9 @@ const deepMerge = (
     const result = { ...sourceObject } as Record<string, unknown>;
 
     // Add skipPath fields from full target (fields that were filtered out)
+    const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
     for (const [key, value] of Object.entries(fullTargetObject))
-      if (!(key in filteredTargetObject) && !(key in sourceObject)) result[key] = value;
+      if (!DANGEROUS_KEYS.has(key) && !(key in filteredTargetObject) && !(key in sourceObject)) result[key] = value;
 
     // Recursively merge fields that exist in source
     for (const [key, value] of Object.entries(sourceObject))
