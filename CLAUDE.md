@@ -78,7 +78,7 @@ Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests (use `test:a
 
 ## Config Schema
 
-- **Core:** `source`, `destination` (required for sync; source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`, `requiredVersion`
+- **Core:** `source`, `destination` (required for sync; source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`, `requiredVersion` (also suppresses auto-update notification when set)
 - **skipPath:** JSONPath patterns per-file glob with CSS-style filters. Example: `env[name^=DB_]`, `containers[name=sidecar].resources`
 - **transforms:** `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
 - **stopRules:** semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey. With `path`: checks specific JSONPath. Without: scans ALL values

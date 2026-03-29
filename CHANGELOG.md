@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.15.2] - 2026-03-29
 
+### Changed
+
+- When `requiredVersion` is set in the config, the auto-update notification check is skipped. A pinned version requirement signals intentional version targeting — the update nudge is not useful in that context.
+
 ### Security
 
 - HTML report: File paths and transform-derived `originalPath` values are now HTML-escaped in the report, preventing XSS if filename transforms produce HTML-special characters.

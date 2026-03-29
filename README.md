@@ -428,7 +428,7 @@ requiredVersion: '1.10.0' # Optional: Minimum tool version required to process t
 
 **Note:** Source and destination paths cannot resolve to the same folder.
 
-**`requiredVersion`:** When set, the CLI checks that the installed version of helm-env-delta meets this minimum. If the installed version is older, the CLI exits immediately with a clear upgrade message. This prevents running configs that depend on newer features with an outdated tool version. Supports `"1.2.3"` or `"v1.2.3"` format.
+**`requiredVersion`:** When set, the CLI checks that the installed version of helm-env-delta meets this minimum. If the installed version is older, the CLI exits immediately with a clear upgrade message. This prevents running configs that depend on newer features with an outdated tool version. Supports `"1.2.3"` or `"v1.2.3"` format. Setting `requiredVersion` also suppresses the auto-update notification — a pinned version requirement signals intentional version targeting.
 
 ---
 
