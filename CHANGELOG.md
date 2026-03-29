@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.2] - 2026-03-29
+
+### Changed
+
+- When `requiredVersion` is set in the config, the auto-update notification check is skipped. A pinned version requirement signals intentional version targeting — the update nudge is not useful in that context.
+
+### Security
+
+- HTML report: File paths and transform-derived `originalPath` values are now HTML-escaped in the report, preventing XSS if filename transforms produce HTML-special characters.
+- ReDoS detection: `isSafeRegex()` now also rejects `(a+)?` style patterns (optional quantifier after a group with inner `+`/`*`) and alternation groups with outer repetition (`(a|ab)*`, `(a|b+)+`), covering additional catastrophic backtracking vectors missed by the previous check.
+- Prototype pollution: `deepMerge` now skips `__proto__`, `constructor`, and `prototype` keys when copying skipPath-preserved fields from destination YAML content, preventing pollution via crafted YAML files.
+- npm audit re-enabled: Removed `audit=false` from `.npmrc` so dependency security scanning runs automatically on `npm install`.
+
 ## [1.15.1] - 2026-03-19
 
 ### Fixed

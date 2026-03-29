@@ -60,7 +60,7 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 
 **Caching:** patternMatcher (global glob cache), serialization (normalized YAML strings), stop rule memoization (version comparisons), yamlFormatter (two-level WeakMap/Map cache per outputFormat config object + file path), regexTransform (module-level Map of compiled RegExp instances).
 
-**Security validation:** `regexSafety.isSafeRegex()` detects nested quantifiers (ReDoS) in all regex inputs — `stopRules` regex, `transforms` find patterns, and external pattern files. `fixedValues` values are validated against prototype-polluting keys (`__proto__`, `constructor`, `prototype`) via Zod schema.
+**Security validation:** `regexSafety.isSafeRegex()` detects catastrophic backtracking (ReDoS) in all regex inputs — `stopRules` regex, `transforms` find patterns, and external pattern files. Catches nested quantifiers on groups (e.g., `(a+)+`), optional quantifier after groups with inner quantifier (e.g., `(a+)?`), and alternation with outer repetition (e.g., `(a|ab)*`). `fixedValues` values are validated against prototype-polluting keys (`__proto__`, `constructor`, `prototype`) via Zod schema. `deepMerge` also guards against prototype pollution from YAML file content. HTML report paths are HTML-escaped to prevent XSS from filename transforms.
 
 **Config inheritance:** Single parent via `extends`, max 5 levels, circular detection. Merging: primitives override, arrays concatenate, per-file records merge keys + concat arrays, outputFormat shallow merges.
 
@@ -78,7 +78,7 @@ Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests (use `test:a
 
 ## Config Schema
 
-- **Core:** `source`, `destination` (required for sync; source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`, `requiredVersion`
+- **Core:** `source`, `destination` (required for sync; source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`, `requiredVersion` (also suppresses auto-update notification when set)
 - **skipPath:** JSONPath patterns per-file glob with CSS-style filters. Example: `env[name^=DB_]`, `containers[name=sidecar].resources`
 - **transforms:** `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
 - **stopRules:** semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey. With `path`: checks specific JSONPath. Without: scans ALL values

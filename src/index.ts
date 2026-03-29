@@ -83,6 +83,7 @@ const main = async (): Promise<void> => {
 
   // Load and validate config
   const config = loadConfigFile(command.config, command.quiet, logger, { formatOnly: command.formatOnly });
+  if (config.requiredVersion) configHasRequiredVersion = true;
 
   // Early exit for show-config mode
   if (command.showConfig) {
@@ -477,6 +478,7 @@ const main = async (): Promise<void> => {
 };
 
 // Execute main function with error handling
+let configHasRequiredVersion = false;
 // eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS doesn't support top-level await
 (async () => {
   try {
@@ -500,8 +502,8 @@ const main = async (): Promise<void> => {
     else console.error('Unexpected error:', error);
     process.exit(1);
   } finally {
-    // Fire-and-forget version check (skip in quiet mode)
+    // Fire-and-forget version check (skip in quiet mode or when requiredVersion is set in config)
     const command = parseCommandLine();
-    if (!command.quiet) void checkForUpdates(packageJson.version);
+    if (!command.quiet && !configHasRequiredVersion) void checkForUpdates(packageJson.version);
   }
 })();

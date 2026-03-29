@@ -58,15 +58,15 @@ const countDiffLines = (unifiedDiff: string): { added: number; removed: number }
 };
 
 const generateFileSummary = (file: ChangedFile): string => {
-  if (!file.originalPath) return file.path;
+  if (!file.originalPath) return escapeHtml(file.path);
 
-  return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
+  return `<span class="filename-transform">${escapeHtml(file.originalPath)} → ${escapeHtml(file.path)}</span>`;
 };
 
 const generateAddedFileSummary = (file: AddedFile): string => {
-  if (!file.originalPath) return file.path;
+  if (!file.originalPath) return escapeHtml(file.path);
 
-  return `<span class="filename-transform">${file.originalPath} → ${file.path}</span>`;
+  return `<span class="filename-transform">${escapeHtml(file.originalPath)} → ${escapeHtml(file.path)}</span>`;
 };
 
 const JUMP_TO_SIDEBAR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 2h3v12H2V2zm0-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm5 4h7v1H7V5zm0 3h7v1H7V8zm0 3h5v1H7v-1z"/></svg>`;
