@@ -60,7 +60,7 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 
 **Caching:** patternMatcher (global glob cache), serialization (normalized YAML strings), stop rule memoization (version comparisons), yamlFormatter (two-level WeakMap/Map cache per outputFormat config object + file path), regexTransform (module-level Map of compiled RegExp instances).
 
-**Security validation:** `regexSafety.isSafeRegex()` detects nested quantifiers (ReDoS) in all regex inputs — `stopRules` regex, `transforms` find patterns, and external pattern files. `fixedValues` values are validated against prototype-polluting keys (`__proto__`, `constructor`, `prototype`) via Zod schema.
+**Security validation:** `regexSafety.isSafeRegex()` detects catastrophic backtracking (ReDoS) in all regex inputs — `stopRules` regex, `transforms` find patterns, and external pattern files. Catches nested quantifiers on groups (e.g., `(a+)+`), optional quantifier after groups with inner quantifier (e.g., `(a+)?`), and alternation with outer repetition (e.g., `(a|ab)*`). `fixedValues` values are validated against prototype-polluting keys (`__proto__`, `constructor`, `prototype`) via Zod schema. `deepMerge` also guards against prototype pollution from YAML file content. HTML report paths are HTML-escaped to prevent XSS from filename transforms.
 
 **Config inheritance:** Single parent via `extends`, max 5 levels, circular detection. Merging: primitives override, arrays concatenate, per-file records merge keys + concat arrays, outputFormat shallow merges.
 
