@@ -887,13 +887,10 @@ const calculateLevenshteinDistance = (string1: string, string2: string): number 
 
   for (let row = 1; row <= string2.length; row++)
     for (let col = 1; col <= string1.length; col++)
-      if (string2.charAt(row - 1) === string1.charAt(col - 1)) matrix[row]![col] = matrix[row - 1]![col - 1]!;
-      else
-        matrix[row]![col] = Math.min(
-          matrix[row - 1]![col - 1]! + 1,
-          matrix[row]![col - 1]! + 1,
-          matrix[row - 1]![col]! + 1
-        );
+      matrix[row]![col] =
+        string2.charAt(row - 1) === string1.charAt(col - 1)
+          ? matrix[row - 1]![col - 1]!
+          : Math.min(matrix[row - 1]![col - 1]! + 1, matrix[row]![col - 1]! + 1, matrix[row - 1]![col]! + 1);
 
   return matrix[string2.length]![string1.length]!;
 };
