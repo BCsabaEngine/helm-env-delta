@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import chalk from 'chalk';
+import colors from 'ansi-colors';
 import * as YAML from 'yaml';
 
 import packageJson from '../package.json';
@@ -54,7 +54,7 @@ const main = async (): Promise<void> => {
   const command = parseCommandLine();
 
   // Disable colors if --no-color flag is set
-  if (command.noColor) chalk.level = 0;
+  if (command.noColor) colors.enabled = false;
 
   // Create logger based on verbosity flags
   const verbosityLevel: VerbosityLevel = command.verbose ? 'verbose' : command.quiet ? 'quiet' : 'normal';
@@ -69,12 +69,12 @@ const main = async (): Promise<void> => {
   const isFirstRun = !existsSync(firstRunMarker);
 
   if (isFirstRun && !command.quiet) {
-    console.log(chalk.cyan('\n👋 First time using helm-env-delta?\n'));
-    console.log(chalk.dim('  Tips:'));
-    console.log(chalk.dim('  • Always use --dry-run first to preview changes'));
-    console.log(chalk.dim('  • Use --diff-html to review diffs in your browser'));
-    console.log(chalk.dim('  • See examples: https://github.com/balazscsaba2006/helm-env-delta/tree/main/example'));
-    console.log(chalk.dim('  • Run with --help to see all options\n'));
+    console.log(colors.cyan('\n👋 First time using helm-env-delta?\n'));
+    console.log(colors.dim('  Tips:'));
+    console.log(colors.dim('  • Always use --dry-run first to preview changes'));
+    console.log(colors.dim('  • Use --diff-html to review diffs in your browser'));
+    console.log(colors.dim('  • See examples: https://github.com/balazscsaba2006/helm-env-delta/tree/main/example'));
+    console.log(colors.dim('  • Run with --help to see all options\n'));
 
     // Create marker directory and file
     mkdirSync(configDirectory, { recursive: true });
@@ -87,7 +87,7 @@ const main = async (): Promise<void> => {
 
   // Early exit for show-config mode
   if (command.showConfig) {
-    console.log(chalk.cyan('\n⚙️  Resolved Configuration:\n'));
+    console.log(colors.cyan('\n⚙️  Resolved Configuration:\n'));
     console.log(YAML.stringify(config, { indent: 2 }));
     return;
   }
@@ -110,8 +110,8 @@ const main = async (): Promise<void> => {
     let hasAnyWarnings = warningResult.hasWarnings;
 
     if (warningResult.hasWarnings) {
-      console.warn(chalk.yellow('\n⚠️  Configuration Warnings (non-fatal):\n'));
-      for (const warning of warningResult.warnings) console.warn(chalk.yellow(`  • ${warning}`));
+      console.warn(colors.yellow('\n⚠️  Configuration Warnings (non-fatal):\n'));
+      for (const warning of warningResult.warnings) console.warn(colors.yellow(`  • ${warning}`));
     }
 
     // Phase 2: File-based validation
@@ -176,11 +176,11 @@ const main = async (): Promise<void> => {
     hasAnyWarnings = hasAnyWarnings || usageResult.hasWarnings;
 
     if (usageResult.hasWarnings) {
-      console.warn(chalk.yellow('\n⚠️  Pattern Usage Warnings (non-fatal):\n'));
+      console.warn(colors.yellow('\n⚠️  Pattern Usage Warnings (non-fatal):\n'));
       for (const warning of usageResult.warnings) {
-        const contextString = warning.context ? chalk.dim(` (${warning.context})`) : '';
-        console.warn(chalk.yellow(`  • ${warning.message}${contextString}`));
-        if (warning.hint) console.warn(chalk.dim(`    Hint: ${warning.hint}`));
+        const contextString = warning.context ? colors.dim(` (${warning.context})`) : '';
+        console.warn(colors.yellow(`  • ${warning.message}${contextString}`));
+        if (warning.hint) console.warn(colors.dim(`    Hint: ${warning.hint}`));
       }
     }
 
@@ -205,7 +205,7 @@ const main = async (): Promise<void> => {
   // Early exit for format-only mode (no source required)
   if (command.formatOnly) {
     if (!config.outputFormat) {
-      logger.log(chalk.yellow('\n⚠️  No outputFormat configured. Nothing to format.'));
+      logger.log(colors.yellow('\n⚠️  No outputFormat configured. Nothing to format.'));
       return;
     }
 
@@ -228,9 +228,9 @@ const main = async (): Promise<void> => {
     // Early exit for list-files mode in format-only context
     if (command.listFiles) {
       const filesList = [...destinationFiles.keys()].toSorted();
-      console.log(chalk.cyan('\n📋 Files to be formatted:\n'));
-      console.log(chalk.yellow(`Destination files: ${filesList.length}`));
-      for (const file of filesList) console.log(`  ${chalk.dim(file)}`);
+      console.log(colors.cyan('\n📋 Files to be formatted:\n'));
+      console.log(colors.yellow(`Destination files: ${filesList.length}`));
+      for (const file of filesList) console.log(`  ${colors.dim(file)}`);
       return;
     }
 
@@ -352,12 +352,12 @@ const main = async (): Promise<void> => {
     const sourceFilesList = [...sourceFiles.keys()].toSorted();
     const destinationFilesList = [...destinationFiles.keys()].toSorted();
 
-    console.log(chalk.cyan('\n📋 Files to be synced:\n'));
-    console.log(chalk.green(`Source files: ${sourceFilesList.length}`));
-    for (const file of sourceFilesList) console.log(`  ${chalk.dim(file)}`);
+    console.log(colors.cyan('\n📋 Files to be synced:\n'));
+    console.log(colors.green(`Source files: ${sourceFilesList.length}`));
+    for (const file of sourceFilesList) console.log(`  ${colors.dim(file)}`);
 
-    console.log(chalk.yellow(`\nDestination files: ${destinationFilesList.length}`));
-    for (const file of destinationFilesList) console.log(`  ${chalk.dim(file)}`);
+    console.log(colors.yellow(`\nDestination files: ${destinationFilesList.length}`));
+    for (const file of destinationFilesList) console.log(`  ${colors.dim(file)}`);
 
     return;
   }
@@ -388,14 +388,14 @@ const main = async (): Promise<void> => {
       const suggestions = analyzeDifferencesForSuggestions(diffResult, syncConfig, command.suggestThreshold);
       const yaml = formatSuggestionsAsYaml(suggestions);
 
-      console.log(chalk.cyan('\n💡 Suggested Configuration:\n'));
+      console.log(colors.cyan('\n💡 Suggested Configuration:\n'));
       console.log(yaml);
 
       if (suggestions.metadata.changedFiles === 0)
-        console.log(chalk.yellow('\nℹ️  No changes detected. Files are already in sync.'));
+        console.log(colors.yellow('\nℹ️  No changes detected. Files are already in sync.'));
       else {
-        console.log(chalk.dim('\n---'));
-        console.log(chalk.dim('💡 Tip: Copy relevant sections to your config.yaml and test with --dry-run'));
+        console.log(colors.dim('\n---'));
+        console.log(colors.dim('💡 Tip: Copy relevant sections to your config.yaml and test with --dry-run'));
       }
 
       return;
@@ -424,30 +424,30 @@ const main = async (): Promise<void> => {
 
   // Show pre-execution summary (only in non-dry-run, non-quiet mode)
   if (!command.dryRun && !command.quiet) {
-    console.log(chalk.cyan('\n📊 Sync Summary:'));
-    console.log(chalk.dim('─'.repeat(60)));
-    console.log(`  ${chalk.green('Added:')}     ${diffResult.addedFiles.length} files`);
-    console.log(`  ${chalk.yellow('Changed:')}   ${diffResult.changedFiles.length} files`);
+    console.log(colors.cyan('\n📊 Sync Summary:'));
+    console.log(colors.dim('─'.repeat(60)));
+    console.log(`  ${colors.green('Added:')}     ${diffResult.addedFiles.length} files`);
+    console.log(`  ${colors.yellow('Changed:')}   ${diffResult.changedFiles.length} files`);
     console.log(
-      `  ${chalk.red('Deleted:')}   ${diffResult.deletedFiles.length} files (${syncConfig.prune ? 'prune enabled' : 'prune disabled'})`
+      `  ${colors.red('Deleted:')}   ${diffResult.deletedFiles.length} files (${syncConfig.prune ? 'prune enabled' : 'prune disabled'})`
     );
-    console.log(`  ${chalk.blue('Unchanged:')} ${diffResult.unchangedFiles.length} files`);
-    console.log(chalk.dim('─'.repeat(60)));
+    console.log(`  ${colors.blue('Unchanged:')} ${diffResult.unchangedFiles.length} files`);
+    console.log(colors.dim('─'.repeat(60)));
 
     if (diffResult.deletedFiles.length > 0 && syncConfig.prune) {
-      console.warn(chalk.red('⚠️  Warning: Prune is enabled. The following files will be permanently deleted:'));
-      for (const f of diffResult.deletedFiles) console.warn(chalk.red(`    - ${f}`));
+      console.warn(colors.red('⚠️  Warning: Prune is enabled. The following files will be permanently deleted:'));
+      for (const f of diffResult.deletedFiles) console.warn(colors.red(`    - ${f}`));
     }
 
     if (syncConfig.confirmationDelay > 0) {
       const totalSeconds = Math.ceil(syncConfig.confirmationDelay / 1000);
-      console.log(chalk.dim('\nPress Ctrl+C to cancel.\n'));
+      console.log(colors.dim('\nPress Ctrl+C to cancel.\n'));
       for (let remaining = totalSeconds; remaining > 0; remaining--) {
-        process.stdout.write(chalk.dim(`  Proceeding in ${remaining}s...\r`));
+        process.stdout.write(colors.dim(`  Proceeding in ${remaining}s...\r`));
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
       process.stdout.write(' '.repeat(40) + '\r'); // Clear line
-    } else console.log(chalk.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
+    } else console.log(colors.dim('\nPress Ctrl+C to cancel, or use --dry-run to preview changes first.\n'));
   }
 
   // Update files
