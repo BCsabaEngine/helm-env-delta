@@ -1,4 +1,4 @@
-import chalk from 'chalk';
+import colors from 'ansi-colors';
 
 import { StopRuleViolation } from './pipeline/stopRulesValidator';
 
@@ -19,13 +19,13 @@ export const formatBox = (title: string, content: string[], style: BoxStyle = 'i
   const getColorFunction = (boxStyle: BoxStyle) => {
     switch (boxStyle) {
       case 'success':
-        return chalk.green;
+        return colors.green;
       case 'warning':
-        return chalk.yellow;
+        return colors.yellow;
       case 'error':
-        return chalk.red;
+        return colors.red;
       default:
-        return chalk.cyan;
+        return colors.cyan;
     }
   };
 
@@ -63,7 +63,7 @@ export const formatStopRuleViolation = (violation: StopRuleViolation, mode: Viol
   };
 
   const labelWidth = 10;
-  const formatLabel = (label: string): string => chalk.dim(label.padEnd(labelWidth));
+  const formatLabel = (label: string): string => colors.dim(label.padEnd(labelWidth));
 
   const content: string[] = [
     `${formatLabel('File:')} ${violation.file}`,
@@ -89,16 +89,16 @@ export const colorizeFileOperation = (
   isDryRun: boolean,
   alreadyDeleted: boolean = false
 ): string => {
-  const getOperationDisplay = (op: FileOperation): { symbol: string; verb: string; colorFn: typeof chalk.green } => {
+  const getOperationDisplay = (op: FileOperation): { symbol: string; verb: string; colorFn: typeof colors.green } => {
     switch (op) {
       case 'add':
-        return { symbol: '+', verb: 'add', colorFn: chalk.green };
+        return { symbol: '+', verb: 'add', colorFn: colors.green };
       case 'update':
-        return { symbol: '~', verb: 'update', colorFn: chalk.yellow };
+        return { symbol: '~', verb: 'update', colorFn: colors.yellow };
       case 'delete':
-        return { symbol: '-', verb: 'delete', colorFn: chalk.red };
+        return { symbol: '-', verb: 'delete', colorFn: colors.red };
       case 'format':
-        return { symbol: '≈', verb: 'format', colorFn: chalk.cyan };
+        return { symbol: '≈', verb: 'format', colorFn: colors.cyan };
     }
   };
 
@@ -129,9 +129,9 @@ export const formatProgressMessage = (message: string, style: ProgressStyle): st
   const getColorFunction = (progressStyle: ProgressStyle) => {
     switch (progressStyle) {
       case 'success':
-        return chalk.green;
+        return colors.green;
       default:
-        return chalk.cyan;
+        return colors.cyan;
     }
   };
 

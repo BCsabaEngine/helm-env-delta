@@ -1,6 +1,6 @@
 import https from 'node:https';
 
-import chalk from 'chalk';
+import colors from 'ansi-colors';
 
 import packageJson from '../../package.json';
 import { createErrorClass, createErrorTypeGuard } from './errors';
@@ -145,8 +145,8 @@ const fetchLatestVersion = (packageName: string, timeout: number): Promise<strin
 // ============================================================================
 
 const displayUpdateNotification = (currentVersion: string, latestVersion: string): void => {
-  console.log('\n' + chalk.yellow(`⚠ Update available! v${currentVersion} → v${latestVersion}`));
-  console.log(chalk.yellow('Run: npm install -g helm-env-delta@latest'));
+  console.log('\n' + colors.yellow(`⚠ Update available! v${currentVersion} → v${latestVersion}`));
+  console.log(colors.yellow('Run: npm install -g helm-env-delta@latest'));
 };
 
 // ============================================================================

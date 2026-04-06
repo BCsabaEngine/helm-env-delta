@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.3] - 2026-04-07
+
+### Changed
+
+- Upgraded to TypeScript 6 with `node16` module resolution for improved compatibility with the modern Node.js module system.
+- Replaced the `chalk` color library with `ansi-colors`, which is compatible with CommonJS output and has an identical API.
+
 ## [1.15.2] - 2026-03-29
 
 ### Changed

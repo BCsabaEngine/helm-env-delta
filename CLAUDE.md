@@ -42,12 +42,12 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 - `reporters/` — HTML (self-contained standalone files with diff2html), console diff, JSON output, tree builder/renderer
 - `utils/` — errors (factory pattern), jsonPath (CSS-style filters), transformer, patternMatcher (cached), arrayMerger (skipPath-aware), fixedValues, fileFilter, collisionDetector, versionChecker, regexSafety (ReDoS detection), regexTransform (cached regex compilation), serialization (deepSortKeys for fast normalization), gitFilter (simple-git wrapper for `--my` author filtering)
 
-**Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, chalk, simple-git
+**Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, ansi-colors, simple-git
 
 ## Code Style
 
 - **Functions:** Const arrow only: `const fn = (params): Type => { ... };`
-- **TypeScript:** ES2023, CommonJS, strict mode with `noUncheckedIndexedAccess`, rootDir: `./src`
+- **TypeScript:** ES2023, node16 module (CommonJS output), strict mode with `noUncheckedIndexedAccess`, rootDir: `./src`
 - **ESLint:** Native flat config (v9), unicorn (all), simple-import-sort, `curly: ['error', 'multi']`
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x matrix, format → lint → build → test
