@@ -1,6 +1,7 @@
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
 
 import packageJson from '../package.json';
+import { EXIT_CONFIG_ERROR } from './exitCodes';
 
 // ============================================================================
 // Command Types
@@ -113,32 +114,38 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
   // Enable suggestion for typos (built-in commander feature)
   program.showSuggestionAfterError(true);
 
+  // Override Commander's default process.exit(1) so all CLI errors use EXIT_CONFIG_ERROR
+  program.exitOverride((error: CommanderError) => {
+    if (error.exitCode === 0) process.exit(0); // --help / --version
+    process.exit(EXIT_CONFIG_ERROR);
+  });
+
   program.parse(argv || process.argv);
   const options = program.opts();
 
   // Check for mutually exclusive flags
   if (options['verbose'] && options['quiet']) {
     console.error('Error: --verbose and --quiet flags are mutually exclusive');
-    process.exit(1);
+    process.exit(EXIT_CONFIG_ERROR);
   }
 
   if (options['formatOnly'] && options['skipFormat']) {
     console.error('Error: --format-only and --skip-format flags are mutually exclusive');
-    process.exit(1);
+    process.exit(EXIT_CONFIG_ERROR);
   }
 
   // Validate --suggest-threshold value
   const threshold = Number.parseFloat(options['suggestThreshold']);
   if (Number.isNaN(threshold) || threshold < 0 || threshold > 1) {
     console.error('Error: --suggest-threshold must be a number between 0 and 1');
-    process.exit(1);
+    process.exit(EXIT_CONFIG_ERROR);
   }
 
   // Validate --mode value
   const validModes = ['new', 'modified', 'deleted', 'all'];
   if (!validModes.includes(options['mode'])) {
     console.error('Error: --mode must be one of: ' + validModes.join(', '));
-    process.exit(1);
+    process.exit(EXIT_CONFIG_ERROR);
   }
 
   // Parse --my [days] option
@@ -147,7 +154,7 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     const parsed = Number.parseInt(options['my'], 10);
     if (Number.isNaN(parsed) || parsed < 1) {
       console.error('Error: --my days must be a positive integer');
-      process.exit(1);
+      process.exit(EXIT_CONFIG_ERROR);
     }
     myDays = parsed;
   }
