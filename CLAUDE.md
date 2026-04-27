@@ -29,7 +29,7 @@ npx vitest run -t "skipExclude"                  # Tests matching pattern
 | Command       | Key options                                                                                   |
 | ------------- | --------------------------------------------------------------------------------------------- |
 | `run`         | `-D/--dry-run`, `--force`, `-S/--skip-format`, `-f/--filter`, `-m/--mode`, `--my [days]`      |
-| `validate`    | `-f/--filter`, `--my [days]`                                                                  |
+| `validate`    | `--strict`, `-f/--filter`, `--my [days]`                                                      |
 | `format`      | `-D/--dry-run`, `-f/--filter`                                                                 |
 | `suggest`     | `--suggest-threshold 0-1`, `-f/--filter`, `-m/--mode`, `--my [days]`                          |
 | `diff`        | `-H/--html`, `-J/--json`, `--report-output <path>`, `-f/--filter`, `-m/--mode`, `--my [days]` |
@@ -117,6 +117,7 @@ Defined in `src/exitCodes.ts` and used consistently across `src/index.ts` and `s
 | 1    | `EXIT_CHANGES_SYNCED`      | Changes were synced or formatted successfully                |
 | 2    | `EXIT_STOP_RULE_VIOLATION` | Stop rule(s) blocked the sync (use `--force` or `--dry-run`) |
 | 3    | `EXIT_CONFIG_ERROR`        | Bad CLI arguments or invalid/missing configuration           |
+| 4    | `EXIT_VALIDATION_WARNINGS` | Warnings found during `validate --strict`                    |
 
 Early exits (`show-config`, `validate`, `list-files`, `suggest` success) use exit 0 — no sync occurred. Runtime errors (file I/O, YAML parse) use exit 1. `process.exitCode` is used instead of `process.exit()` for the 0/1 success paths so the `finally` block (version checker) still runs.
 

@@ -235,7 +235,7 @@ HelmEnvDelta uses **subcommands**, each with their own short flags. All subcomma
 | ------------- | ---------------------------------- | ---------------------------------------- |
 | `run`         | `-D` (dry-run), `-S` (skip-format) | Sync source changes to destination       |
 | `diff`        | `-H` (html), `-J` (json)           | Show changes (read-only)                 |
-| `validate`    | —                                  | Validate config and patterns             |
+| `validate`    | `--strict` (exit 4 on warnings)    | Validate config and patterns             |
 | `format`      | `-D` (dry-run)                     | Format destination files without syncing |
 | `suggest`     | —                                  | Suggest transforms and stop rules        |
 | `list-files`  | —                                  | List files without processing            |
@@ -611,6 +611,9 @@ done
 ```yaml
 - name: Install HelmEnvDelta
   run: npm install -g helm-env-delta
+
+- name: Validate config (strict)
+  run: helm-env-delta validate -c config.yaml --strict
 
 - name: Validate sync
   run: |
@@ -1503,7 +1506,7 @@ helm-env-delta suggest -c config.yaml > suggestions.yaml
 # Preview with diff
 helm-env-delta diff -c config.yaml
 
-# Validate config
+# Validate config (add --strict once you're ready to enforce warning-free configs)
 helm-env-delta validate -c config.yaml
 ```
 
@@ -1628,7 +1631,7 @@ helm-env-delta suggest -c config.yaml > suggestions.yaml
 # Add skipPath for environment-specific fields
 # Add stop rules for safety
 
-helm-env-delta validate -c config.yaml
+helm-env-delta validate -c config.yaml  # Add --strict once patterns are clean
 helm-env-delta diff -c config.yaml
 ```
 
@@ -2033,11 +2036,22 @@ helm-env-delta validate -c config.yaml
 - **Errors** = Config is invalid, tool won't run
 - **Warnings** = Config works but has potential issues (typos, outdated patterns, etc.)
 
+**Strict mode for CI/CD enforcement:**
+
+Add `--strict` to make warnings block your pipeline (exits with code 4 instead of 0):
+
+```bash
+# Fail CI if config has any warnings
+helm-env-delta validate -c config.yaml --strict
+```
+
+This is useful as a pre-flight gate: ensure your config stays clean before allowing a sync to run.
+
 **When to use:**
 
 - After updating configuration files
 - When troubleshooting why patterns aren't working
-- As part of CI/CD pre-flight checks
+- As a CI/CD pre-flight check — add `--strict` to enforce a warning-free config
 - After reorganizing your file structure
 
 ---

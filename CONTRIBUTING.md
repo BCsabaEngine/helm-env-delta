@@ -452,8 +452,9 @@ parseCommandLine → loadConfigFile (with inheritance)
 | 1    | `EXIT_CHANGES_SYNCED`      | Changes synced/formatted successfully                        |
 | 2    | `EXIT_STOP_RULE_VIOLATION` | Stop rule(s) blocked the sync (use `--force` or `--dry-run`) |
 | 3    | `EXIT_CONFIG_ERROR`        | Bad CLI arguments or invalid/missing configuration           |
+| 4    | `EXIT_VALIDATION_WARNINGS` | Warnings found during `validate --strict`                    |
 
-Early exits (`show-config`, `validate`, `list-files`, `suggest` success) use exit 0.
+Early exits (`show-config`, `validate`, `list-files`, `suggest` success) use exit 0 (unless `validate --strict` finds warnings, which exits 4).
 
 ### Key Modules
 

@@ -870,15 +870,15 @@ helm-env-delta <command> [options]
 hed <command> [options]  # Short alias
 ```
 
-| Command       | Description                                               |
-| ------------- | --------------------------------------------------------- |
-| `run`         | Sync source YAML changes to destination                   |
-| `validate`    | Validate configuration and patterns (shows warnings)      |
-| `format`      | Format destination YAML files without syncing             |
-| `suggest`     | Analyze differences and suggest config updates            |
-| `diff`        | Show changes between source and destination (read-only)   |
-| `list-files`  | List files that would be processed without computing diff |
-| `show-config` | Display resolved configuration after inheritance          |
+| Command       | Description                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `run`         | Sync source YAML changes to destination                                                     |
+| `validate`    | Validate configuration and patterns (shows warnings, `--strict` exits non-zero on warnings) |
+| `format`      | Format destination YAML files without syncing                                               |
+| `suggest`     | Analyze differences and suggest config updates                                              |
+| `diff`        | Show changes between source and destination (read-only)                                     |
+| `list-files`  | List files that would be processed without computing diff                                   |
+| `show-config` | Display resolved configuration after inheritance                                            |
 
 ### Global Options
 
@@ -906,11 +906,12 @@ All commands accept:
 
 **`validate` — Validate configuration and pattern usage**
 
-| Flag                | Short | Description                                           |
-| ------------------- | ----- | ----------------------------------------------------- |
-| `--config <path>`   | `-c`  | **Required** — Configuration file                     |
-| `--filter <string>` | `-f`  | Filter files                                          |
-| `--my [days]`       |       | Limit to files you modified in git in the last N days |
+| Flag                | Short | Description                                                         |
+| ------------------- | ----- | ------------------------------------------------------------------- |
+| `--config <path>`   | `-c`  | **Required** — Configuration file                                   |
+| `--strict`          |       | Exit with code 4 if any warnings are found (useful for CI/CD gates) |
+| `--filter <string>` | `-f`  | Filter files                                                        |
+| `--my [days]`       |       | Limit to files you modified in git in the last N days               |
 
 **`format` — Format destination YAML files (source not required)**
 
@@ -959,8 +960,11 @@ All commands accept:
 ### Examples
 
 ```bash
-# Validate configuration (shows warnings)
+# Validate configuration (shows warnings, exits 0)
 hed validate -c config.yaml
+
+# Strict mode — exit 4 if any warnings found (CI gate)
+hed validate -c config.yaml --strict
 
 # Get smart configuration suggestions
 hed suggest -c config.yaml
@@ -1109,12 +1113,13 @@ git push origin main
 
 `helm-env-delta` uses granular exit codes so pipelines can act on outcomes without parsing JSON:
 
-| Code | Meaning                                         |
-| ---- | ----------------------------------------------- |
-| `0`  | No changes detected — files are already in sync |
-| `1`  | Changes synced (or formatted) successfully      |
-| `2`  | Stop rule violation(s) blocked the sync         |
-| `3`  | Configuration or CLI argument error             |
+| Code | Meaning                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| `0`  | No changes detected — files are already in sync                         |
+| `1`  | Changes synced (or formatted) successfully                              |
+| `2`  | Stop rule violation(s) blocked the sync                                 |
+| `3`  | Configuration or CLI argument error                                     |
+| `4`  | Warnings found during `validate --strict` (config is usable but impure) |
 
 **Usage in CI:**
 
@@ -1131,12 +1136,16 @@ elif [ $STATUS -eq 2 ]; then
 elif [ $STATUS -eq 3 ]; then
   echo "Config error — check your config.yaml and CLI flags."
   exit 1
+elif [ $STATUS -eq 4 ]; then
+  echo "Validation warnings found — fix them or drop --strict."
+  exit 1
 fi
 ```
 
 **Notes:**
 
 - Early exits (`show-config`, `validate`, `list-files`, `suggest`) return `0` — no sync occurred.
+- `validate --strict` returns `4` when warnings are present (and `0` when clean).
 - Runtime errors (file I/O failures, YAML parse errors) return `1`.
 - `run --dry-run` with changes still returns `1` (changes exist, even if not written).
 
@@ -1291,7 +1300,7 @@ helm-env-delta validate --config config.yaml
 - To verify config file patterns after file reorganization
 - As part of CI/CD pre-flight checks
 
-**Important:** Warnings are non-fatal and don't block execution. They help you catch potential issues but won't stop your workflow.
+**Important:** Warnings are non-fatal by default and don't block execution. Use `--strict` to exit with code 4 when warnings are present, enabling hard enforcement in CI/CD pipelines.
 
 ---
 
