@@ -122,7 +122,7 @@ describe('commandLine', () => {
     it('should exit when command without --config', () => {
       parseCommandLine(['node', 'cli']);
 
-      expect(processExitSpy).toHaveBeenCalledWith(1);
+      expect(processExitSpy).toHaveBeenCalledWith(3);
     });
 
     it('should use default false values when flags not provided', () => {
@@ -288,7 +288,7 @@ describe('commandLine', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error: --format-only and --skip-format flags are mutually exclusive'
       );
-      expect(processExitSpy).toHaveBeenCalledWith(1);
+      expect(processExitSpy).toHaveBeenCalledWith(3);
 
       consoleErrorSpy.mockRestore();
     });
@@ -347,7 +347,7 @@ describe('commandLine', () => {
       parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--verbose', '--quiet']);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --verbose and --quiet flags are mutually exclusive');
-      expect(processExitSpy).toHaveBeenCalledWith(1);
+      expect(processExitSpy).toHaveBeenCalledWith(3);
 
       consoleErrorSpy.mockRestore();
     });
@@ -358,7 +358,7 @@ describe('commandLine', () => {
       parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--quiet', '--verbose']);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --verbose and --quiet flags are mutually exclusive');
-      expect(processExitSpy).toHaveBeenCalledWith(1);
+      expect(processExitSpy).toHaveBeenCalledWith(3);
 
       consoleErrorSpy.mockRestore();
     });
@@ -554,7 +554,7 @@ describe('commandLine', () => {
       parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--mode', 'invalid']);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --mode must be one of: new, modified, deleted, all');
-      expect(processExitSpy).toHaveBeenCalledWith(1);
+      expect(processExitSpy).toHaveBeenCalledWith(3);
 
       consoleErrorSpy.mockRestore();
     });
@@ -603,7 +603,7 @@ describe('commandLine', () => {
       parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--my', '0']);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --my days must be a positive integer');
-      expect(processExitSpy).toHaveBeenCalledWith(1);
+      expect(processExitSpy).toHaveBeenCalledWith(3);
 
       consoleErrorSpy.mockRestore();
     });
@@ -614,7 +614,7 @@ describe('commandLine', () => {
       parseCommandLine(['node', 'cli', '--config', 'test.yaml', '--my', 'abc']);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Error: --my days must be a positive integer');
-      expect(processExitSpy).toHaveBeenCalledWith(1);
+      expect(processExitSpy).toHaveBeenCalledWith(3);
 
       consoleErrorSpy.mockRestore();
     });

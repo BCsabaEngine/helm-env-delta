@@ -17,6 +17,7 @@ import {
   validateConfigWarnings
 } from './config';
 import { formatProgressMessage } from './consoleFormatter';
+import { EXIT_CHANGES_SYNCED, EXIT_CONFIG_ERROR, EXIT_STOP_RULE_VIOLATION } from './exitCodes';
 import { Logger, VerbosityLevel } from './logger';
 import {
   computeFileDiff,
@@ -97,7 +98,7 @@ const main = async (): Promise<void> => {
     // Validation requires source folder
     if (!config.source) {
       logger.error('\nSource folder is required for validation mode.', 'critical');
-      process.exit(1);
+      process.exit(EXIT_CONFIG_ERROR);
     }
 
     // After source check, config is FinalConfig
@@ -267,17 +268,17 @@ const main = async (): Promise<void> => {
     if (errors.length > 0) {
       logger.error(`\n❌ Encountered ${errors.length} error(s):`, 'critical');
       for (const { path: errorPath, error } of errors) logger.error(`  ${errorPath}: ${error.message}`, 'critical');
-
-      process.exit(1);
+      process.exit(EXIT_CHANGES_SYNCED);
     }
 
+    if (formattedCount > 0) process.exitCode = EXIT_CHANGES_SYNCED;
     return;
   }
 
   // From here, source is required (FinalConfig) - TypeScript narrows the type
   if (!config.source) {
     logger.error('\nSource folder is required for sync operations.', 'critical');
-    process.exit(1);
+    process.exit(EXIT_CONFIG_ERROR);
   }
 
   // After source check, config is FinalConfig
@@ -402,7 +403,7 @@ const main = async (): Promise<void> => {
     } catch (error) {
       if (isSuggestionEngineError(error)) {
         logger.error('\nFailed to generate suggestions: ' + error.message, 'critical');
-        process.exit(1);
+        process.exit(EXIT_CHANGES_SYNCED);
       }
       throw error;
     }
@@ -419,7 +420,7 @@ const main = async (): Promise<void> => {
       for (const violation of validationResult.violations) logger.stopRule(violation, 'error');
 
       logger.error('\nUse --force to override stop rules or --dry-run to preview changes.', 'critical');
-      process.exit(1);
+      process.exit(EXIT_STOP_RULE_VIOLATION);
     }
 
   // Show pre-execution summary (only in non-dry-run, non-quiet mode)
@@ -476,6 +477,10 @@ const main = async (): Promise<void> => {
   // Generate JSON report if requested (always outputs regardless of verbosity)
   if (command.diffJson)
     generateJsonReport(diffResult, formattedFiles, validationResult, syncConfig, command.dryRun, packageJson.version);
+
+  const hasChanges =
+    diffResult.addedFiles.length > 0 || diffResult.deletedFiles.length > 0 || diffResult.changedFiles.length > 0;
+  if (hasChanges) process.exitCode = EXIT_CHANGES_SYNCED;
 };
 
 // Execute main function with error handling
@@ -501,7 +506,9 @@ let configHasRequiredVersion = false;
     else if (isGitFilterError(error)) console.error(error.message);
     else if (error instanceof Error) console.error('Unexpected error:', error.message);
     else console.error('Unexpected error:', error);
-    process.exit(1);
+    if (isConfigMergerError(error) || isConfigLoaderError(error) || isZodValidationError(error))
+      process.exit(EXIT_CONFIG_ERROR);
+    else process.exit(EXIT_CHANGES_SYNCED);
   } finally {
     // Fire-and-forget version check (skip in quiet mode or when requiredVersion is set in config)
     const command = parseCommandLine();

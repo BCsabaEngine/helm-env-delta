@@ -1018,6 +1018,43 @@ git push origin main
 
 ## 📊 CI/CD Output
 
+### Exit Codes
+
+`helm-env-delta` uses granular exit codes so pipelines can act on outcomes without parsing JSON:
+
+| Code | Meaning                                         |
+| ---- | ----------------------------------------------- |
+| `0`  | No changes detected — files are already in sync |
+| `1`  | Changes synced (or formatted) successfully      |
+| `2`  | Stop rule violation(s) blocked the sync         |
+| `3`  | Configuration or CLI argument error             |
+
+**Usage in CI:**
+
+```bash
+hed -c config.yaml
+STATUS=$?
+
+if [ $STATUS -eq 0 ]; then
+  echo "Nothing to do."
+elif [ $STATUS -eq 1 ]; then
+  echo "Sync complete — commit and push."
+elif [ $STATUS -eq 2 ]; then
+  echo "Blocked by stop rules — review before using --force."
+elif [ $STATUS -eq 3 ]; then
+  echo "Config error — check your config.yaml and CLI flags."
+  exit 1
+fi
+```
+
+**Notes:**
+
+- Early exits (`--show-config`, `--validate`, `--list-files`, `--suggest`) return `0` — no sync occurred.
+- Runtime errors (file I/O failures, YAML parse errors) return `1`.
+- `--dry-run` with changes still returns `1` (changes exist, even if not written).
+
+---
+
 ### HTML Report as Artifact
 
 ```bash
