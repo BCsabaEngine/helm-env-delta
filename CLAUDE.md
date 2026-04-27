@@ -64,7 +64,7 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: show-co
 
 - **Functions:** Const arrow only: `const fn = (params): Type => { ... };`
 - **TypeScript:** ES2023, node16 module (CommonJS output), strict mode with `noUncheckedIndexedAccess`, rootDir: `./src`
-- **ESLint:** Native flat config (v9), unicorn (all), simple-import-sort, `curly: ['error', 'multi']`
+- **ESLint:** Native flat config (v9), unicorn (all), simple-import-sort, `curly: ['error', 'multi']`. Extra rules (all files): `@typescript-eslint/consistent-type-imports` (inline `import type`), `no-shadow` (TS-aware), `method-signature-style: property`. Type-aware rules (src only, projectService): `switch-exhaustiveness-check`, `no-unnecessary-condition`, `prefer-readonly`, `require-array-sort-compare` (ignoreStringArrays), `no-floating-promises`, `no-unnecessary-type-assertion`, `no-redundant-type-constituents`
 - **Prettier:** Single quotes, no trailing commas, 2 spaces, 120 chars
 - **CI/CD:** Node 22.x/24.x matrix, format → lint → build → test
 
