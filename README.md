@@ -123,6 +123,16 @@ hed -c config.yaml -H
 
 Self-contained HTML report — works offline, no CDN required. Includes collapsible diff stats dashboard, stop rule violations table (shown in dry-run mode), synchronized side-by-side scrolling, copy buttons, sidebar search, collapse/expand controls, and jump-to-sidebar navigation. File blocks auto-collapse when there are more than 10 files. Empty categories are automatically hidden.
 
+To save the report as a file without opening a browser (e.g. for CI/CD artifacts), use `--report-output`:
+
+```bash
+# Save to an exact path
+hed -c config.yaml --report-output ./reports/2026-04-27.html
+
+# Save to a directory (filename auto-generated)
+hed -c config.yaml --report-output ./reports/
+```
+
 ### 5️⃣ Get Smart Suggestions (Optional)
 
 ```bash
@@ -847,6 +857,7 @@ hed --config <file> [options]  # Short alias
 | `--diff`                    | `-d`  | Show console diff                                                           |
 | `--diff-html`               | `-H`  | Generate HTML report (opens in browser)                                     |
 | `--diff-json`               | `-J`  | Output JSON to stdout (pipe to jq)                                          |
+| `--report-output <path>`    |       | Save HTML report to a file or directory (suppresses browser auto-open)      |
 | `--list-files`              | `-l`  | List files without processing (takes precedence over --format-only)         |
 | `--show-config`             |       | Display resolved config after inheritance                                   |
 | `--format-only`             |       | Format destination files only (source not required)                         |
@@ -881,6 +892,9 @@ hed -c config.yaml -D -d
 
 # Visual HTML report
 hed -c config.yaml -H
+
+# Save HTML report as CI/CD artifact (no browser)
+hed -c config.yaml --report-output ./reports/
 
 # CI/CD integration (no colors)
 hed -c config.yaml -J --no-color | jq '.summary'
@@ -1002,7 +1016,21 @@ git push origin main
 
 ---
 
-## 📊 JSON Output for CI/CD
+## 📊 CI/CD Output
+
+### HTML Report as Artifact
+
+```bash
+# Save to a directory — filename auto-generated with timestamp
+hed --config config.yaml --report-output ./artifacts/
+
+# Save to an exact path
+hed --config config.yaml --report-output ./artifacts/report.html
+```
+
+Browser auto-open is suppressed when `--report-output` is used. The flag also implies HTML generation, so `--diff-html` is not required alongside it.
+
+### JSON Output
 
 ```bash
 hed --config config.yaml --diff-json > report.json
