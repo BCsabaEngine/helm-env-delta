@@ -26,6 +26,7 @@ describe('commandLine', () => {
         config: 'test.yaml',
         dryRun: false,
         force: false,
+        strict: false,
         html: false,
         json: false,
         reportOutput: undefined,
@@ -204,6 +205,7 @@ describe('commandLine', () => {
         config: 'test.yaml',
         dryRun: true,
         force: true,
+        strict: false,
         html: false,
         json: false,
         reportOutput: undefined,
@@ -243,6 +245,14 @@ describe('commandLine', () => {
       expect(result.filter).toBe('prod');
       expect(result.my).toBe(true);
       expect(result.myDays).toBe(14);
+    });
+
+    it('should default strict to false', () => {
+      expect(parseCommandLine(['node', 'cli', 'validate', '-c', 'cfg.yaml']).strict).toBe(false);
+    });
+
+    it('should parse --strict', () => {
+      expect(parseCommandLine(['node', 'cli', 'validate', '-c', 'cfg.yaml', '--strict']).strict).toBe(true);
     });
 
     it('should parse --verbose and --quiet', () => {
