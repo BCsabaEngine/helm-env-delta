@@ -35,7 +35,7 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 → validateStopRules (fail unless --force) → updateFiles (merge + format) → generateReports
 ```
 
-**Source structure** (`src/`): `index.ts` (orchestrator), `commandLine.ts`, `constants.ts`, `logger.ts`, `consoleFormatter.ts`, `suggestionEngine.ts` (largest file — heuristic analyzer for `--suggest`), plus:
+**Source structure** (`src/`): `index.ts` (orchestrator), `commandLine.ts`, `constants.ts`, `exitCodes.ts`, `logger.ts`, `consoleFormatter.ts`, `suggestionEngine.ts` (largest file — heuristic analyzer for `--suggest`), plus:
 
 - `config/` — Zod schemas (BaseConfig → FinalConfig), config loading with inheritance (max 5 levels), merging, warnings
 - `pipeline/` — fileLoader (glob→Map), fileDiff (structural YAML comparison), fileUpdater (deep merge), yamlFormatter (AST-based), stopRulesValidator, patternUsageValidator
@@ -90,6 +90,19 @@ Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests (use `test:a
 **`-f/--filter`:** Simple: `-f prod`. OR (`,`): `-f prod,staging`. AND (`+`): `-f values+prod`. Cannot mix `+` and `,`. Case-insensitive.
 
 **`--my [days]`:** Filters source files to those modified by the current git user (reads `git config user.name`, falls back to `user.email`) within the last N days (default: 30). Queries `git log --author=<name> --since=<N> days ago` against the source directory; matching destination files are filtered in tandem. Requires a git repo with a configured user identity. Applied after `-f/--filter` and `-m/--mode`.
+
+## Exit Codes
+
+Defined in `src/exitCodes.ts` and used consistently across `src/index.ts` and `src/commandLine.ts`:
+
+| Code | Constant                   | Meaning                                                      |
+| ---- | -------------------------- | ------------------------------------------------------------ |
+| 0    | `EXIT_NO_CHANGES`          | No changes detected (nothing to sync/format)                 |
+| 1    | `EXIT_CHANGES_SYNCED`      | Changes were synced or formatted successfully                |
+| 2    | `EXIT_STOP_RULE_VIOLATION` | Stop rule(s) blocked the sync (use `--force` or `--dry-run`) |
+| 3    | `EXIT_CONFIG_ERROR`        | Bad CLI arguments or invalid/missing configuration           |
+
+Early exits (`--show-config`, `--validate`, `--list-files`, `--suggest` success) use exit 0 — no sync occurred. Runtime errors (file I/O, YAML parse) use exit 1. `process.exitCode` is used instead of `process.exit()` for the 0/1 success paths so the `finally` block (version checker) still runs.
 
 ## Pattern Usage Validation (`--validate`)
 
