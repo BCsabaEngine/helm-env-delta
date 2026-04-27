@@ -371,7 +371,7 @@ const main = async (): Promise<void> => {
 
   // Early exit for diff command (read-only, shows diff and optional reports)
   if (command.commandName === 'diff') {
-    if (!command.quiet) showConsoleDiff(diffResult, syncConfig);
+    if (!command.quiet && !command.html && !command.json) showConsoleDiff(diffResult, syncConfig);
     if ((command.html || command.reportOutput) && !command.quiet)
       await generateHtmlReport(diffResult, [], syncConfig, true, logger, undefined, command.reportOutput);
     if (command.json)
