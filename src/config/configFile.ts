@@ -13,7 +13,7 @@ import { ZodValidationError } from './ZodError';
  */
 const semverMajorUpgradeRuleSchema = z.object({
   type: z.literal('semverMajorUpgrade'),
-  path: z.string().min(1)
+  path: z.string().min(1).describe('JSONPath to the version field to check for major upgrades')
 });
 
 /**
@@ -22,7 +22,7 @@ const semverMajorUpgradeRuleSchema = z.object({
  */
 const semverDowngradeRuleSchema = z.object({
   type: z.literal('semverDowngrade'),
-  path: z.string().min(1)
+  path: z.string().min(1).describe('JSONPath to the version field to check for any downgrade')
 });
 
 /**
@@ -32,9 +32,9 @@ const semverDowngradeRuleSchema = z.object({
 const numericRuleSchema = z
   .object({
     type: z.literal('numeric'),
-    path: z.string().min(1),
-    min: z.number().optional(),
-    max: z.number().optional()
+    path: z.string().min(1).describe('JSONPath to the numeric field to validate'),
+    min: z.number().optional().describe('Minimum allowed value (inclusive)'),
+    max: z.number().optional().describe('Maximum allowed value (inclusive)')
   })
   .refine(
     (data) => {
@@ -55,8 +55,8 @@ const numericRuleSchema = z
 const regexRuleSchema = z
   .object({
     type: z.literal('regex'),
-    path: z.string().min(1).optional(),
-    regex: z.string().min(1)
+    path: z.string().min(1).optional().describe('JSONPath to check (omit to scan ALL values recursively)'),
+    regex: z.string().min(1).describe('Regex pattern that must NOT match (blocks sync if matched)')
   })
   .refine(
     (data) => {
@@ -84,8 +84,8 @@ const regexRuleSchema = z
  */
 const regexFileRuleSchema = z.object({
   type: z.literal('regexFile'),
-  path: z.string().min(1).optional(),
-  file: z.string().min(1)
+  path: z.string().min(1).optional().describe('JSONPath to check (omit to scan ALL values recursively)'),
+  file: z.string().min(1).describe('Path to a YAML file containing an array of regex patterns')
 });
 
 /**
@@ -95,8 +95,8 @@ const regexFileRuleSchema = z.object({
  */
 const regexFileKeyRuleSchema = z.object({
   type: z.literal('regexFileKey'),
-  path: z.string().min(1).optional(),
-  file: z.string().min(1)
+  path: z.string().min(1).optional().describe('JSONPath to check (omit to scan ALL values recursively)'),
+  file: z.string().min(1).describe('Path to a YAML file whose keys are used as regex patterns')
 });
 
 /**
@@ -107,8 +107,11 @@ const regexFileKeyRuleSchema = z.object({
 const versionFormatRuleSchema = z
   .object({
     type: z.literal('versionFormat'),
-    path: z.string().min(1),
-    vPrefix: z.enum(['required', 'allowed', 'forbidden']).default('allowed')
+    path: z.string().min(1).describe('JSONPath to the version field to validate format'),
+    vPrefix: z
+      .enum(['required', 'allowed', 'forbidden'])
+      .default('allowed')
+      .describe('"required" = must start with v, "allowed" = either, "forbidden" = no v (default: "allowed")')
   })
   .strict();
 
@@ -124,13 +127,19 @@ const stopRuleSchema = z.discriminatedUnion('type', [
 
 // Array Sort Schema
 const arraySortRuleSchema = z.object({
-  path: z.string().min(1),
-  sortBy: z.string().min(1).optional(),
-  order: z.enum(['asc', 'desc']).default('asc')
+  path: z.string().min(1).describe('JSONPath to the array to sort'),
+  sortBy: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Object property to sort by (required for arrays of objects; omit for scalar arrays)'),
+  order: z.enum(['asc', 'desc']).default('asc').describe('Sort direction: "asc" or "desc" (default: "asc")')
 });
 
 // Key Sort Schema
-const keySortRuleSchema = z.object({ path: z.string().min(1) });
+const keySortRuleSchema = z.object({
+  path: z.string().min(1).describe('JSONPath to the object whose keys should be sorted alphabetically')
+});
 
 // Fixed Value Schema
 /**
@@ -219,8 +228,8 @@ const transformRulesSchema = z
   );
 
 // Base Configuration Schema (allows partial configs for inheritance, no defaults)
-const baseConfigSchema = z.object({
-  extends: z.string().min(1).optional(),
+export const baseConfigSchema = z.object({
+  extends: z.string().min(1).optional().describe('Path to a parent config file to inherit from (up to 5 levels deep)'),
 
   requiredVersion: z
     .string()
@@ -228,38 +237,75 @@ const baseConfigSchema = z.object({
     .regex(/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/, {
       message: 'Must be a valid semver version (e.g., "1.2.3" or "v1.2.3")'
     })
-    .optional(),
+    .optional()
+    .describe('Minimum required hed CLI version (e.g. "1.2.3"); also suppresses auto-update notifications'),
 
-  source: z.string().min(1).optional(),
+  source: z.string().min(1).optional().describe('Path to the source directory (environment to copy FROM)'),
 
-  destination: z.string().min(1).optional(),
+  destination: z.string().min(1).optional().describe('Path to the destination directory (environment to sync INTO)'),
 
-  include: z.array(z.string().min(1)).optional(),
+  include: z.array(z.string().min(1)).optional().describe('Glob patterns for files to include (default: ["**/*"])'),
 
-  exclude: z.array(z.string().min(1)).optional(),
+  exclude: z.array(z.string().min(1)).optional().describe('Glob patterns for files to exclude from processing'),
 
-  prune: z.boolean().optional(),
+  prune: z.boolean().optional().describe('Delete destination files that no longer exist in source (default: false)'),
 
-  confirmationDelay: z.number().int().min(0).optional(),
+  confirmationDelay: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe('Milliseconds to pause before applying changes (default: 3000; 0 = no delay)'),
 
-  skipPath: z.record(z.string(), z.array(z.string())).optional(),
+  skipPath: z
+    .record(z.string(), z.array(z.string()))
+    .optional()
+    .describe('Per-file-glob map of JSONPath patterns whose destination values are preserved'),
 
   outputFormat: z
     .object({
-      indent: z.number().int().min(1).max(10).optional(),
-      keySeparator: z.boolean().optional(),
-      quoteValues: z.record(z.string(), z.array(z.string())).optional(),
-      keyOrders: z.record(z.string(), z.array(z.string())).optional(),
-      keySort: z.record(z.string(), z.array(keySortRuleSchema)).optional(),
-      arraySort: z.record(z.string(), z.array(arraySortRuleSchema)).optional()
+      indent: z
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .optional()
+        .describe('Number of spaces for YAML indentation (1–10, default: 2)'),
+      keySeparator: z.boolean().optional().describe('Insert a blank line between top-level keys (default: false)'),
+      quoteValues: z
+        .record(z.string(), z.array(z.string()))
+        .optional()
+        .describe('Per-file-glob map of JSONPath patterns whose values should be quoted'),
+      keyOrders: z
+        .record(z.string(), z.array(z.string()))
+        .optional()
+        .describe('Per-file-glob explicit key ordering arrays'),
+      keySort: z
+        .record(z.string(), z.array(keySortRuleSchema))
+        .optional()
+        .describe('Per-file-glob rules for alphabetically sorting object keys at a path'),
+      arraySort: z
+        .record(z.string(), z.array(arraySortRuleSchema))
+        .optional()
+        .describe('Per-file-glob rules for sorting array elements at a path')
     })
-    .optional(),
+    .optional()
+    .describe('YAML output formatting rules applied after merge'),
 
-  transforms: z.record(z.string(), transformRulesSchema).optional(),
+  transforms: z
+    .record(z.string(), transformRulesSchema)
+    .optional()
+    .describe('Per-file-glob regex and file-based content/filename transform rules'),
 
-  stopRules: z.record(z.string(), z.array(stopRuleSchema)).optional(),
+  stopRules: z
+    .record(z.string(), z.array(stopRuleSchema))
+    .optional()
+    .describe('Per-file-glob validation rules that block sync if triggered (use --force to override)'),
 
-  fixedValues: z.record(z.string(), z.array(fixedValueRuleSchema)).optional()
+  fixedValues: z
+    .record(z.string(), z.array(fixedValueRuleSchema))
+    .optional()
+    .describe('Per-file-glob rules that pin specific JSONPath locations to constant values after merge')
 });
 
 // Final Configuration Schema (requires source and destination, applies defaults)
