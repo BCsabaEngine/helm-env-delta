@@ -59,7 +59,7 @@ const main = async (): Promise<void> => {
 
   // Create logger based on verbosity flags
   const verbosityLevel: VerbosityLevel = command.verbose ? 'verbose' : command.quiet ? 'quiet' : 'normal';
-  const logger = new Logger({ level: verbosityLevel, isDiffJson: command.diffJson });
+  const logger = new Logger({ level: verbosityLevel, isDiffJson: command.json });
 
   // Display application header
   logger.log(`Now you run ${packageJson.name} v${packageJson.version}...`);
@@ -73,7 +73,7 @@ const main = async (): Promise<void> => {
     console.log(colors.cyan('\n👋 First time using helm-env-delta?\n'));
     console.log(colors.dim('  Tips:'));
     console.log(colors.dim('  • Always use --dry-run first to preview changes'));
-    console.log(colors.dim('  • Use --diff-html to review diffs in your browser'));
+    console.log(colors.dim('  • Use the diff command to review changes before syncing'));
     console.log(colors.dim('  • See examples: https://github.com/balazscsaba2006/helm-env-delta/tree/main/example'));
     console.log(colors.dim('  • Run with --help to see all options\n'));
 
@@ -83,21 +83,23 @@ const main = async (): Promise<void> => {
   }
 
   // Load and validate config
-  const config = loadConfigFile(command.config, command.quiet, logger, { formatOnly: command.formatOnly });
+  const config = loadConfigFile(command.config, command.quiet, logger, {
+    formatOnly: command.commandName === 'format'
+  });
   if (config.requiredVersion) configHasRequiredVersion = true;
 
-  // Early exit for show-config mode
-  if (command.showConfig) {
+  // Early exit for show-config command
+  if (command.commandName === 'show-config') {
     console.log(colors.cyan('\n⚙️  Resolved Configuration:\n'));
     console.log(YAML.stringify(config, { indent: 2 }));
     return;
   }
 
-  // Early exit for validation-only mode
-  if (command.validate) {
+  // Early exit for validate command
+  if (command.commandName === 'validate') {
     // Validation requires source folder
     if (!config.source) {
-      logger.error('\nSource folder is required for validation mode.', 'critical');
+      logger.error('\nSource folder is required for the validate command.', 'critical');
       process.exit(EXIT_CONFIG_ERROR);
     }
 
@@ -203,8 +205,8 @@ const main = async (): Promise<void> => {
     logger.debug(`  Prune enabled: ${config.prune}`);
   }
 
-  // Early exit for format-only mode (no source required)
-  if (command.formatOnly) {
+  // Early exit for format command (no source required)
+  if (command.commandName === 'format') {
     if (!config.outputFormat) {
       logger.log(colors.yellow('\n⚠️  No outputFormat configured. Nothing to format.'));
       return;
@@ -225,15 +227,6 @@ const main = async (): Promise<void> => {
     if (command.filter) destinationFiles = filterFileMap(destinationFiles, command.filter);
 
     logger.progress(`Loaded ${destinationFiles.size} destination file(s)`, 'success');
-
-    // Early exit for list-files mode in format-only context
-    if (command.listFiles) {
-      const filesList = [...destinationFiles.keys()].toSorted();
-      console.log(colors.cyan('\n📋 Files to be formatted:\n'));
-      console.log(colors.yellow(`Destination files: ${filesList.length}`));
-      for (const file of filesList) console.log(`  ${colors.dim(file)}`);
-      return;
-    }
 
     logger.log('\n' + formatProgressMessage('Formatting files...', 'info'));
 
@@ -275,9 +268,9 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  // From here, source is required (FinalConfig) - TypeScript narrows the type
+  // From here, source is required (FinalConfig) — run, diff, suggest, list-files all need it
   if (!config.source) {
-    logger.error('\nSource folder is required for sync operations.', 'critical');
+    logger.error('\nSource folder is required for this command.', 'critical');
     process.exit(EXIT_CONFIG_ERROR);
   }
 
@@ -348,8 +341,8 @@ const main = async (): Promise<void> => {
     );
   }
 
-  // Early exit for list-files mode
-  if (command.listFiles) {
+  // Early exit for list-files command
+  if (command.commandName === 'list-files') {
     const sourceFilesList = [...sourceFiles.keys()].toSorted();
     const destinationFilesList = [...destinationFiles.keys()].toSorted();
 
@@ -372,17 +365,23 @@ const main = async (): Promise<void> => {
 
   if (logger.shouldShow('debug')) logger.debug('Diff pipeline: parse → transforms → skipPath → normalize → compare');
 
-  // Show console diff if requested (suppress in quiet mode)
-  if (command.diff && !command.quiet) showConsoleDiff(diffResult, syncConfig);
-  else {
-    logger.log(`  New files: ${diffResult.addedFiles.length}`);
-    logger.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
-    logger.log(`  Changed files: ${diffResult.changedFiles.length}`);
-    logger.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
+  // Early exit for diff command (read-only, shows diff and optional reports)
+  if (command.commandName === 'diff') {
+    if (!command.quiet) showConsoleDiff(diffResult, syncConfig);
+    if ((command.html || command.reportOutput) && !command.quiet)
+      await generateHtmlReport(diffResult, [], syncConfig, true, logger, undefined, command.reportOutput);
+    if (command.json)
+      generateJsonReport(diffResult, [], { violations: [], isValid: true }, syncConfig, true, packageJson.version);
+    return;
   }
 
-  // Early exit for suggest mode
-  if (command.suggest) {
+  logger.log(`  New files: ${diffResult.addedFiles.length}`);
+  logger.log(`  Deleted files: ${diffResult.deletedFiles.length}`);
+  logger.log(`  Changed files: ${diffResult.changedFiles.length}`);
+  logger.log(`  Unchanged files: ${diffResult.unchangedFiles.length}`);
+
+  // Early exit for suggest command
+  if (command.commandName === 'suggest') {
     logger.log('\n' + formatProgressMessage('Analyzing differences for suggestions...', 'info'));
 
     try {
@@ -396,7 +395,7 @@ const main = async (): Promise<void> => {
         console.log(colors.yellow('\nℹ️  No changes detected. Files are already in sync.'));
       else {
         console.log(colors.dim('\n---'));
-        console.log(colors.dim('💡 Tip: Copy relevant sections to your config.yaml and test with --dry-run'));
+        console.log(colors.dim('💡 Tip: Copy relevant sections to your config.yaml and test with run --dry-run'));
       }
 
       return;
@@ -452,31 +451,7 @@ const main = async (): Promise<void> => {
   }
 
   // Update files
-  const formattedFiles = await updateFiles(
-    diffResult,
-    sourceFiles,
-    destinationFiles,
-    syncConfig,
-    command.dryRun,
-    command.skipFormat,
-    logger
-  );
-
-  // Generate HTML report if requested (suppress in quiet mode)
-  if ((command.diffHtml || command.reportOutput) && !command.quiet)
-    await generateHtmlReport(
-      diffResult,
-      formattedFiles,
-      syncConfig,
-      command.dryRun,
-      logger,
-      command.dryRun ? validationResult : undefined,
-      command.reportOutput
-    );
-
-  // Generate JSON report if requested (always outputs regardless of verbosity)
-  if (command.diffJson)
-    generateJsonReport(diffResult, formattedFiles, validationResult, syncConfig, command.dryRun, packageJson.version);
+  await updateFiles(diffResult, sourceFiles, destinationFiles, syncConfig, command.dryRun, command.skipFormat, logger);
 
   const hasChanges =
     diffResult.addedFiles.length > 0 || diffResult.deletedFiles.length > 0 || diffResult.changedFiles.length > 0;
