@@ -1,4 +1,4 @@
-# Minimal configuration for testing --suggest feature
+# Minimal configuration for testing the suggest command
 # This config lacks transforms and stop rules, which the suggestion engine should detect
 
 source: './source'

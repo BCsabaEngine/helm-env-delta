@@ -35,11 +35,11 @@ Demonstrates file deletion behavior with `prune: true` vs `prune: false`.
 ### Scenario 1: Without Prune (Default Behavior)
 
 ```bash
-# Dry-run to preview
-helm-env-delta --config example-4-prune-mode/config.without-prune.yaml --dry-run --diff
+# Preview changes
+helm-env-delta diff -c example-4-prune-mode/config.without-prune.yaml
 
 # Execute sync
-helm-env-delta --config example-4-prune-mode/config.without-prune.yaml
+helm-env-delta run -c example-4-prune-mode/config.without-prune.yaml
 ```
 
 **Expected output**:
@@ -65,11 +65,11 @@ helm-env-delta --config example-4-prune-mode/config.without-prune.yaml
 ### Scenario 2: With Prune (Delete Extra Files)
 
 ```bash
-# ⚠️ IMPORTANT: Always dry-run first to review deletions!
-helm-env-delta --config example-4-prune-mode/config.with-prune.yaml --dry-run --diff
+# ⚠️ IMPORTANT: Always preview first to review deletions!
+helm-env-delta diff -c example-4-prune-mode/config.with-prune.yaml
 
 # Execute sync (after reviewing deletions)
-helm-env-delta --config example-4-prune-mode/config.with-prune.yaml
+helm-env-delta run -c example-4-prune-mode/config.with-prune.yaml
 ```
 
 **Expected output**:
@@ -99,7 +99,7 @@ helm-env-delta --config example-4-prune-mode/config.with-prune.yaml
 ### Scenario 3: JSON Output to See Deletions
 
 ```bash
-helm-env-delta --config example-4-prune-mode/config.with-prune.yaml --diff-json | jq '.files.deleted'
+helm-env-delta diff -c example-4-prune-mode/config.with-prune.yaml --json | jq '.files.deleted'
 ```
 
 **Output**:
@@ -136,16 +136,16 @@ helm-env-delta --config example-4-prune-mode/config.with-prune.yaml --diff-json 
 
 ## Safety Best Practices
 
-1. **Always dry-run first**:
+1. **Always preview first**:
 
    ```bash
-   helm-env-delta --config config.yaml --dry-run --diff
+   helm-env-delta diff -c config.yaml
    ```
 
 2. **Review deleted files list**:
 
    ```bash
-   helm-env-delta --config config.yaml --diff-json | jq '.files.deleted'
+   helm-env-delta diff -c config.yaml --json | jq '.files.deleted'
    ```
 
 3. **Use version control**:

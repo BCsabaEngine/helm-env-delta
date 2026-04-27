@@ -25,20 +25,20 @@ Demonstrates progressive promotion through 3 environments with cumulative transf
 
 ```bash
 # Preview Dev → UAT changes
-helm-env-delta --config example-3-multi-env-chain/config.dev-to-uat.yaml --dry-run --diff
+helm-env-delta diff -c example-3-multi-env-chain/config.dev-to-uat.yaml
 
 # Execute Dev → UAT sync
-helm-env-delta --config example-3-multi-env-chain/config.dev-to-uat.yaml
+helm-env-delta run -c example-3-multi-env-chain/config.dev-to-uat.yaml
 ```
 
 **Stage 2: UAT → Prod**
 
 ```bash
 # Preview UAT → Prod changes
-helm-env-delta --config example-3-multi-env-chain/config.uat-to-prod.yaml --dry-run --diff
+helm-env-delta diff -c example-3-multi-env-chain/config.uat-to-prod.yaml
 
 # Execute UAT → Prod sync
-helm-env-delta --config example-3-multi-env-chain/config.uat-to-prod.yaml
+helm-env-delta run -c example-3-multi-env-chain/config.uat-to-prod.yaml
 ```
 
 ### Option 2: Automated Script

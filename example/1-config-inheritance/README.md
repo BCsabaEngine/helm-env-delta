@@ -22,11 +22,11 @@ Demonstrates the `extends` pattern for reusing base configuration across multipl
 ### Step 1: Dev → UAT Sync
 
 ```bash
-# Dry-run to preview
-helm-env-delta --config example-1-config-inheritance/config.dev-to-uat.yaml --dry-run --diff
+# Preview changes
+helm-env-delta diff -c example-1-config-inheritance/config.dev-to-uat.yaml
 
 # Execute sync
-helm-env-delta --config example-1-config-inheritance/config.dev-to-uat.yaml
+helm-env-delta run -c example-1-config-inheritance/config.dev-to-uat.yaml
 ```
 
 **Expected behavior**:
@@ -38,11 +38,11 @@ helm-env-delta --config example-1-config-inheritance/config.dev-to-uat.yaml
 ### Step 2: UAT → Prod Sync
 
 ```bash
-# Dry-run to preview
-helm-env-delta --config example-1-config-inheritance/config.uat-to-prod.yaml --dry-run --diff
+# Preview changes
+helm-env-delta diff -c example-1-config-inheritance/config.uat-to-prod.yaml
 
 # Execute sync
-helm-env-delta --config example-1-config-inheritance/config.uat-to-prod.yaml
+helm-env-delta run -c example-1-config-inheritance/config.uat-to-prod.yaml
 ```
 
 **Expected behavior**:
