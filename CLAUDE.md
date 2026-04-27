@@ -9,7 +9,8 @@ HelmEnvDelta (`helm-env-delta`/`hed`) — CLI for environment-aware YAML delta a
 ## Development Commands
 
 ```bash
-npm run build         # Clean build (tsc --build --clean + tsc --build)
+npm run build         # Clean build (tsc --build --clean + tsc --build + generate:schema)
+npm run generate:schema  # Regenerate config.schema.json from Zod schemas (runs via tsx)
 npm run clean         # Clean tsc build artifacts only
 npm run dev           # Run with tsx and example config
 npm test              # Run all tests
@@ -37,10 +38,12 @@ parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-
 
 **Source structure** (`src/`): `index.ts` (orchestrator), `commandLine.ts`, `constants.ts`, `exitCodes.ts`, `logger.ts`, `consoleFormatter.ts`, `suggestionEngine.ts` (largest file — heuristic analyzer for `--suggest`), plus:
 
-- `config/` — Zod schemas (BaseConfig → FinalConfig), config loading with inheritance (max 5 levels), merging, warnings
+- `config/` — Zod schemas (`baseConfigSchema` exported for schema generation, BaseConfig → FinalConfig), config loading with inheritance (max 5 levels), merging, warnings
 - `pipeline/` — fileLoader (glob→Map), fileDiff (structural YAML comparison), fileUpdater (deep merge), yamlFormatter (AST-based), stopRulesValidator, patternUsageValidator
 - `reporters/` — HTML (self-contained standalone files with diff2html), console diff, JSON output, tree builder/renderer
 - `utils/` — errors (factory pattern), jsonPath (CSS-style filters), transformer, patternMatcher (cached), arrayMerger (skipPath-aware), fixedValues, fileFilter, collisionDetector, versionChecker, regexSafety (ReDoS detection), regexTransform (cached regex compilation), serialization (deepSortKeys for fast normalization), gitFilter (simple-git wrapper for `--my` author filtering)
+
+**Scripts** (`scripts/`): `generateSchema.ts` — uses Zod v4's native `z.toJSONSchema()` to generate `config.schema.json` from `baseConfigSchema`; runs via `tsx` outside the TypeScript compilation scope. `config.schema.json` is committed to the repo and included in the npm package (`files` in `package.json`).
 
 **Dependencies:** commander, yaml, zod (v4+), picomatch, tinyglobby, diff, diff2html, ansi-colors, simple-git
 

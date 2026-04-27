@@ -82,6 +82,36 @@ npm install -g helm-env-delta
 
 ---
 
+## ✍️ Editor Support
+
+The package ships a `config.schema.json` that enables autocompletion, hover documentation, and inline validation in any editor with YAML JSON Schema support (VS Code, IntelliJ, Neovim + LSP, etc.).
+
+### VS Code
+
+Requires the [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) (`redhat.vscode-yaml`).
+
+**Option 1 — per-file modeline** (no project config needed):
+
+```yaml
+# yaml-language-server: $schema=./node_modules/helm-env-delta/config.schema.json
+source: './uat'
+destination: './prod'
+```
+
+**Option 2 — workspace settings** (applies automatically to all matching files):
+
+Add to `.vscode/settings.json` in your project:
+
+```json
+{
+  "yaml.schemas": {
+    "./node_modules/helm-env-delta/config.schema.json": ["config.yaml", "*.hed.yaml"]
+  }
+}
+```
+
+---
+
 ## 🎯 Quick Start
 
 ### 1️⃣ Create Config

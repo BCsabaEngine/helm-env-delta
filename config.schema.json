@@ -1,0 +1,496 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "helm-env-delta Configuration",
+  "description": "JSON Schema for helm-env-delta (hed) config files. Reference via yaml-language-server modeline or VS Code yaml.schemas setting.",
+  "type": "object",
+  "properties": {
+    "extends": {
+      "description": "Path to a parent config file to inherit from (up to 5 levels deep)",
+      "type": "string",
+      "minLength": 1
+    },
+    "requiredVersion": {
+      "description": "Minimum required hed CLI version (e.g. \"1.2.3\"); also suppresses auto-update notifications",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^v?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "source": {
+      "description": "Path to the source directory (environment to copy FROM)",
+      "type": "string",
+      "minLength": 1
+    },
+    "destination": {
+      "description": "Path to the destination directory (environment to sync INTO)",
+      "type": "string",
+      "minLength": 1
+    },
+    "include": {
+      "description": "Glob patterns for files to include (default: [\"**/*\"])",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "exclude": {
+      "description": "Glob patterns for files to exclude from processing",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "prune": {
+      "description": "Delete destination files that no longer exist in source (default: false)",
+      "type": "boolean"
+    },
+    "confirmationDelay": {
+      "description": "Milliseconds to pause before applying changes (default: 3000; 0 = no delay)",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "skipPath": {
+      "description": "Per-file-glob map of JSONPath patterns whose destination values are preserved",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "outputFormat": {
+      "description": "YAML output formatting rules applied after merge",
+      "type": "object",
+      "properties": {
+        "indent": {
+          "description": "Number of spaces for YAML indentation (1–10, default: 2)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "keySeparator": {
+          "description": "Insert a blank line between top-level keys (default: false)",
+          "type": "boolean"
+        },
+        "quoteValues": {
+          "description": "Per-file-glob map of JSONPath patterns whose values should be quoted",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "keyOrders": {
+          "description": "Per-file-glob explicit key ordering arrays",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "keySort": {
+          "description": "Per-file-glob rules for alphabetically sorting object keys at a path",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "JSONPath to the object whose keys should be sorted alphabetically"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "arraySort": {
+          "description": "Per-file-glob rules for sorting array elements at a path",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "JSONPath to the array to sort"
+                },
+                "sortBy": {
+                  "description": "Object property to sort by (required for arrays of objects; omit for scalar arrays)",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "order": {
+                  "default": "asc",
+                  "description": "Sort direction: \"asc\" or \"desc\" (default: \"asc\")",
+                  "type": "string",
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ]
+                }
+              },
+              "required": [
+                "path",
+                "order"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "transforms": {
+      "description": "Per-file-glob regex and file-based content/filename transform rules",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "find": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Regex pattern to find"
+                },
+                "replace": {
+                  "type": "string",
+                  "description": "Replacement string (supports $1, $2... capture groups)"
+                }
+              },
+              "required": [
+                "find",
+                "replace"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "filename": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "find": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Regex pattern to find"
+                },
+                "replace": {
+                  "type": "string",
+                  "description": "Replacement string (supports $1, $2... capture groups)"
+                }
+              },
+              "required": [
+                "find",
+                "replace"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "contentFile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            ]
+          },
+          "filenameFile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "stopRules": {
+      "description": "Per-file-glob validation rules that block sync if triggered (use --force to override)",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "semverMajorUpgrade"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "JSONPath to the version field to check for major upgrades"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "semverDowngrade"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "JSONPath to the version field to check for any downgrade"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "numeric"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "JSONPath to the numeric field to validate"
+                },
+                "min": {
+                  "description": "Minimum allowed value (inclusive)",
+                  "type": "number"
+                },
+                "max": {
+                  "description": "Maximum allowed value (inclusive)",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "regex"
+                },
+                "path": {
+                  "description": "JSONPath to check (omit to scan ALL values recursively)",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "regex": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Regex pattern that must NOT match (blocks sync if matched)"
+                }
+              },
+              "required": [
+                "type",
+                "regex"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "regexFile"
+                },
+                "path": {
+                  "description": "JSONPath to check (omit to scan ALL values recursively)",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "file": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Path to a YAML file containing an array of regex patterns"
+                }
+              },
+              "required": [
+                "type",
+                "file"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "regexFileKey"
+                },
+                "path": {
+                  "description": "JSONPath to check (omit to scan ALL values recursively)",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "file": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Path to a YAML file whose keys are used as regex patterns"
+                }
+              },
+              "required": [
+                "type",
+                "file"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "versionFormat"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "JSONPath to the version field to validate format"
+                },
+                "vPrefix": {
+                  "default": "allowed",
+                  "description": "\"required\" = must start with v, \"allowed\" = either, \"forbidden\" = no v (default: \"allowed\")",
+                  "type": "string",
+                  "enum": [
+                    "required",
+                    "allowed",
+                    "forbidden"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "path",
+                "vPrefix"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "fixedValues": {
+      "description": "Per-file-glob rules that pin specific JSONPath locations to constant values after merge",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "JSONPath to the value to set"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {}
+                },
+                {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              ],
+              "description": "The constant value to set (any type: string, number, boolean, null, object, array)"
+            }
+          },
+          "required": [
+            "path",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

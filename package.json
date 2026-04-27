@@ -20,7 +20,8 @@
   "files": [
     "bin/*.js",
     "dist/**/*.js",
-    "dist/**/*.d.ts"
+    "dist/**/*.d.ts",
+    "config.schema.json"
   ],
   "bin": {
     "helm-env-delta": "bin/index.js",
@@ -42,7 +43,8 @@
     "test:perf:json": "vitest bench --run --reporter=json --outputFile=benchmark-results.json",
     "test:all": "node --run test && node --run test:perf",
     "clean": "tsc --build --clean",
-    "build": "tsc --build --clean && tsc --build",
+    "generate:schema": "tsx scripts/generateSchema.ts",
+    "build": "tsc --build --clean && tsc --build && node --run generate:schema",
     "format:check": "prettier --check .",
     "format:fix": "prettier --write . | grep -v 'unchanged' | sed G",
     "lint:check": "eslint .",
