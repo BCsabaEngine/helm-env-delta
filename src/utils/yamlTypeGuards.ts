@@ -30,7 +30,7 @@ export const isYamlCollection = (node: unknown): node is YAMLMap | YAMLSeq =>
 export const isYamlMap = (node: unknown): node is YAMLMap => {
   if (!isYamlCollection(node)) return false;
 
-  const items = (node as YAMLMap | YAMLSeq).items;
+  const items = node.items;
   if (items.length === 0) return false;
   const firstItem = items[0];
   return firstItem !== null && typeof firstItem === 'object' && 'key' in firstItem;

@@ -23,7 +23,7 @@ import {
   EXIT_STOP_RULE_VIOLATION,
   EXIT_VALIDATION_WARNINGS
 } from './exitCodes';
-import { Logger, VerbosityLevel } from './logger';
+import { Logger, type VerbosityLevel } from './logger';
 import {
   computeFileDiff,
   formatYaml,
@@ -216,11 +216,6 @@ const main = async (): Promise<void> => {
 
   // Early exit for format command (no source required)
   if (command.commandName === 'format') {
-    if (!config.outputFormat) {
-      logger.log(colors.yellow('\n⚠️  No outputFormat configured. Nothing to format.'));
-      return;
-    }
-
     logger.log('\n' + formatProgressMessage('Loading destination files...', 'loading'));
     const destinationResult = await loadFiles(
       {
@@ -470,7 +465,7 @@ const main = async (): Promise<void> => {
 // Execute main function with error handling
 let configHasRequiredVersion = false;
 // eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS doesn't support top-level await
-(async () => {
+void (async () => {
   try {
     await main();
   } catch (error: unknown) {
@@ -496,6 +491,7 @@ let configHasRequiredVersion = false;
   } finally {
     // Fire-and-forget version check (skip in quiet mode or when requiredVersion is set in config)
     const command = parseCommandLine();
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- configHasRequiredVersion is mutated inside main() which TS can't track across the async boundary
     if (!command.quiet && !configHasRequiredVersion) void checkForUpdates(packageJson.version);
   }
 })();

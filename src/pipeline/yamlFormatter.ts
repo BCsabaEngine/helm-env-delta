@@ -1,6 +1,6 @@
-import YAML, { Document, Pair, Scalar, YAMLMap, YAMLSeq } from 'yaml';
+import YAML, { type Document, type Pair, type Scalar, type YAMLMap, type YAMLSeq } from 'yaml';
 
-import { ArraySortRule, KeySortRule, OutputFormat } from '../config';
+import { type ArraySortRule, type KeySortRule, type OutputFormat } from '../config';
 import { YAML_DEFAULT_INDENT, YAML_LINE_WIDTH_UNLIMITED } from '../constants';
 import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
@@ -54,25 +54,25 @@ const getFormattingRules = (filePath: string, outputFormat: NonNullable<OutputFo
 
   // Get all unique patterns from all configs
   const allPatterns = new Set<string>();
-  if (outputFormat?.keyOrders) for (const pattern of Object.keys(outputFormat.keyOrders)) allPatterns.add(pattern);
-  if (outputFormat?.keySort) for (const pattern of Object.keys(outputFormat.keySort)) allPatterns.add(pattern);
-  if (outputFormat?.arraySort) for (const pattern of Object.keys(outputFormat.arraySort)) allPatterns.add(pattern);
-  if (outputFormat?.quoteValues) for (const pattern of Object.keys(outputFormat.quoteValues)) allPatterns.add(pattern);
+  if (outputFormat.keyOrders) for (const pattern of Object.keys(outputFormat.keyOrders)) allPatterns.add(pattern);
+  if (outputFormat.keySort) for (const pattern of Object.keys(outputFormat.keySort)) allPatterns.add(pattern);
+  if (outputFormat.arraySort) for (const pattern of Object.keys(outputFormat.arraySort)) allPatterns.add(pattern);
+  if (outputFormat.quoteValues) for (const pattern of Object.keys(outputFormat.quoteValues)) allPatterns.add(pattern);
 
   // Single pass through all patterns
   for (const pattern of allPatterns) {
     if (!globalMatcher.match(filePath, pattern)) continue;
 
-    const keyOrder = outputFormat?.keyOrders?.[pattern];
+    const keyOrder = outputFormat.keyOrders?.[pattern];
     if (keyOrder) keyOrders.push(keyOrder);
 
-    const keySortRule = outputFormat?.keySort?.[pattern];
+    const keySortRule = outputFormat.keySort?.[pattern];
     if (keySortRule) keySort.push(keySortRule);
 
-    const arrayRule = outputFormat?.arraySort?.[pattern];
+    const arrayRule = outputFormat.arraySort?.[pattern];
     if (arrayRule) arraySort.push(arrayRule);
 
-    const quoteValue = outputFormat?.quoteValues?.[pattern];
+    const quoteValue = outputFormat.quoteValues?.[pattern];
     if (quoteValue) quoteValues.push(quoteValue);
   }
 
@@ -389,7 +389,7 @@ const isPotentialMatch = (currentPath: string[], targetPath: string[]): boolean 
 };
 
 const sortYamlSeq = (seq: YAMLSeq, sortByField: string | undefined, order: 'asc' | 'desc'): void => {
-  if (!seq.items || seq.items.length === 0) return;
+  if (seq.items.length === 0) return;
 
   const firstItem = seq.items.find((item) => item != undefined);
   if (firstItem !== undefined) {

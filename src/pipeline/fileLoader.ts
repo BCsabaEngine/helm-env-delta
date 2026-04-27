@@ -4,6 +4,7 @@ import path from 'node:path';
 import { glob } from 'tinyglobby';
 
 import type { TransformConfig } from '../config';
+import type { Logger } from '../logger';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
 import { transformFilename, transformFilenameMap } from '../utils/filenameTransformer';
 import { globalMatcher } from '../utils/patternMatcher';
@@ -200,14 +201,11 @@ const readFilesIntoMap = async (baseDirectory: string, absoluteFilePaths: string
 };
 
 // Loads files from a directory based on include/exclude glob patterns.
-export const loadFiles = async (
-  options: FileLoaderOptions,
-  logger?: import('../logger').Logger
-): Promise<FileLoaderResult> => {
+export const loadFiles = async (options: FileLoaderOptions, logger?: Logger): Promise<FileLoaderResult> => {
   const absoluteBaseDirectory = await validateAndResolveBaseDirectory(options.baseDirectory);
 
-  const includePatterns = options.include ?? ['**/*'];
-  const excludePatterns = options.exclude ?? [];
+  const includePatterns = options.include;
+  const excludePatterns = options.exclude;
 
   const files = await findMatchingFiles(
     absoluteBaseDirectory,

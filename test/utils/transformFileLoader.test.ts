@@ -6,12 +6,11 @@ import {
   loadTransformFiles,
   TransformFileLoaderError
 } from '../../src/utils/transformFileLoader';
+import type * as YamlFileLoaderModule from '../../src/utils/yamlFileLoader';
 import { YamlFileLoaderError } from '../../src/utils/yamlFileLoader';
 
 vi.mock('../../src/utils/yamlFileLoader', async () => {
-  const actual = await vi.importActual<typeof import('../../src/utils/yamlFileLoader')>(
-    '../../src/utils/yamlFileLoader'
-  );
+  const actual = await vi.importActual<typeof YamlFileLoaderModule>('../../src/utils/yamlFileLoader');
   return {
     ...actual,
     loadYamlFile: vi.fn()

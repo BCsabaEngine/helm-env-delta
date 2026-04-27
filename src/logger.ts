@@ -1,12 +1,12 @@
 import {
   colorizeFileOperation,
-  FileOperation,
+  type FileOperation,
   formatProgressMessage,
   formatStopRuleViolation,
-  ProgressStyle,
-  ViolationMode
+  type ProgressStyle,
+  type ViolationMode
 } from './consoleFormatter';
-import { StopRuleViolation } from './pipeline/stopRulesValidator';
+import { type StopRuleViolation } from './pipeline/stopRulesValidator';
 
 // ============================================================================
 // Types
@@ -26,7 +26,7 @@ export type LoggerOptions = {
 // ============================================================================
 
 export class Logger {
-  private level: VerbosityLevel;
+  private readonly level: VerbosityLevel;
 
   constructor(options: LoggerOptions) {
     this.level = options.level;

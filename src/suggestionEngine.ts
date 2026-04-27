@@ -1,5 +1,5 @@
-import { Config, StopRule } from './config';
-import { ChangedFile, FileDiffResult } from './pipeline';
+import { type Config, type StopRule } from './config';
+import { type ChangedFile, type FileDiffResult } from './pipeline';
 import { createErrorClass, createErrorTypeGuard } from './utils/errors';
 import { parseJsonPath } from './utils/jsonPath';
 import {
@@ -149,7 +149,7 @@ const extractAllDifferences = (changedFiles: ChangedFile[]): ValueDifference[] =
   const differences: ValueDifference[] = [];
 
   for (const file of changedFiles) {
-    const fileDiffs = walkAndCompare(file.rawParsedSource, file.rawParsedDest, [], file.path, file.skipPaths);
+    const fileDiffs = walkAndCompare(file.rawParsedSource, file.rawParsedDest, [], file.path, file.skipPaths ?? []);
     differences.push(...fileDiffs);
   }
 
@@ -312,7 +312,7 @@ const collectValuesByPath = (changedFiles: ChangedFile[]): Map<string, PathValue
 
     for (const [path, values] of valuesMap) {
       // Skip paths that match skipPath patterns
-      if (isPathSkipped(path, file.skipPaths)) continue;
+      if (isPathSkipped(path, file.skipPaths ?? [])) continue;
 
       if (!map.has(path)) map.set(path, { values: [], files: new Set() });
 

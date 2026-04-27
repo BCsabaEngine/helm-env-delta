@@ -1,4 +1,5 @@
 import type { RegexFileKeyRule, RegexFileRule, RegexRule, StopRule } from '../config';
+import type { Logger } from '../logger';
 import {
   loadRegexPatternArray,
   loadRegexPatternsFromKeys,
@@ -74,7 +75,7 @@ export const validateStopRules = (
   diffResult: FileDiffResult,
   stopRulesConfig?: Record<string, StopRule[]>,
   configDirectory?: string,
-  logger?: import('../logger').Logger
+  logger?: Logger
 ): ValidationResult => {
   if (!stopRulesConfig) return { violations: [], isValid: true };
 
@@ -170,15 +171,13 @@ const validateRule = (context: ValidationContext): StopRuleViolation | undefined
 
       if (rule.type === 'regex') return validateRegex(rule, oldValue, updatedValue, filePath);
       if (rule.type === 'regexFile') return validateRegexFile(rule, oldValue, updatedValue, filePath, configDirectory);
-      if (rule.type === 'regexFileKey')
-        return validateRegexFileKey(rule, oldValue, updatedValue, filePath, configDirectory);
+      return validateRegexFileKey(rule, oldValue, updatedValue, filePath, configDirectory);
     } else {
       // Global mode: scan all values recursively
       if (rule.type === 'regex') return validateRegexGlobal(rule, oldData, updatedData, filePath);
       if (rule.type === 'regexFile')
         return validateRegexFileGlobal(rule, oldData, updatedData, filePath, configDirectory);
-      if (rule.type === 'regexFileKey')
-        return validateRegexFileKeyGlobal(rule, oldData, updatedData, filePath, configDirectory);
+      return validateRegexFileKeyGlobal(rule, oldData, updatedData, filePath, configDirectory);
     }
 
   // For non-regex rules, path is required

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { type z } from 'zod';
 
 // Custom error class for Zod validation failures.
 export class ZodValidationError extends Error {
@@ -12,7 +12,7 @@ export class ZodValidationError extends Error {
   }
 
   // Formats Zod validation errors into user-friendly messages
-  private static formatError = (zodError: z.ZodError, sourcePath?: string): string => {
+  private static readonly formatError = (zodError: z.ZodError, sourcePath?: string): string => {
     const header = sourcePath ? `Validation failed in ${sourcePath}:\n` : 'Validation failed:\n';
 
     const errors = zodError.issues.map((error) => {
@@ -33,7 +33,7 @@ export class ZodValidationError extends Error {
       }
 
       if (error.code === 'unrecognized_keys' && 'keys' in error) {
-        const keys = error.keys as string[];
+        const keys = error.keys;
         message += `\n    Unknown fields: ${keys.join(', ')}`;
         message += '\n    Check for typos or remove unsupported fields';
       }

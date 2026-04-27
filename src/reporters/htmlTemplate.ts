@@ -1,4 +1,4 @@
-import { AddedFile, FileDiffResult } from '../pipeline';
+import { type AddedFile, type FileDiffResult } from '../pipeline';
 import { DIFF2HTML_STYLES, HTML_STYLES, TAB_SCRIPT } from './htmlStyles';
 import { buildFileTree } from './treeBuilder';
 import { escapeHtml, renderSidebarTree, renderTreeview } from './treeRenderer';

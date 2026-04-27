@@ -1,4 +1,4 @@
-import { Command, CommanderError } from 'commander';
+import { Command, type CommanderError } from 'commander';
 
 import packageJson from '../package.json';
 import { EXIT_CONFIG_ERROR } from './exitCodes';

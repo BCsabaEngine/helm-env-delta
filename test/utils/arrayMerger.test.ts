@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  ApplicableFilter,
+  type ApplicableFilter,
   findMatchingTargetItem,
   getApplicableArrayFilters,
   itemMatchesAnyFilter,

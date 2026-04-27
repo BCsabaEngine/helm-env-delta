@@ -4,6 +4,7 @@ import path from 'node:path';
 import * as YAML from 'yaml';
 
 import { MAX_CONFIG_EXTENDS_DEPTH } from '../constants';
+import type { Logger } from '../logger';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
 import { type BaseConfig, parseBaseConfig, type TransformRules } from './configFile';
 
@@ -194,7 +195,7 @@ export const resolveConfigWithExtends = (
   configPath: string,
   visited: Set<string> = new Set(),
   depth: number = 0,
-  logger?: import('../logger').Logger
+  logger?: Logger
 ): BaseConfig => {
   // Check depth limit
   if (depth > MAX_CONFIG_EXTENDS_DEPTH) {
@@ -245,7 +246,7 @@ export const resolveConfigWithExtends = (
       const readError = new ConfigMergerError(`Failed to read config file`, {
         code: (error as NodeJS.ErrnoException).code,
         path: absolutePath,
-        cause: error as Error
+        cause: error
       });
 
       const errorCode = (error as NodeJS.ErrnoException).code;
@@ -312,7 +313,7 @@ export const resolveConfigWithExtends = (
         path: absolutePath,
         extends: config.extends,
         resolved: parentPath,
-        cause: error as Error
+        cause: error
       });
 
       extendsError.message += '\n\n  Hint: Cannot find extended config file:';

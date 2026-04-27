@@ -9,7 +9,7 @@ import { makeRe } from 'picomatch';
  * Uses picomatch's makeRe for pre-compilation to avoid repeated pattern parsing.
  */
 export class PatternMatcher {
-  private cache = new Map<string, RegExp>();
+  private readonly cache = new Map<string, RegExp>();
 
   /**
    * Compiles a glob pattern to a RegExp, caching the result.

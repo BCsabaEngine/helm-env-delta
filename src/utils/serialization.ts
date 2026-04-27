@@ -25,7 +25,7 @@ const deepSortKeys = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map((item) => deepSortKeys(item));
   if (typeof value === 'object') {
     const sorted: Record<string, unknown> = {};
-    for (const key of Object.keys(value as object).toSorted())
+    for (const key of Object.keys(value).toSorted())
       sorted[key] = deepSortKeys((value as Record<string, unknown>)[key]);
     return sorted;
   }
@@ -45,6 +45,7 @@ export const normalizeForComparison = (value: unknown): unknown => {
     // Use JSON.stringify with sorted keys as sort key — ~3-5x faster than YAML.stringify
     const serializedItems = normalized.map((item) => ({
       item,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined at runtime for `undefined` elements despite the TS type saying string
       serialized: JSON.stringify(deepSortKeys(item)) ?? ''
     }));
 

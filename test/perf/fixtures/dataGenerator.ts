@@ -160,7 +160,7 @@ const generateK8sDeployment = (options: DataGeneratorOptions): string => {
     name: `container-${index}`,
     image: `example.com/app-${index}:v1.0.0`,
     ports: [{ containerPort: 8080 + index }],
-    env: Array.from({ length: environmentVariablesPerContainer }, (_, environmentIndex) => ({
+    env: Array.from({ length: environmentVariablesPerContainer }, (_unused, environmentIndex) => ({
       name: `ENV_${index}_${environmentIndex}`,
       value: `value-${index}-${environmentIndex}`
     })),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createErrorClass, createErrorTypeGuard, ErrorOptions } from '../../src/utils/errors';
+import { createErrorClass, createErrorTypeGuard, type ErrorOptions } from '../../src/utils/errors';
 
 const customErrorFormatter = (message: string, options: ErrorOptions): string => {
   return `CUSTOM: ${message} [code=${options.code || 'none'}]`;

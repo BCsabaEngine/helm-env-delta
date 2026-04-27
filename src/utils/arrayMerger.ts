@@ -92,7 +92,7 @@ export const findMatchingTargetItem = (
   sourceItem: unknown,
   fullTargetArray: unknown[],
   applicableFilters: ApplicableFilter[]
-): unknown | undefined => {
+): unknown => {
   if (!sourceItem || typeof sourceItem !== 'object') return undefined;
 
   const sourceObject = sourceItem as Record<string, unknown>;
