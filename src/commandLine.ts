@@ -15,6 +15,7 @@ export type SyncCommand = {
   diff: boolean;
   diffHtml: boolean;
   diffJson: boolean;
+  reportOutput?: string;
   skipFormat: boolean;
   formatOnly: boolean;
   validate: boolean;
@@ -48,6 +49,7 @@ export const parseCommandLine = (argv?: string[]): SyncCommand => {
     .option('-d, --diff', 'Display console diff for changed files', false)
     .option('-H, --diff-html', 'Generate and open HTML diff report in browser', false)
     .option('-J, --diff-json', 'Output diff as JSON to stdout', false)
+    .option('--report-output <path>', 'Save HTML report to a file or directory (suppresses browser auto-open)')
     .option('-S, --skip-format', 'Skip YAML formatting (outputFormat section)', false)
     .option('--format-only', 'Format YAML files in destination without syncing', false)
     .option('--validate', 'Validate configuration file and exit', false)
@@ -79,6 +81,9 @@ Examples:
 
   # CI/CD usage with JSON output
   $ helm-env-delta --config config.yaml --diff-json | jq '.summary'
+
+  # Save HTML report as a CI/CD artifact
+  $ helm-env-delta --config config.yaml --report-output ./reports/
 
   # Filter to only process files matching 'prod'
   $ helm-env-delta --config config.yaml -f prod --diff
@@ -154,6 +159,7 @@ Documentation: https://github.com/balazscsaba2006/helm-env-delta
     diff: options['diff'],
     diffHtml: options['diffHtml'],
     diffJson: options['diffJson'],
+    reportOutput: options['reportOutput'],
     skipFormat: options['skipFormat'],
     formatOnly: options['formatOnly'],
     validate: options['validate'],

@@ -1102,7 +1102,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install HelmEnvDelta
         run: npm install -g helm-env-delta

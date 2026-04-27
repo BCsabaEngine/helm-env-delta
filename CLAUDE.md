@@ -23,7 +23,7 @@ npx vitest run test/pipeline/fileLoader.test.ts  # Single test file
 npx vitest run -t "skipExclude"                  # Tests matching pattern
 ```
 
-**CLI:** `helm-env-delta -c config.yaml [--validate] [--suggest] [--suggest-threshold 0-1] [-D|--dry-run] [--force] [-d|--diff] [-H|--diff-html] [-J|--diff-json] [-S|--skip-format] [--format-only] [-l|--list-files] [--show-config] [--no-color] [-f|--filter <string>] [-m|--mode <type>] [--my [days]] [--verbose] [--quiet]`
+**CLI:** `helm-env-delta -c config.yaml [--validate] [--suggest] [--suggest-threshold 0-1] [-D|--dry-run] [--force] [-d|--diff] [-H|--diff-html] [-J|--diff-json] [--report-output <path>] [-S|--skip-format] [--format-only] [-l|--list-files] [--show-config] [--no-color] [-f|--filter <string>] [-m|--mode <type>] [--my [days]] [--verbose] [--quiet]`
 
 ## Architecture
 

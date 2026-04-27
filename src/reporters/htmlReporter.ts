@@ -38,6 +38,12 @@ const generateTemporaryFilePath = (): string => {
   return path.join(tmpdir(), filename);
 };
 
+const resolveOutputPath = (outputPath: string): string => {
+  if (path.extname(outputPath)) return outputPath;
+  const timestamp = new Date().toISOString().replaceAll(/[.:]/g, '-');
+  return path.join(outputPath, `helm-env-delta-${timestamp}.html`);
+};
+
 const DIFF2HTML_OPTIONS = {
   drawFileList: false,
   matching: 'lines',
@@ -153,10 +159,10 @@ export const generateHtmlReport = async (
   config: Config,
   dryRun: boolean,
   logger?: import('../logger').Logger,
-  validationResult?: ValidationResult
+  validationResult?: ValidationResult,
+  outputPath?: string
 ): Promise<void> => {
-  // Generate random temp file path
-  const reportPath = generateTemporaryFilePath();
+  const reportPath = outputPath ? resolveOutputPath(outputPath) : generateTemporaryFilePath();
 
   // Generate metadata
   const metadata: ReportMetadata = {
@@ -237,14 +243,16 @@ export const generateHtmlReport = async (
 
   // Write HTML file
   await writeHtmlFile(htmlContent, reportPath);
-  logger?.log(`✓ HTML report generated: ${reportPath}, opening in browser...`);
 
-  // Open in browser
-  try {
-    await openInBrowser(reportPath);
-  } catch {
-    const absolutePath = path.resolve(reportPath);
-    logger?.log('⚠ Could not open browser automatically. Please open manually:');
-    logger?.log(`  file://${absolutePath}`);
+  if (outputPath) logger?.log(`✓ HTML report saved: ${reportPath}`);
+  else {
+    logger?.log(`✓ HTML report generated: ${reportPath}, opening in browser...`);
+    try {
+      await openInBrowser(reportPath);
+    } catch {
+      const absolutePath = path.resolve(reportPath);
+      logger?.log('⚠ Could not open browser automatically. Please open manually:');
+      logger?.log(`  file://${absolutePath}`);
+    }
   }
 };
