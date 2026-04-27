@@ -16,6 +16,7 @@ export type SyncCommand = {
   config: string;
   dryRun: boolean;
   force: boolean;
+  strict: boolean;
   html: boolean;
   json: boolean;
   reportOutput?: string;
@@ -120,6 +121,7 @@ Examples:
       config: options['config'],
       dryRun: options['dryRun'],
       force: options['force'],
+      strict: false,
       html: false,
       json: false,
       skipFormat: options['skipFormat'],
@@ -142,12 +144,14 @@ Examples:
       .requiredOption('-c, --config <file>', 'Path to YAML configuration file')
       .option('-f, --filter <string>', 'Filter files by name or content')
       .option('--my [days]', 'Limit to files you modified in the last N days (default: 30)')
+      .option('--strict', 'Exit non-zero if any warnings are found', false)
       .addHelpText(
         'after',
         `
 Examples:
   $ helm-env-delta validate -c config.yaml
   $ helm-env-delta validate -c config.yaml -f prod
+  $ helm-env-delta validate -c config.yaml --strict
 `
       )
       .exitOverride(exitOverrideFunction)
@@ -159,6 +163,7 @@ Examples:
       config: options['config'],
       dryRun: false,
       force: false,
+      strict: options['strict'],
       html: false,
       json: false,
       skipFormat: false,
@@ -198,6 +203,7 @@ Examples:
       config: options['config'],
       dryRun: options['dryRun'],
       force: false,
+      strict: false,
       html: false,
       json: false,
       skipFormat: false,
@@ -245,6 +251,7 @@ Examples:
       config: options['config'],
       dryRun: false,
       force: false,
+      strict: false,
       html: false,
       json: false,
       skipFormat: false,
@@ -291,6 +298,7 @@ Examples:
       config: options['config'],
       dryRun: false,
       force: false,
+      strict: false,
       html: options['html'],
       json: options['json'],
       reportOutput: options['reportOutput'],
@@ -332,6 +340,7 @@ Examples:
       config: options['config'],
       dryRun: false,
       force: false,
+      strict: false,
       html: false,
       json: false,
       skipFormat: false,
@@ -367,6 +376,7 @@ Examples:
       config: options['config'],
       dryRun: false,
       force: false,
+      strict: false,
       html: false,
       json: false,
       skipFormat: false,

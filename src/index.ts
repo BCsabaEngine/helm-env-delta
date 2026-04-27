@@ -17,7 +17,12 @@ import {
   validateConfigWarnings
 } from './config';
 import { formatProgressMessage } from './consoleFormatter';
-import { EXIT_CHANGES_SYNCED, EXIT_CONFIG_ERROR, EXIT_STOP_RULE_VIOLATION } from './exitCodes';
+import {
+  EXIT_CHANGES_SYNCED,
+  EXIT_CONFIG_ERROR,
+  EXIT_STOP_RULE_VIOLATION,
+  EXIT_VALIDATION_WARNINGS
+} from './exitCodes';
 import { Logger, VerbosityLevel } from './logger';
 import {
   computeFileDiff,
@@ -188,7 +193,11 @@ const main = async (): Promise<void> => {
     }
 
     // Final result
-    if (hasAnyWarnings) logger.log('\n' + formatProgressMessage('Configuration has warnings but is usable', 'info'));
+    if (hasAnyWarnings)
+      if (command.strict) {
+        logger.log('\n' + formatProgressMessage('Configuration has warnings — strict mode: failing', 'info'));
+        process.exitCode = EXIT_VALIDATION_WARNINGS;
+      } else logger.log('\n' + formatProgressMessage('Configuration has warnings but is usable', 'info'));
     else logger.log('\n' + formatProgressMessage('Configuration is valid', 'success'));
 
     return;
