@@ -126,7 +126,7 @@ HelmEnvDelta handles the file synchronization, while your GitOps tool handles th
 ```bash
 # Kustomize generates manifests, HelmEnvDelta syncs them between environments
 kustomize build overlays/uat > uat/
-helm-env-delta --config config.yaml  # Sync uat/ → prod/
+helm-env-delta run -c config.yaml  # Sync uat/ → prod/
 ```
 
 **See [README.md](README.md#comparison-with-alternatives) for detailed comparisons.**
@@ -150,7 +150,7 @@ helm-env-delta --config config.yaml  # Sync uat/ → prod/
 **Disable check:** Set the `CI` environment variable to skip the check:
 
 ```bash
-CI=true helm-env-delta --config config.yaml
+CI=true helm-env-delta run -c config.yaml
 ```
 
 **Example notification:**
@@ -198,7 +198,7 @@ transforms:
 Test it safely:
 
 ```bash
-helm-env-delta --config config.yaml --dry-run --diff
+helm-env-delta diff -c config.yaml
 ```
 
 This shows what would change without modifying any files.
@@ -207,20 +207,21 @@ This shows what would change without modifying any files.
 
 ### Can I test HelmEnvDelta without modifying my files?
 
-**Yes!** Always use `--dry-run` (or `-D`) to preview changes:
+**Yes!** Use the `diff` command to preview changes (read-only) or `run --dry-run` to test the sync pipeline without writing:
 
 ```bash
-# Console output (using short flags)
-hed -c config.yaml -D -d
+# Console diff (read-only)
+hed diff -c config.yaml
 
 # Visual HTML report
-hed -c config.yaml -D -H
+hed diff -c config.yaml --html
 
 # JSON output for programmatic analysis
-hed -c config.yaml -D -J
-```
+hed diff -c config.yaml --json
 
-Dry-run shows exactly what would change without writing any files.
+# Test the sync pipeline without writing any files
+hed run -c config.yaml --dry-run
+```
 
 ---
 
@@ -228,37 +229,43 @@ Dry-run shows exactly what would change without writing any files.
 
 ### What are the command-line shortcuts?
 
-HelmEnvDelta provides short flags for common options:
+HelmEnvDelta uses **subcommands**, each with their own short flags. All subcommands require `-c/--config`:
 
-| Long Flag       | Short | Description                                      |
-| --------------- | ----- | ------------------------------------------------ |
-| `--config`      | `-c`  | Configuration file (required)                    |
-| `--dry-run`     | `-D`  | Preview changes without writing                  |
-| `--diff`        | `-d`  | Show console diff                                |
-| `--diff-html`   | `-H`  | Generate HTML report                             |
-| `--diff-json`   | `-J`  | Output JSON to stdout                            |
-| `--skip-format` | `-S`  | Skip YAML formatting                             |
-| `--list-files`  | `-l`  | List files without processing                    |
-| `--filter`      | `-f`  | Filter files by filename/content                 |
-| `--mode`        | `-m`  | Filter by change type (new/modified/deleted/all) |
+| Subcommand    | Short flags available              | Description                              |
+| ------------- | ---------------------------------- | ---------------------------------------- |
+| `run`         | `-D` (dry-run), `-S` (skip-format) | Sync source changes to destination       |
+| `diff`        | `-H` (html), `-J` (json)           | Show changes (read-only)                 |
+| `validate`    | —                                  | Validate config and patterns             |
+| `format`      | `-D` (dry-run)                     | Format destination files without syncing |
+| `suggest`     | —                                  | Suggest transforms and stop rules        |
+| `list-files`  | —                                  | List files without processing            |
+| `show-config` | —                                  | Show resolved configuration              |
 
-**Examples using short flags:**
+Common options on all subcommands: `-c/--config`, `-f/--filter`, `-m/--mode`, `--verbose`, `--quiet`, `--no-color`
+
+**Examples:**
 
 ```bash
-# Preview with console diff
-hed -c config.yaml -D -d
+# Preview changes (console diff)
+hed diff -c config.yaml
 
-# HTML report
-hed -c config.yaml -H
+# HTML diff report
+hed diff -c config.yaml -H
 
 # JSON output piped to jq
-hed -c config.yaml -J | jq '.summary'
+hed diff -c config.yaml -J | jq '.summary'
 
 # Filter and preview modified files
-hed -c config.yaml -f api -m modified -D -d
+hed diff -c config.yaml -f api -m modified
+
+# Sync
+hed run -c config.yaml
+
+# Dry-run sync (test pipeline without writing)
+hed run -c config.yaml -D
 
 # List files
-hed -c config.yaml -l
+hed list-files -c config.yaml
 ```
 
 ---
@@ -342,7 +349,7 @@ transforms:
         replace: '-prod'
 ```
 
-Run with: `helm-env-delta --config config.prod.yaml`
+Run with: `helm-env-delta run -c config.prod.yaml`
 
 ---
 
@@ -437,13 +444,13 @@ Circular dependencies are detected and rejected automatically.
 
 ### How do I get started if I don't know what transforms or stop rules to use?
 
-**Use the `--suggest` flag for heuristic analysis!**
+**Use the `suggest` command for heuristic analysis!**
 
 ```bash
-helm-env-delta --config config.yaml --suggest
+helm-env-delta suggest -c config.yaml
 
 # Control suggestion sensitivity (0-1, default: 0.3)
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
+helm-env-delta suggest -c config.yaml --suggest-threshold 0.7
 ```
 
 **What heuristic analysis does:**
@@ -474,15 +481,15 @@ destination: './prod'
 EOF
 
 # 2. Get suggestions
-hed -c config.yaml --suggest > suggestions.yaml
+hed suggest -c config.yaml > suggestions.yaml
 
 # 3. Review suggestions and copy relevant sections to config.yaml
 
-# 4. Test with dry-run
-hed -c config.yaml -D -d
+# 4. Preview changes
+hed diff -c config.yaml
 
 # 5. Execute sync
-hed -c config.yaml
+hed run -c config.yaml
 ```
 
 **When to use:**
@@ -526,13 +533,13 @@ The `--suggest` feature uses heuristic algorithms to calculate confidence scores
 
 ```bash
 # Show all suggestions (including low confidence)
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.3
+helm-env-delta suggest -c config.yaml --suggest-threshold 0.3
 
 # Show only medium-high confidence
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.6
+helm-env-delta suggest -c config.yaml --suggest-threshold 0.6
 
 # Show only high confidence
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.8
+helm-env-delta suggest -c config.yaml --suggest-threshold 0.8
 ```
 
 **Best practices:**
@@ -549,14 +556,14 @@ helm-env-delta --config config.yaml --suggest --suggest-threshold 0.8
 **Standard workflow:**
 
 ```bash
-# 1. Review changes with dry-run (using short flags)
-hed -c config.yaml -D -d
+# 1. Preview changes
+hed diff -c config.yaml
 
 # 2. Generate detailed HTML report
-hed -c config.yaml -D -H
+hed diff -c config.yaml -H
 
 # 3. Execute sync if changes look good
-hed -c config.yaml
+hed run -c config.yaml
 
 # 4. Review the actual changes made
 git diff
@@ -567,7 +574,7 @@ git commit -m "Sync UAT changes to Production"
 git push
 ```
 
-**Always run dry-run first!**
+**Always preview changes with `diff` first!**
 
 ---
 
@@ -577,13 +584,13 @@ Not directly, but you can create multiple configs:
 
 ```bash
 # UAT → Prod
-helm-env-delta --config config.uat-to-prod.yaml
+helm-env-delta run -c config.uat-to-prod.yaml
 
 # Dev → Staging
-helm-env-delta --config config.dev-to-staging.yaml
+helm-env-delta run -c config.dev-to-staging.yaml
 
 # Staging → UAT
-helm-env-delta --config config.staging-to-uat.yaml
+helm-env-delta run -c config.staging-to-uat.yaml
 ```
 
 Or use a script:
@@ -591,7 +598,7 @@ Or use a script:
 ```bash
 #!/bin/bash
 for config in configs/*.yaml; do
-  helm-env-delta --config "$config" --dry-run --diff
+  helm-env-delta diff -c "$config"
 done
 ```
 
@@ -607,7 +614,7 @@ done
 
 - name: Validate sync
   run: |
-    helm-env-delta --config config.yaml --dry-run --diff-json > report.json
+    helm-env-delta diff -c config.yaml --json > report.json
 
     # Check for stop rule violations
     VIOLATIONS=$(cat report.json | jq '.stopRuleViolations | length')
@@ -618,7 +625,7 @@ done
     fi
 
 - name: Execute sync
-  run: helm-env-delta --config config.yaml
+  run: helm-env-delta run -c config.yaml
 
 - name: Commit changes
   run: |
@@ -627,7 +634,7 @@ done
     git push
 ```
 
-Use `--diff-json` for programmatic analysis with jq.
+Use `diff --json` for programmatic analysis with jq.
 
 ---
 
@@ -649,10 +656,10 @@ prune: true # Remove orphaned files
 - Destination has files that shouldn't be managed by sync
 - You're unsure what will be deleted
 
-**Always dry-run first:**
+**Always preview first:**
 
 ```bash
-helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files.deleted'
+helm-env-delta diff -c config.yaml --json | jq '.files.deleted'
 ```
 
 ---
@@ -976,7 +983,7 @@ stopRules:
 Use the `--force` flag:
 
 ```bash
-helm-env-delta --config config.yaml --force
+helm-env-delta run -c config.yaml --force
 ```
 
 **When to use:**
@@ -985,21 +992,21 @@ helm-env-delta --config config.yaml --force
 - Planned scaling changes beyond normal limits
 - Emergency fixes that violate rules
 
-**Safety tip:** Always review with `--dry-run` first, even when using `--force`:
+**Safety tip:** Always preview first with `diff`, even when planning to use `--force`:
 
 ```bash
-helm-env-delta --config config.yaml --force --dry-run --diff
+helm-env-delta diff -c config.yaml
 ```
 
 ---
 
 ### Can I validate changes without actually syncing files?
 
-**Yes!** Use dry-run with JSON output:
+**Yes!** Use `diff --json` to inspect violations without writing files:
 
 ```bash
 # Check for violations
-helm-env-delta --config config.yaml --dry-run --diff-json > report.json
+helm-env-delta diff -c config.yaml --json > report.json
 
 # Count violations
 cat report.json | jq '.stopRuleViolations | length'
@@ -1072,10 +1079,10 @@ git reset --hard HEAD~1
 
 ```bash
 # 1. Preview changes
-helm-env-delta --config config.yaml --dry-run --diff-html
+helm-env-delta diff -c config.yaml --html
 
 # 2. Run with stop rules enabled
-helm-env-delta --config config.yaml  # Will fail on violations
+helm-env-delta run -c config.yaml  # Will fail on violations
 
 # 3. Review git diff before committing
 git diff
@@ -1107,9 +1114,9 @@ jobs:
       - name: Install HelmEnvDelta
         run: npm install -g helm-env-delta
 
-      - name: Dry-run validation (mandatory)
+      - name: Diff validation (mandatory)
         run: |
-          helm-env-delta --config config.yaml --dry-run --diff-json > report.json
+          helm-env-delta diff -c config.yaml --json > report.json
 
           # Fail on stop rule violations
           VIOLATIONS=$(jq '.stopRuleViolations | length' report.json)
@@ -1129,17 +1136,17 @@ jobs:
 
 **Enforcement strategies:**
 
-| Strategy           | Implementation                       |
-| ------------------ | ------------------------------------ |
-| Mandatory dry-run  | CI job must pass before merge        |
-| Required approvals | GitHub branch protection rules       |
-| Audit trail        | `--diff-json` artifacts stored in CI |
-| No direct pushes   | Protected branches, PR-only workflow |
+| Strategy             | Implementation                       |
+| -------------------- | ------------------------------------ |
+| Mandatory diff check | CI job must pass before merge        |
+| Required approvals   | GitHub branch protection rules       |
+| Audit trail          | `diff --json` artifacts stored in CI |
+| No direct pushes     | Protected branches, PR-only workflow |
 
 **Team workflow:**
 
 1. Developer creates PR with sync changes
-2. CI runs `--dry-run --validate` automatically
+2. CI runs `diff` and `validate` automatically
 3. Team reviews diff in PR comments
 4. Approval required before merge
 5. Merge triggers actual sync + GitOps deployment
@@ -1244,14 +1251,14 @@ mono-repo/
 
 ```bash
 # Team Alpha syncs their services
-helm-env-delta --config services/team-alpha/hed-config.yaml
+helm-env-delta run -c services/team-alpha/hed-config.yaml
 
 # Team Beta syncs their services
-helm-env-delta --config services/team-beta/hed-config.yaml
+helm-env-delta run -c services/team-beta/hed-config.yaml
 
 # Or script for all teams
 for config in services/*/hed-config.yaml; do
-  helm-env-delta --config "$config" --dry-run --diff
+  helm-env-delta diff -c "$config"
 done
 ```
 
@@ -1267,7 +1274,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - run: helm-env-delta --config services/team-alpha/hed-config.yaml
+      - run: helm-env-delta run -c services/team-alpha/hed-config.yaml
 ```
 
 ---
@@ -1281,7 +1288,7 @@ jobs:
 ```yaml
 - name: Generate diff
   run: |
-    helm-env-delta --config config.yaml --dry-run --diff-json > diff.json
+    helm-env-delta diff -c config.yaml --json > diff.json
 
 - name: Post PR comment
   uses: actions/github-script@v7
@@ -1308,7 +1315,7 @@ jobs:
 ```yaml
 - name: Generate HTML report
   run: |
-    helm-env-delta --config config.yaml --dry-run --diff-html
+    helm-env-delta diff -c config.yaml --html
     mv helm-env-delta-report.html report.html
 
 - name: Upload artifact
@@ -1324,7 +1331,7 @@ jobs:
 - name: Show console diff
   run: |
     echo '```diff' >> $GITHUB_STEP_SUMMARY
-    helm-env-delta --config config.yaml --dry-run --diff >> $GITHUB_STEP_SUMMARY
+    helm-env-delta diff -c config.yaml >> $GITHUB_STEP_SUMMARY
     echo '```' >> $GITHUB_STEP_SUMMARY
 ````
 
@@ -1392,20 +1399,20 @@ npm run test:perf  # Shows detailed timing
 Use `-f, --filter` to filter files by filename or content, and `-m, --mode` to filter by change type:
 
 ```bash
-# Filter to only process files matching 'frontend'
-hed -c config.yaml -f frontend -d
+# Show diff for files matching 'frontend'
+hed diff -c config.yaml -f frontend
 
-# Sync only new files
-hed -c config.yaml -m new
+# List only new files
+hed diff -c config.yaml -m new
 
 # Preview modified files only
-hed -c config.yaml -m modified -D -d
+hed diff -c config.yaml -m modified
 
 # Combine filter and mode: only modified files containing 'api'
-hed -c config.yaml -f api -m modified -D -d
+hed diff -c config.yaml -f api -m modified
 
 # Filter by change type: new, modified, deleted, or all (default)
-hed -c config.yaml -m deleted -D  # Preview files that would be deleted
+hed diff -c config.yaml -m deleted  # Preview files that would be deleted
 ```
 
 **Option 2: Targeted include patterns (in config)**
@@ -1483,21 +1490,21 @@ destination: './prod'
 EOF
 
 # Discover differences
-helm-env-delta --config config.yaml --dry-run --diff-html
+helm-env-delta diff -c config.yaml --html
 
 # Get transform suggestions
-helm-env-delta --config config.yaml --suggest > suggestions.yaml
+helm-env-delta suggest -c config.yaml > suggestions.yaml
 ```
 
 **Week 2: Configure & validate**
 
 ```bash
 # Add transforms and skipPath based on suggestions
-# Test thoroughly with dry-run
-helm-env-delta --config config.yaml --dry-run --diff
+# Preview with diff
+helm-env-delta diff -c config.yaml
 
 # Validate config
-helm-env-delta --config config.yaml --validate
+helm-env-delta validate -c config.yaml
 ```
 
 **Week 3: Pilot with non-critical service**
@@ -1506,7 +1513,7 @@ helm-env-delta --config config.yaml --validate
 # Narrow scope to one service
 # config.yaml: include: ['services/low-risk-app/**']
 
-helm-env-delta --config config.yaml
+helm-env-delta run -c config.yaml
 git diff  # Review
 git commit -m "Pilot: HelmEnvDelta sync for low-risk-app"
 ```
@@ -1608,8 +1615,8 @@ destination: './prod'
 EOF
 
 # Run discovery
-helm-env-delta --config config.yaml --dry-run --diff-html
-helm-env-delta --config config.yaml --suggest > suggestions.yaml
+helm-env-delta diff -c config.yaml --html
+helm-env-delta suggest -c config.yaml > suggestions.yaml
 
 # Review: How many files? What patterns? What differences?
 ```
@@ -1621,8 +1628,8 @@ helm-env-delta --config config.yaml --suggest > suggestions.yaml
 # Add skipPath for environment-specific fields
 # Add stop rules for safety
 
-helm-env-delta --config config.yaml --validate
-helm-env-delta --config config.yaml --dry-run --diff
+helm-env-delta validate -c config.yaml
+helm-env-delta diff -c config.yaml
 ```
 
 **Day 4-5: Testing**
@@ -1630,7 +1637,7 @@ helm-env-delta --config config.yaml --dry-run --diff
 ```bash
 # Test on a copy of your repo
 git checkout -b test-helm-env-delta
-helm-env-delta --config config.yaml
+helm-env-delta run -c config.yaml
 git diff  # Review all changes
 
 # If good, create PR for review
@@ -1694,10 +1701,10 @@ git diff  # Review all changes
      - '**/test*.yaml' # Excludes test files even if included
    ```
 
-**Debugging:** Use `--dry-run --diff-json` to see which files were loaded:
+**Debugging:** Use `diff --json` to see which files were loaded:
 
 ```bash
-helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files | keys'
+helm-env-delta diff -c config.yaml --json | jq '.files | keys'
 ```
 
 ---
@@ -1732,10 +1739,10 @@ helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files | keys'
    - Transforms apply first, then skipPath
    - If transform creates the path, skipPath won't catch it
 
-**Debug:** Use `--diff-json` to see which paths changed:
+**Debug:** Use `diff --json` to see which paths changed:
 
 ```bash
-helm-env-delta --config config.yaml --dry-run --diff-json | jq '.files.changed[].changes[].path'
+helm-env-delta diff -c config.yaml --json | jq '.files.changed[].changes[].path'
 ```
 
 ---
@@ -1801,7 +1808,7 @@ Both transform to: envs/prod/app.yaml
 **Verbose mode shows additional debug information:**
 
 ```bash
-helm-env-delta --config config.yaml --verbose
+helm-env-delta run -c config.yaml --verbose
 ```
 
 **Debug output includes:**
@@ -1815,35 +1822,35 @@ helm-env-delta --config config.yaml --verbose
 **Quiet mode suppresses all non-critical output:**
 
 ```bash
-helm-env-delta --config config.yaml --quiet
+helm-env-delta run -c config.yaml --quiet
 ```
 
 **Still shown in quiet mode:**
 
 - Critical errors (file not found, permission denied, etc.)
 - Stop rule violations
-- JSON output (when using `--diff-json`)
+- JSON output (when using `diff --json`)
 
 **Important notes:**
 
 - `--verbose` and `--quiet` are **mutually exclusive** (error if both provided)
-- Machine-readable output (`--diff-json`) **always outputs** regardless of verbosity
+- Machine-readable output (`diff --json`) **always outputs** regardless of verbosity
 - Automatic update check is skipped in quiet mode
 
 **Example use cases:**
 
 ```bash
 # Debugging config issues
-helm-env-delta --config config.yaml --verbose --dry-run
+helm-env-delta diff -c config.yaml --verbose
 
 # CI/CD with minimal noise
-helm-env-delta --config config.yaml --quiet --diff-json > report.json
+helm-env-delta diff -c config.yaml --quiet --json > report.json
 
 # Troubleshoot glob patterns
-helm-env-delta --config config.yaml --verbose --dry-run | grep "Matched:"
+helm-env-delta diff -c config.yaml --verbose | grep "Matched:"
 
 # Silent execution (only errors shown)
-helm-env-delta --config config.yaml --quiet
+helm-env-delta run -c config.yaml --quiet
 ```
 
 ---
@@ -1855,40 +1862,40 @@ helm-env-delta --config config.yaml --quiet
 **Filter by filename or content (`-f, --filter`):**
 
 ```bash
-# Only process files with 'prod' in filename or content (case-insensitive)
-hed -c config.yaml -f prod -d
+# Show diff for files with 'prod' in filename or content (case-insensitive)
+hed diff -c config.yaml -f prod
 
 # Filter to deployment files
-hed -c config.yaml -f deployment -D -d
+hed diff -c config.yaml -f deployment
 
 # Filter to files containing specific service name
-hed -c config.yaml -f my-service -d
+hed diff -c config.yaml -f my-service
 ```
 
 **Filter by change type (`-m, --mode`):**
 
 ```bash
-# Only show/sync new files (files in source but not in destination)
-hed -c config.yaml -m new -D -d
+# Only show new files (files in source but not in destination)
+hed diff -c config.yaml -m new
 
-# Only show/sync modified files (files that exist in both but differ)
-hed -c config.yaml -m modified -D -d
+# Only show modified files (files that exist in both but differ)
+hed diff -c config.yaml -m modified
 
 # Only show files that would be deleted (with prune: true)
-hed -c config.yaml -m deleted -D -d
+hed diff -c config.yaml -m deleted
 
 # Show all changes (default)
-hed -c config.yaml -m all -d
+hed diff -c config.yaml -m all
 ```
 
 **Combine both filters:**
 
 ```bash
 # Only modified files containing 'api' in name/content
-hed -c config.yaml -f api -m modified -D -d
+hed diff -c config.yaml -f api -m modified
 
 # Only new deployment files
-hed -c config.yaml -f deployment -m new -D -d
+hed diff -c config.yaml -f deployment -m new
 ```
 
 **Use cases:**
@@ -1902,10 +1909,10 @@ hed -c config.yaml -f deployment -m new -D -d
 
 ### How can I preview which files will be synced without processing them?
 
-**Use `--list-files` (or `-l`)** to quickly see which files match your glob patterns:
+**Use `list-files`** to quickly see which files match your glob patterns:
 
 ```bash
-hed -c config.yaml -l
+hed list-files -c config.yaml
 ```
 
 **Output:**
@@ -1933,17 +1940,17 @@ Destination files: 10
 
 **Compare to:**
 
-- `--dry-run --diff` - Processes diffs (slower, but shows changes)
-- `--list-files` - Just lists files (faster, no diff processing)
+- `diff -c config.yaml` - Processes diffs (slower, but shows changes)
+- `list-files -c config.yaml` - Just lists files (faster, no diff processing)
 
 ---
 
 ### How can I see the final resolved configuration after inheritance?
 
-**Use `--show-config`** to display the merged configuration after all `extends` chains are resolved:
+**Use `show-config`** to display the merged configuration after all `extends` chains are resolved:
 
 ```bash
-helm-env-delta --config config.yaml --show-config
+helm-env-delta show-config -c config.yaml
 ```
 
 **When to use:**
@@ -1967,16 +1974,16 @@ skipPath:
   '**/*.yaml': ['metadata.namespace']
 ```
 
-Running `--show-config` shows the **merged result** (both configs combined).
+Running `show-config` shows the **merged result** (both configs combined).
 
 ---
 
-### Does --validate show warnings for potential config issues?
+### Does the validate command show warnings for potential config issues?
 
-**Yes!** The `--validate` flag performs comprehensive validation in two phases:
+**Yes!** The `validate` command performs comprehensive validation in two phases:
 
 ```bash
-helm-env-delta --config config.yaml --validate
+helm-env-delta validate -c config.yaml
 ```
 
 **Phase 1 - Static Config Warnings:**
@@ -2037,9 +2044,9 @@ helm-env-delta --config config.yaml --validate
 
 ## Advanced Topics
 
-### When should I use --suggest vs manually writing my config?
+### When should I use suggest vs manually writing my config?
 
-**Use `--suggest` (heuristic analysis) when:**
+**Use `suggest` (heuristic analysis) when:**
 
 - 🚀 **Starting from scratch**: Let heuristics discover patterns automatically from your files
 - 🔍 **Discovering patterns**: You're not sure what's changing; let pattern recognition help
@@ -2062,7 +2069,7 @@ helm-env-delta --config config.yaml --validate
 
 ```bash
 # 1. Start with heuristic suggestions (tune threshold as needed)
-helm-env-delta --config minimal-config.yaml --suggest --suggest-threshold 0.5 > suggestions.yaml
+helm-env-delta suggest -c minimal-config.yaml --suggest-threshold 0.5 > suggestions.yaml
 
 # 2. Review suggestions and pick high-confidence patterns from heuristic analysis
 
@@ -2072,7 +2079,7 @@ cat suggestions.yaml >> config.yaml
 # 4. Manually add complex/business-specific rules that heuristics can't detect
 
 # 5. Test thoroughly
-helm-env-delta --config config.yaml --dry-run --diff
+helm-env-delta diff -c config.yaml
 ```
 
 **Example - When heuristic suggestions help:**
@@ -2094,7 +2101,7 @@ transforms:
         replace: 'prod-db.internal'
 ```
 
-**Pro tip:** Use `--suggest` first to leverage heuristic analysis for a baseline, then refine manually. The intelligent pattern detection finds patterns you might miss, and you add the domain knowledge.
+**Pro tip:** Use `suggest` first to leverage heuristic analysis for a baseline, then refine manually. The intelligent pattern detection finds patterns you might miss, and you add the domain knowledge.
 
 ---
 
@@ -2164,14 +2171,14 @@ outputFormat:
 
 ### Can I format files without syncing?
 
-**Yes!** Use `--format-only` to apply `outputFormat` rules to destination files without performing any sync:
+**Yes!** Use the `format` command to apply `outputFormat` rules to destination files without performing any sync:
 
 ```bash
 # Preview what would be formatted
-helm-env-delta --config config.yaml --format-only --dry-run
+helm-env-delta format -c config.yaml --dry-run
 
 # Format destination files
-helm-env-delta --config config.yaml --format-only
+helm-env-delta format -c config.yaml
 ```
 
 **Use cases:**
@@ -2188,24 +2195,22 @@ helm-env-delta --config config.yaml --format-only
 - Skips non-YAML files automatically
 - Works with `--dry-run` to preview changes
 
-**Note:** `--format-only` and `--skip-format` are mutually exclusive (error if both provided).
-
 ---
 
-### What's the difference between --diff, --diff-html, and --diff-json?
+### What output formats does the diff command support?
 
-**Different output formats for different needs:**
+**The `diff` command supports three output formats:**
 
-| Flag          | Output               | Use Case                                                                                                                                     |
-| ------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--diff`      | Console unified diff | Quick review in terminal                                                                                                                     |
-| `--diff-html` | HTML side-by-side    | Visual review, opens browser. Includes collapsible stats dashboard, synchronized scrolling, sidebar search, and auto-hidden empty categories |
-| `--diff-json` | JSON to stdout       | CI/CD, programmatic analysis                                                                                                                 |
+| Flag            | Output               | Use Case                                                                                                                                     |
+| --------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| (default)       | Console unified diff | Quick review in terminal                                                                                                                     |
+| `--html` (`-H`) | HTML side-by-side    | Visual review, opens browser. Includes collapsible stats dashboard, synchronized scrolling, sidebar search, and auto-hidden empty categories |
+| `--json` (`-J`) | JSON to stdout       | CI/CD, programmatic analysis                                                                                                                 |
 
-**You can combine them:**
+**You can combine flags:**
 
 ```bash
-helm-env-delta --config config.yaml --diff --diff-html --diff-json > report.json
+helm-env-delta diff -c config.yaml --html --json > report.json
 ```
 
 **JSON output is best for:**
@@ -2219,20 +2224,20 @@ helm-env-delta --config config.yaml --diff --diff-html --diff-json > report.json
 
 ### How can I see field-level changes instead of file-level changes?
 
-Use `--diff-json` with jq:
+Use `diff --json` with jq:
 
 ```bash
 # All field-level changes
-helm-env-delta --config config.yaml --diff-json | jq '.files.changed[].changes'
+helm-env-delta diff -c config.yaml --json | jq '.files.changed[].changes'
 
 # Changes to specific field
-helm-env-delta --config config.yaml --diff-json | jq '
+helm-env-delta diff -c config.yaml --json | jq '
   .files.changed[].changes[] |
   select(.path | contains("image.tag"))
 '
 
 # Summary of what fields changed
-helm-env-delta --config config.yaml --diff-json | jq '
+helm-env-delta diff -c config.yaml --json | jq '
   .files.changed[] |
   {file: .path, fields: [.changes[].path]}
 '

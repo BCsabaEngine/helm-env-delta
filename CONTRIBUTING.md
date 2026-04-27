@@ -67,12 +67,17 @@ By participating in this project, you agree to maintain a respectful and inclusi
 ```
 helm-env-delta/
 ├── src/              # Source code
+│   ├── config/       # Zod schemas and config loading
+│   ├── pipeline/     # File loading, diff, update, formatting
+│   ├── reporters/    # HTML, console, JSON output
 │   ├── utils/        # Utility functions
-│   ├── index.ts      # Main entry point
-│   └── ...           # Core modules
+│   ├── index.ts      # Main entry point / orchestrator
+│   └── ...           # commandLine, logger, exitCodes, etc.
 ├── bin/              # CLI entry point
-├── tests/            # Test files (mirrors src/ structure)
-├── examples/         # Example configurations
+├── test/             # Test files (mirrors src/ structure)
+├── example/          # Example configurations
+├── scripts/          # Schema generation and other build scripts
+├── config.schema.json # JSON Schema for config (committed)
 └── package.json      # Project metadata
 ```
 
@@ -80,23 +85,26 @@ helm-env-delta/
 
 ```bash
 # Development
-npm run dev           # Run with tsx and example config
-npm run build         # Clean build
-npm run clean         # Clean build artifacts
+npm run dev              # Run with tsx and example config
+npm run build            # Clean build (tsc + schema generation)
+npm run generate:schema  # Regenerate config.schema.json from Zod schemas
+npm run clean            # Clean build artifacts
 
 # Testing
-npm test              # Run all tests
-npm run test:coverage # Coverage report (60% minimum required)
+npm test                 # Run all tests
+npm run test:coverage    # Coverage report
+npm run test:perf        # Performance benchmarks
+npm run test:all         # Run all tests + perf benchmarks
 
 # Code Quality
-npm run format        # Format code with Prettier
-npm run lint          # Lint code with ESLint
-npm run fix           # Format + lint
-npm run all           # Fix + build + test (run before committing)
+npm run format:fix       # Format code with Prettier
+npm run lint:fix         # Lint code with ESLint
+npm run fix              # Format + lint + format
+npm run all              # Fix + build + test (run before committing)
 
 # CLI
-npm link              # Link for global use during development
-helm-env-delta --config examples/config.yaml --dry-run
+npm link                 # Link for global use during development
+helm-env-delta run -c example/config.yaml --dry-run
 ```
 
 ---
@@ -184,7 +192,6 @@ Configuration:
 - No trailing commas
 - 2 spaces indentation
 - 120 character line length
-- No semicolons
 
 ### Comments
 
@@ -213,7 +220,15 @@ export const isMyModuleError = createErrorTypeGuard(MyModuleError);
 
 ### Test Coverage
 
-- **Minimum coverage: 60%** (enforced in CI)
+Coverage thresholds enforced in CI:
+
+| Metric     | Threshold |
+| ---------- | --------- |
+| Lines      | 80%       |
+| Functions  | 95%       |
+| Branches   | 75%       |
+| Statements | 80%       |
+
 - All new features must include tests
 - Bug fixes should include regression tests
 
@@ -269,8 +284,17 @@ describe('MyModule', () => {
 # Run all tests
 npm test
 
+# Run single test file
+npx vitest run test/pipeline/fileLoader.test.ts
+
+# Run tests matching pattern
+npx vitest run -t "skipExclude"
+
 # Coverage report
 npm run test:coverage
+
+# Performance benchmarks
+npm run test:perf
 ```
 
 ---
@@ -350,7 +374,7 @@ in existing GitOps workflows.
 
 3. **Update tests:**
    - Add tests for new features
-   - Ensure coverage meets 60% minimum
+   - Ensure coverage meets thresholds (lines 80%, functions 95%, branches 75%)
    - Verify all tests pass
 
 4. **Update CHANGELOG:**
@@ -377,7 +401,7 @@ Brief description of changes
 - [ ] Tests added/updated
 - [ ] Documentation updated
 - [ ] All tests pass
-- [ ] Coverage >= 60%
+- [ ] Coverage meets thresholds (lines 80%, functions 95%, branches 75%)
 - [ ] Commit messages follow guidelines
 
 ## Related Issues
@@ -409,23 +433,41 @@ Closes #123
 ### Core Flow
 
 ```
-parseCommandLine → loadConfigFile → loadFiles → computeFileDiff → validateStopRules → updateFiles → reports
+parseCommandLine → loadConfigFile (with inheritance)
+  → [early exits: show-config, validate, format]
+  → loadFiles (source + destination in parallel)
+  → filterByCliOptions
+  → [early exit: list-files]
+  → computeFileDiff
+  → [early exits: diff, suggest]
+  → validateStopRules (fail unless --force)
+  → updateFiles (merge + format)    [run command only]
 ```
+
+### Exit Codes
+
+| Code | Constant                   | Meaning                                                      |
+| ---- | -------------------------- | ------------------------------------------------------------ |
+| 0    | `EXIT_NO_CHANGES`          | No changes detected                                          |
+| 1    | `EXIT_CHANGES_SYNCED`      | Changes synced/formatted successfully                        |
+| 2    | `EXIT_STOP_RULE_VIOLATION` | Stop rule(s) blocked the sync (use `--force` or `--dry-run`) |
+| 3    | `EXIT_CONFIG_ERROR`        | Bad CLI arguments or invalid/missing configuration           |
+
+Early exits (`show-config`, `validate`, `list-files`, `suggest` success) use exit 0.
 
 ### Key Modules
 
 - **commandLine.ts**: CLI argument parsing (commander)
-- **configFile.ts**: Zod schema validation
-- **configLoader.ts**: YAML config loading with inheritance
-- **fileLoader.ts**: Glob-based file loading
-- **fileDiff.ts**: YAML structural comparison
-- **yamlFormatter.ts**: YAML output formatting
-- **stopRulesValidator.ts**: Safety validation
-- **fileUpdater.ts**: Deep merge and file sync
-- **htmlReporter.ts**: HTML report generation (diff stats, copy diff)
-- **htmlTemplate.ts**: HTML template (collapsible stats dashboard, zero-count hiding, sidebar search)
-- **htmlStyles.ts**: Report styles and scripts (scroll sync, toggle interactions)
-- **treeRenderer.ts**: Sidebar file tree rendering
+- **exitCodes.ts**: Exit code constants
+- **config/**: Zod schemas (`baseConfigSchema`), config loading with inheritance (max 5 levels), merging
+- **pipeline/fileLoader.ts**: Glob-based file loading with collision detection
+- **pipeline/fileDiff.ts**: YAML structural comparison (transforms, fixedValues, skipPath)
+- **pipeline/yamlFormatter.ts**: AST-based YAML formatting
+- **pipeline/stopRulesValidator.ts**: Safety validation (semver, version, numeric, regex)
+- **pipeline/fileUpdater.ts**: Deep merge and file sync
+- **reporters/htmlReporter.ts**: Self-contained HTML diff report
+- **reporters/treeRenderer.ts**: Sidebar file tree rendering
+- **suggestionEngine.ts**: Heuristic analyzer for `suggest` command
 
 ### Design Patterns
 
@@ -438,14 +480,15 @@ parseCommandLine → loadConfigFile → loadFiles → computeFileDiff → valida
 ### Adding New Features
 
 1. **New configuration option:**
-   - Update schemas in `src/configFile.ts`
+   - Update schemas in `src/config/`
    - Update `BaseConfig` and `FinalConfig` types
+   - Run `npm run generate:schema` to regenerate `config.schema.json`
    - Add validation logic
    - Update README.md
 
 2. **New stop rule type:**
    - Add type to `StopRule` schema
-   - Implement validation in `src/stopRulesValidator.ts`
+   - Implement validation in `src/pipeline/stopRulesValidator.ts`
    - Add tests
    - Update documentation
 

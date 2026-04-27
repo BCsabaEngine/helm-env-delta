@@ -24,19 +24,32 @@ npx vitest run test/pipeline/fileLoader.test.ts  # Single test file
 npx vitest run -t "skipExclude"                  # Tests matching pattern
 ```
 
-**CLI:** `helm-env-delta -c config.yaml [--validate] [--suggest] [--suggest-threshold 0-1] [-D|--dry-run] [--force] [-d|--diff] [-H|--diff-html] [-J|--diff-json] [--report-output <path>] [-S|--skip-format] [--format-only] [-l|--list-files] [--show-config] [--no-color] [-f|--filter <string>] [-m|--mode <type>] [--my [days]] [--verbose] [--quiet]`
+**CLI commands:** `helm-env-delta <command> -c config.yaml [options]`
+
+| Command       | Key options                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| `run`         | `-D/--dry-run`, `--force`, `-S/--skip-format`, `-f/--filter`, `-m/--mode`, `--my [days]`      |
+| `validate`    | `-f/--filter`, `--my [days]`                                                                  |
+| `format`      | `-D/--dry-run`, `-f/--filter`                                                                 |
+| `suggest`     | `--suggest-threshold 0-1`, `-f/--filter`, `-m/--mode`, `--my [days]`                          |
+| `diff`        | `-H/--html`, `-J/--json`, `--report-output <path>`, `-f/--filter`, `-m/--mode`, `--my [days]` |
+| `list-files`  | `-f/--filter`, `--my [days]`                                                                  |
+| `show-config` | _(none)_                                                                                      |
+
+Global (all commands): `-c/--config <file>` (required), `--no-color`, `--verbose`, `--quiet`
 
 ## Architecture
 
 **Entry:** `bin/index.js` → `src/index.ts` (orchestrator). Sequential pipeline:
 
 ```
-parseCommandLine → loadConfigFile (with inheritance) → [early exits: --show-config, --validate, --format-only]
-→ loadFiles (source + destination in parallel) → filterByCliOptions → computeFileDiff
-→ validateStopRules (fail unless --force) → updateFiles (merge + format) → generateReports
+parseCommandLine → loadConfigFile (with inheritance) → [early exits: show-config, validate, format]
+→ loadFiles (source + destination in parallel) → filterByCliOptions → [early exit: list-files]
+→ computeFileDiff → [early exits: diff, suggest]
+→ validateStopRules (fail unless --force) → updateFiles (merge + format)   [run command only]
 ```
 
-**Source structure** (`src/`): `index.ts` (orchestrator), `commandLine.ts`, `constants.ts`, `exitCodes.ts`, `logger.ts`, `consoleFormatter.ts`, `suggestionEngine.ts` (largest file — heuristic analyzer for `--suggest`), plus:
+**Source structure** (`src/`): `index.ts` (orchestrator), `commandLine.ts`, `constants.ts`, `exitCodes.ts`, `logger.ts`, `consoleFormatter.ts`, `suggestionEngine.ts` (largest file — heuristic analyzer for `suggest` command), plus:
 
 - `config/` — Zod schemas (`baseConfigSchema` exported for schema generation, BaseConfig → FinalConfig), config loading with inheritance (max 5 levels), merging, warnings
 - `pipeline/` — fileLoader (glob→Map), fileDiff (structural YAML comparison), fileUpdater (deep merge), yamlFormatter (AST-based), stopRulesValidator, patternUsageValidator
@@ -81,7 +94,7 @@ Vitest, describe/it, Arrange-Act-Assert. 42 test files, 1400+ tests (use `test:a
 
 ## Config Schema
 
-- **Core:** `source`, `destination` (required for sync; source optional for `--format-only`), `include`/`exclude`, `prune`, `confirmationDelay`, `requiredVersion` (also suppresses auto-update notification when set)
+- **Core:** `source`, `destination` (required for sync; source optional for `format` command), `include`/`exclude`, `prune`, `confirmationDelay`, `requiredVersion` (also suppresses auto-update notification when set)
 - **skipPath:** JSONPath patterns per-file glob with CSS-style filters. Example: `env[name^=DB_]`, `containers[name=sidecar].resources`
 - **transforms:** `content`/`filename` arrays (regex find/replace), `contentFile`/`filenameFile` for external files
 - **stopRules:** semverMajorUpgrade, semverDowngrade, versionFormat, numeric, regex, regexFile, regexFileKey. With `path`: checks specific JSONPath. Without: scans ALL values
@@ -105,8 +118,8 @@ Defined in `src/exitCodes.ts` and used consistently across `src/index.ts` and `s
 | 2    | `EXIT_STOP_RULE_VIOLATION` | Stop rule(s) blocked the sync (use `--force` or `--dry-run`) |
 | 3    | `EXIT_CONFIG_ERROR`        | Bad CLI arguments or invalid/missing configuration           |
 
-Early exits (`--show-config`, `--validate`, `--list-files`, `--suggest` success) use exit 0 — no sync occurred. Runtime errors (file I/O, YAML parse) use exit 1. `process.exitCode` is used instead of `process.exit()` for the 0/1 success paths so the `finally` block (version checker) still runs.
+Early exits (`show-config`, `validate`, `list-files`, `suggest` success) use exit 0 — no sync occurred. Runtime errors (file I/O, YAML parse) use exit 1. `process.exitCode` is used instead of `process.exit()` for the 0/1 success paths so the `finally` block (version checker) still runs.
 
-## Pattern Usage Validation (`--validate`)
+## Pattern Usage Validation (`validate` command)
 
 Two-phase: (1) Static — syntax, inefficient patterns, duplicates (configWarnings.ts). (2) File-based — validates patterns match actual files and JSONPaths exist (patternUsageValidator.ts). Validates: exclude, skipPath, stopRules, fixedValues patterns.
