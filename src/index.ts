@@ -462,14 +462,15 @@ const main = async (): Promise<void> => {
   );
 
   // Generate HTML report if requested (suppress in quiet mode)
-  if (command.diffHtml && !command.quiet)
+  if ((command.diffHtml || command.reportOutput) && !command.quiet)
     await generateHtmlReport(
       diffResult,
       formattedFiles,
       syncConfig,
       command.dryRun,
       logger,
-      command.dryRun ? validationResult : undefined
+      command.dryRun ? validationResult : undefined,
+      command.reportOutput
     );
 
   // Generate JSON report if requested (always outputs regardless of verbosity)

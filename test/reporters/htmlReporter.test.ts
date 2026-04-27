@@ -689,5 +689,58 @@ describe('htmlReporter', () => {
       expect(htmlContent).not.toContain('id="violations-toggle-btn"');
       expect(htmlContent).not.toContain('class="stat violations"');
     });
+
+    describe('with custom outputPath', () => {
+      it('should write to the exact file path when outputPath has .html extension', async () => {
+        const diffResult = createMockDiffResult();
+        const config = createMockConfig();
+
+        await generateHtmlReport(
+          diffResult,
+          [],
+          config,
+          false,
+          createMockLogger(),
+          undefined,
+          './reports/my-report.html'
+        );
+
+        const writePath = vi.mocked(writeFile).mock.calls[0][0] as string;
+        expect(writePath).toBe('./reports/my-report.html');
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it('should auto-generate filename inside directory when outputPath has no extension', async () => {
+        const diffResult = createMockDiffResult();
+        const config = createMockConfig();
+
+        await generateHtmlReport(diffResult, [], config, false, createMockLogger(), undefined, './reports/');
+
+        const writePath = vi.mocked(writeFile).mock.calls[0][0] as string;
+        expect(writePath).toMatch(/reports/);
+        expect(writePath).toMatch(/helm-env-delta-.+\.html$/);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it('should log "HTML report saved" message for custom output path', async () => {
+        const diffResult = createMockDiffResult();
+        const config = createMockConfig();
+        const mockLogger = createMockLogger();
+
+        await generateHtmlReport(diffResult, [], config, false, mockLogger, undefined, './reports/out.html');
+
+        expect(mockLogger.log).toHaveBeenCalledWith(expect.stringContaining('✓ HTML report saved'));
+        expect(mockLogger.log).not.toHaveBeenCalledWith(expect.stringContaining('opening in browser'));
+      });
+
+      it('should still open browser when no outputPath is provided', async () => {
+        const diffResult = createMockDiffResult();
+        const config = createMockConfig();
+
+        await generateHtmlReport(diffResult, [], config, false, createMockLogger());
+
+        expect(open).toHaveBeenCalled();
+      });
+    });
   });
 });
