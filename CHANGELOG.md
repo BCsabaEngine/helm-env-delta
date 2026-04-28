@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-04-28
+
+### Added
+
+- `validate --strict`: When running `validate` with the new `--strict` flag, the command now exits with code 4 if any configuration warnings are found. This makes it easy to fail CI pipelines on warnings, not just on errors.
+
+### Changed
+
+- **Breaking:** Commands are now proper subcommands instead of flags. Use `helm-env-delta run`, `helm-env-delta validate`, `helm-env-delta diff`, `helm-env-delta format`, `helm-env-delta suggest`, `helm-env-delta list-files`, and `helm-env-delta show-config` instead of the previous `--validate`, `--format-only`, `--diff-html`, `--list-files`, and `--show-config` flags.
+- **Breaking:** The HTML diff report (`-H`) and JSON output (`-J`) flags are now options on the `diff` subcommand rather than global flags on the main command.
+- When running `diff`, the console diff is no longer printed when `-H/--html` or `-J/--json` output is requested — avoiding duplicated output.
+
+### Fixed
+
+- Console diff output was incorrectly shown alongside HTML/JSON report output when using the `diff` command. Now only one output format is produced at a time.
+
 ## [1.15.3] - 2026-04-07
 
 ### Changed

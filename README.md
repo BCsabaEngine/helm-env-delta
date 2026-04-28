@@ -82,6 +82,29 @@ npm install -g helm-env-delta
 
 ---
 
+## ⚠️ Upgrading from v1.x to v2.0.0
+
+v2.0.0 replaces flag-based invocation with proper subcommands. Update your scripts and aliases:
+
+| v1.x (old)                         | v2.0.0 (new)                     |
+| ---------------------------------- | -------------------------------- |
+| `hed -c config.yaml`               | `hed run -c config.yaml`         |
+| `hed -c config.yaml --validate`    | `hed validate -c config.yaml`    |
+| `hed -c config.yaml --format-only` | `hed format -c config.yaml`      |
+| `hed -c config.yaml --suggest`     | `hed suggest -c config.yaml`     |
+| `hed -c config.yaml --diff`        | `hed diff -c config.yaml`        |
+| `hed -c config.yaml --diff-html`   | `hed diff -c config.yaml --html` |
+| `hed -c config.yaml --diff-json`   | `hed diff -c config.yaml --json` |
+| `hed -c config.yaml --list-files`  | `hed list-files -c config.yaml`  |
+| `hed -c config.yaml --show-config` | `hed show-config -c config.yaml` |
+
+**New in v2.0.0:**
+
+- `validate --strict` — exits with code 4 if any warnings are found. Enables hard enforcement in CI/CD pipelines without needing to parse output.
+- Console diff output is suppressed when `--html` or `--json` is used on the `diff` command — only one output format is produced at a time.
+
+---
+
 ## ✍️ Editor Support
 
 The package ships a `config.schema.json` that enables autocompletion, hover documentation, and inline validation in any editor with YAML JSON Schema support (VS Code, IntelliJ, Neovim + LSP, etc.).
@@ -1124,7 +1147,7 @@ git push origin main
 **Usage in CI:**
 
 ```bash
-hed -c config.yaml
+hed run -c config.yaml
 STATUS=$?
 
 if [ $STATUS -eq 0 ]; then
