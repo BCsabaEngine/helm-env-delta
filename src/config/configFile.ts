@@ -153,7 +153,7 @@ const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const hasDangerousKeys = (value: unknown): boolean => {
   if (value === null || typeof value !== 'object') return false;
   if (Array.isArray(value)) return value.some((item) => hasDangerousKeys(item));
-  for (const key of Object.keys(value as object))
+  for (const key of Object.keys(value))
     if (DANGEROUS_KEYS.has(key) || hasDangerousKeys((value as Record<string, unknown>)[key])) return true;
   return false;
 };

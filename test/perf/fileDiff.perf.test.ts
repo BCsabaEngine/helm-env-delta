@@ -103,7 +103,7 @@ describe('fileDiff performance', () => {
         const object = YAML.parse(yaml);
         const objects = Array.from({ length: 20 }).map(() => structuredClone(object));
 
-        for (const object of objects) normalizeForComparison(object);
+        for (const item of objects) normalizeForComparison(item);
       },
       { iterations: 10, time: 1000 }
     );

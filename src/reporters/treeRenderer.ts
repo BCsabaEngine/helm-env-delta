@@ -2,7 +2,7 @@
 // Tree Renderer - HTML rendering functions for file tree structures
 // ============================================================================
 
-import { TreeNode } from './treeBuilder';
+import { type TreeNode } from './treeBuilder';
 
 /**
  * Renders a tree structure as HTML with expand/collapse functionality.

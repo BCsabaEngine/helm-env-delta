@@ -5,7 +5,7 @@ import { glob as tinyglobbyGlob } from 'tinyglobby';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FileLoaderError, isFileLoaderError, loadFiles } from '../../src/pipeline/fileLoader';
-import { transformFilename, transformFilenameMap, TransformMapResult } from '../../src/utils/filenameTransformer';
+import { transformFilename, transformFilenameMap, type TransformMapResult } from '../../src/utils/filenameTransformer';
 
 vi.mock('node:fs/promises');
 vi.mock('tinyglobby');
@@ -307,7 +307,7 @@ describe('fileLoader', () => {
       const baseDirectory = '/base';
       const transforms = { '**/*.yaml': { filename: [{ find: 'uat', replace: 'prod' }] } };
       mockGlob.mockResolvedValue([`${baseDirectory}/file-uat.yaml`, `${baseDirectory}/other.txt`]);
-      mockTransformFilename.mockImplementation((path) => path.replace('uat', 'prod'));
+      mockTransformFilename.mockImplementation((filePath) => filePath.replace('uat', 'prod'));
       mockReadFile.mockResolvedValue('content' as unknown as Buffer);
       mockTransformFilenameMap.mockImplementation((map) => createMockTransformResult(map));
 

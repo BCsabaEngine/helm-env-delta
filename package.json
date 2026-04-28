@@ -1,6 +1,6 @@
 {
   "name": "helm-env-delta",
-  "version": "1.15.3",
+  "version": "2.0.0",
   "description": "HelmEnvDelta – environment-aware YAML delta and sync for GitOps",
   "author": "BCsabaEngine",
   "license": "ISC",
@@ -36,7 +36,7 @@
   },
   "homepage": "https://github.com/BCsabaEngine/helm-env-delta",
   "scripts": {
-    "dev": "tsx src/index.ts -c ./example.dev/config.yaml",
+    "dev": "tsx src/index.ts diff -c ./example.dev/config.yaml --html",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage",
     "test:perf": "vitest bench --run",
@@ -69,7 +69,7 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.6.0",
     "@types/picomatch": "^4.0.3",
-    "@typescript-eslint/eslint-plugin": "^8.59.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
     "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",

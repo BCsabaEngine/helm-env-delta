@@ -50,9 +50,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { html as diff2html } from 'diff2html';
 import open from 'open';
 
-import { Config } from '../../src/config/configFile';
-import { Logger } from '../../src/logger';
-import { AddedFile, ChangedFile, FileDiffResult } from '../../src/pipeline/fileDiff';
+import { type Config } from '../../src/config/configFile';
+import { type Logger } from '../../src/logger';
+import { type AddedFile, type ChangedFile, type FileDiffResult } from '../../src/pipeline/fileDiff';
 import type { ValidationResult } from '../../src/pipeline/stopRulesValidator';
 import { diffArrays, findArrayPaths, hasArrays } from '../../src/reporters/arrayDiffer';
 import { generateHtmlReport, HtmlReporterError, isHtmlReporterError } from '../../src/reporters/htmlReporter';

@@ -1,5 +1,5 @@
 # Format-only configuration - no source required
-# Use with: hed --config config.yaml --format-only
+# Use with: hed format -c config.yaml
 
 destination: './files'
 

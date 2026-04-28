@@ -58,9 +58,9 @@ HelmEnvDelta (`hed`) automates environment synchronization for GitOps workflows 
 
 📊 **Multiple Reports** - Console, HTML (visual, self-contained), and JSON (CI/CD) output formats. HTML reports include collapsible diff stats dashboard, stop rule violations table (dry-run only), synchronized side-by-side scrolling, copy diff buttons, file search, collapse/expand controls, jump-to-sidebar navigation, and auto-collapse for large file sets. Empty categories are automatically hidden.
 
-🔍 **Discovery Tools** - Preview files (`-l`), inspect config (`--show-config`), filter by filename/content (`-f`), filter by change type (`-m`), filter to your own git changes (`--my`), validate with comprehensive warnings including unused pattern detection.
+🔍 **Discovery Tools** - Preview files (`list-files`), inspect config (`show-config`), filter by filename/content (`-f`), filter by change type (`-m`), filter to your own git changes (`--my`), validate with comprehensive warnings including unused pattern detection.
 
-💡 **Smart Suggestions** - Heuristic analysis (`--suggest`) detects patterns and recommends transforms and stop rules automatically. Control sensitivity with `--suggest-threshold`.
+💡 **Smart Suggestions** - Heuristic analysis (`suggest` command) detects patterns and recommends transforms and stop rules automatically. Control sensitivity with `--suggest-threshold`.
 
 🛡️ **Safety First** - Pre-execution summary, first-run tips, improved error messages with helpful examples.
 
@@ -79,6 +79,29 @@ npm install -g helm-env-delta
 ```
 
 **Requirements:** Node.js ≥ 22, npm ≥ 9
+
+---
+
+## ⚠️ Upgrading from v1.x to v2.0.0
+
+v2.0.0 replaces flag-based invocation with proper subcommands. Update your scripts and aliases:
+
+| v1.x (old)                         | v2.0.0 (new)                     |
+| ---------------------------------- | -------------------------------- |
+| `hed -c config.yaml`               | `hed run -c config.yaml`         |
+| `hed -c config.yaml --validate`    | `hed validate -c config.yaml`    |
+| `hed -c config.yaml --format-only` | `hed format -c config.yaml`      |
+| `hed -c config.yaml --suggest`     | `hed suggest -c config.yaml`     |
+| `hed -c config.yaml --diff`        | `hed diff -c config.yaml`        |
+| `hed -c config.yaml --diff-html`   | `hed diff -c config.yaml --html` |
+| `hed -c config.yaml --diff-json`   | `hed diff -c config.yaml --json` |
+| `hed -c config.yaml --list-files`  | `hed list-files -c config.yaml`  |
+| `hed -c config.yaml --show-config` | `hed show-config -c config.yaml` |
+
+**New in v2.0.0:**
+
+- `validate --strict` — exits with code 4 if any warnings are found. Enables hard enforcement in CI/CD pipelines without needing to parse output.
+- Console diff output is suppressed when `--html` or `--json` is used on the `diff` command — only one output format is produced at a time.
 
 ---
 
@@ -136,19 +159,19 @@ transforms:
 ### 2️⃣ Preview Changes
 
 ```bash
-hed -c config.yaml -D -d
+hed diff -c config.yaml
 ```
 
 ### 3️⃣ Execute Sync
 
 ```bash
-hed -c config.yaml
+hed run -c config.yaml
 ```
 
 ### 4️⃣ Review in Browser
 
 ```bash
-hed -c config.yaml -H
+hed diff -c config.yaml --html
 ```
 
 Self-contained HTML report — works offline, no CDN required. Includes collapsible diff stats dashboard, stop rule violations table (shown in dry-run mode), synchronized side-by-side scrolling, copy buttons, sidebar search, collapse/expand controls, and jump-to-sidebar navigation. File blocks auto-collapse when there are more than 10 files. Empty categories are automatically hidden.
@@ -157,19 +180,19 @@ To save the report as a file without opening a browser (e.g. for CI/CD artifacts
 
 ```bash
 # Save to an exact path
-hed -c config.yaml --report-output ./reports/2026-04-27.html
+hed diff -c config.yaml --report-output ./reports/2026-04-27.html
 
 # Save to a directory (filename auto-generated)
-hed -c config.yaml --report-output ./reports/
+hed diff -c config.yaml --report-output ./reports/
 ```
 
 ### 5️⃣ Get Smart Suggestions (Optional)
 
 ```bash
-hed -c config.yaml --suggest
+hed suggest -c config.yaml
 
 # Control suggestion sensitivity (0-1, default: 0.3)
-hed -c config.yaml --suggest --suggest-threshold 0.7
+hed suggest -c config.yaml --suggest-threshold 0.7
 ```
 
 Analyzes differences and suggests transforms and stop rules automatically with configurable confidence filtering.
@@ -273,7 +296,7 @@ The repository includes ready-to-run examples:
 The simplest possible setup — syncs changes from UAT to Production while preserving environment-specific values.
 
 ```bash
-helm-env-delta --config example/0-basic/config.yaml --dry-run --diff
+helm-env-delta diff --config example/0-basic/config.yaml
 ```
 
 ### 📁 Example 1: Config Inheritance
@@ -281,7 +304,7 @@ helm-env-delta --config example/0-basic/config.yaml --dry-run --diff
 Shows how to reuse base configuration across multiple environment pairs.
 
 ```bash
-helm-env-delta --config example/1-config-inheritance/config.uat-to-prod.yaml --dry-run --diff
+helm-env-delta diff --config example/1-config-inheritance/config.uat-to-prod.yaml
 ```
 
 ### 🚦 Example 2: Stop Rules
@@ -289,7 +312,7 @@ helm-env-delta --config example/1-config-inheritance/config.uat-to-prod.yaml --d
 Demonstrates all 7 stop rule types and how violations block execution.
 
 ```bash
-helm-env-delta --config example/2-stop-rules/config.yaml --dry-run --diff
+helm-env-delta diff --config example/2-stop-rules/config.yaml
 ```
 
 ### ⛓️ Example 3: Multi-Environment Chain
@@ -306,7 +329,7 @@ cd example/3-multi-env-chain
 File deletion behavior with `prune: true` vs `prune: false`.
 
 ```bash
-helm-env-delta --config example/4-prune-mode/config.with-prune.yaml --dry-run --diff
+helm-env-delta diff --config example/4-prune-mode/config.with-prune.yaml
 ```
 
 ### 📦 Example 5: External Files
@@ -314,7 +337,7 @@ helm-env-delta --config example/4-prune-mode/config.with-prune.yaml --dry-run --
 Load transforms and stop rules from external YAML files for better organization and reusability.
 
 ```bash
-helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
+helm-env-delta diff --config example/5-external-files/config.yaml
 ```
 
 **Features shown:**
@@ -328,7 +351,7 @@ helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
 Set specific fields to constant values regardless of source/destination. Perfect for enforcing production settings.
 
 ```bash
-helm-env-delta --config example/6-fixed-values/config.yaml --dry-run --diff
+helm-env-delta diff --config example/6-fixed-values/config.yaml
 ```
 
 **Features shown:**
@@ -338,25 +361,21 @@ helm-env-delta --config example/6-fixed-values/config.yaml --dry-run --diff
 - Array filter operators (`env[name=LOG_LEVEL].value`)
 - Combining with skipPath and transforms
 
-### 🎨 Example 7: Format-Only Mode
+### 🎨 Example 7: Format Command
 
 Format YAML files without syncing. No source directory required - perfect for standardizing existing files.
 
 ```bash
-# Preview which files would be formatted
-helm-env-delta --config example/7-format-only/config.yaml --format-only --list-files
-
 # Preview formatting changes
-helm-env-delta --config example/7-format-only/config.yaml --format-only --dry-run
+helm-env-delta format --config example/7-format-only/config.yaml --dry-run
 
 # Apply formatting
-helm-env-delta --config example/7-format-only/config.yaml --format-only
+helm-env-delta format --config example/7-format-only/config.yaml
 ```
 
 **Features shown:**
 
-- Format-only mode (no source required)
-- Combining `--format-only` with `--list-files` to preview files
+- Format command (no source required)
 - Key ordering, array sorting, indentation standardization
 - Minimal config for formatting existing files
 
@@ -364,15 +383,15 @@ helm-env-delta --config example/7-format-only/config.yaml --format-only
 
 ## 💡 Smart Configuration Suggestions (Heuristic)
 
-The `--suggest` flag uses heuristic analysis to examine differences between environments and automatically recommend configuration updates. This intelligent pattern detection helps bootstrap your config by discovering repeated changes and potential safety rules.
+The `suggest` command uses heuristic analysis to examine differences between environments and automatically recommend configuration updates. This intelligent pattern detection helps bootstrap your config by discovering repeated changes and potential safety rules.
 
 ### How It Works
 
 ```bash
-helm-env-delta --config config.yaml --suggest
+helm-env-delta suggest --config config.yaml
 
 # Control suggestion sensitivity (higher threshold = fewer, higher-confidence suggestions)
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.7
+helm-env-delta suggest --config config.yaml --suggest-threshold 0.7
 ```
 
 **How heuristic analysis works:**
@@ -422,28 +441,28 @@ stopRules:
 
 ```bash
 # More suggestions (lower threshold = less strict)
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.2
+helm-env-delta suggest --config config.yaml --suggest-threshold 0.2
 
 # Default balance (standard heuristics, threshold: 0.3)
-helm-env-delta --config config.yaml --suggest
+helm-env-delta suggest --config config.yaml
 
 # Only high-confidence (higher threshold = more strict)
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.8
+helm-env-delta suggest --config config.yaml --suggest-threshold 0.8
 ```
 
 **Workflow:**
 
 ```bash
 # 1. Get suggestions (optionally with custom threshold)
-helm-env-delta --config config.yaml --suggest --suggest-threshold 0.5 > suggestions.yaml
+helm-env-delta suggest --config config.yaml --suggest-threshold 0.5 > suggestions.yaml
 
 # 2. Review and copy relevant sections to config.yaml
 
-# 3. Test with dry-run
-helm-env-delta --config config.yaml --dry-run --diff
+# 3. Review changes
+helm-env-delta diff --config config.yaml
 
 # 4. Execute
-helm-env-delta --config config.yaml
+helm-env-delta run --config config.yaml
 ```
 
 ---
@@ -453,7 +472,7 @@ helm-env-delta --config config.yaml
 ### 🎯 Core Settings
 
 ```yaml
-source: './uat' # Required: Source folder (optional with --format-only)
+source: './uat' # Required: Source folder (optional for the format command)
 destination: './prod' # Required: Destination folder (must differ from source)
 
 include: # Optional: File patterns (default: all)
@@ -776,13 +795,13 @@ The `-f/--filter` flag supports logical operators for complex filtering:
 
 ```bash
 # OR: match ANY term (filename or content)
-hed -c config.yaml -f prod,staging --list-files
+hed list-files -c config.yaml -f prod,staging
 
 # AND: match ALL terms (can be split between filename and content)
-hed -c config.yaml -f values+prod --list-files
+hed list-files -c config.yaml -f values+prod
 
 # Escape literal , or + with backslash
-hed -c config.yaml -f "foo\,bar" --list-files
+hed list-files -c config.yaml -f "foo\,bar"
 ```
 
 **Constraints:**
@@ -799,13 +818,13 @@ Filter the sync to only source files **you** modified in git. Your identity is r
 
 ```bash
 # Sync only files you modified in the last 30 days (default)
-hed -c config.yaml --my
+hed run -c config.yaml --my
 
 # Sync only files you modified in the last 7 days
-hed -c config.yaml --my 7
+hed run -c config.yaml --my 7
 
 # Preview first
-hed -c config.yaml --my --dry-run --diff
+hed diff -c config.yaml --my
 ```
 
 **How it works:** Queries `git log` for commits by your git identity within the time window, collects modified file paths, and filters source files to that set. The matching destination files are filtered in tandem.
@@ -870,103 +889,168 @@ stopRules: # Add production safety rules
 ### Commands
 
 ```bash
-helm-env-delta --config <file> [options]
-hed --config <file> [options]  # Short alias
+helm-env-delta <command> [options]
+hed <command> [options]  # Short alias
 ```
 
-### Options
+| Command       | Description                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `run`         | Sync source YAML changes to destination                                                     |
+| `validate`    | Validate configuration and patterns (shows warnings, `--strict` exits non-zero on warnings) |
+| `format`      | Format destination YAML files without syncing                                               |
+| `suggest`     | Analyze differences and suggest config updates                                              |
+| `diff`        | Show changes between source and destination (read-only)                                     |
+| `list-files`  | List files that would be processed without computing diff                                   |
+| `show-config` | Display resolved configuration after inheritance                                            |
 
-| Flag                        | Short | Description                                                                 |
-| --------------------------- | ----- | --------------------------------------------------------------------------- |
-| `--config <path>`           | `-c`  | **Required** - Configuration file                                           |
-| `--validate`                |       | Validate config and pattern usage (shows warnings)                          |
-| `--suggest`                 |       | Analyze differences and suggest config updates                              |
-| `--suggest-threshold <0-1>` |       | Minimum confidence for suggestions (default: 0.3)                           |
-| `--dry-run`                 | `-D`  | Preview changes without writing files                                       |
-| `--force`                   |       | Override stop rules                                                         |
-| `--diff`                    | `-d`  | Show console diff                                                           |
-| `--diff-html`               | `-H`  | Generate HTML report (opens in browser)                                     |
-| `--diff-json`               | `-J`  | Output JSON to stdout (pipe to jq)                                          |
-| `--report-output <path>`    |       | Save HTML report to a file or directory (suppresses browser auto-open)      |
-| `--list-files`              | `-l`  | List files without processing (takes precedence over --format-only)         |
-| `--show-config`             |       | Display resolved config after inheritance                                   |
-| `--format-only`             |       | Format destination files only (source not required)                         |
-| `--skip-format`             | `-S`  | Skip YAML formatting during sync                                            |
-| `--filter <string>`         | `-f`  | Filter files by filename/content (supports `,` OR, `+` AND)                 |
-| `--mode <type>`             | `-m`  | Filter by change type: new, modified, deleted, all (default: all)           |
-| `--my [days]`               |       | Filter to source files you modified in git in the last N days (default: 30) |
-| `--no-color`                |       | Disable colored output (CI/accessibility)                                   |
-| `--verbose`                 |       | Show detailed debug info                                                    |
-| `--quiet`                   |       | Suppress output except errors                                               |
+### Global Options
+
+All commands accept:
+
+| Flag         | Description                               |
+| ------------ | ----------------------------------------- |
+| `--no-color` | Disable colored output (CI/accessibility) |
+| `--verbose`  | Show detailed debug info                  |
+| `--quiet`    | Suppress output except errors             |
+
+### Command Options
+
+**`run` — Sync source changes to destination**
+
+| Flag                | Short | Description                                                                 |
+| ------------------- | ----- | --------------------------------------------------------------------------- |
+| `--config <path>`   | `-c`  | **Required** — Configuration file                                           |
+| `--dry-run`         | `-D`  | Preview changes without writing files                                       |
+| `--force`           |       | Override stop rules                                                         |
+| `--skip-format`     | `-S`  | Skip YAML formatting during sync                                            |
+| `--filter <string>` | `-f`  | Filter files by filename/content (supports `,` OR, `+` AND)                 |
+| `--mode <type>`     | `-m`  | Filter by change type: new, modified, deleted, all (default: all)           |
+| `--my [days]`       |       | Filter to source files you modified in git in the last N days (default: 30) |
+
+**`validate` — Validate configuration and pattern usage**
+
+| Flag                | Short | Description                                                         |
+| ------------------- | ----- | ------------------------------------------------------------------- |
+| `--config <path>`   | `-c`  | **Required** — Configuration file                                   |
+| `--strict`          |       | Exit with code 4 if any warnings are found (useful for CI/CD gates) |
+| `--filter <string>` | `-f`  | Filter files                                                        |
+| `--my [days]`       |       | Limit to files you modified in git in the last N days               |
+
+**`format` — Format destination YAML files (source not required)**
+
+| Flag                | Short | Description                                |
+| ------------------- | ----- | ------------------------------------------ |
+| `--config <path>`   | `-c`  | **Required** — Configuration file          |
+| `--dry-run`         | `-D`  | Preview formatting changes without writing |
+| `--filter <string>` | `-f`  | Filter files                               |
+
+**`suggest` — Analyze differences and suggest config updates**
+
+| Flag                        | Short | Description                                           |
+| --------------------------- | ----- | ----------------------------------------------------- |
+| `--config <path>`           | `-c`  | **Required** — Configuration file                     |
+| `--suggest-threshold <0-1>` |       | Minimum confidence for suggestions (default: 0.3)     |
+| `--filter <string>`         | `-f`  | Filter files                                          |
+| `--mode <type>`             | `-m`  | Filter by change type                                 |
+| `--my [days]`               |       | Limit to files you modified in git in the last N days |
+
+**`diff` — Show changes (always read-only, never writes files)**
+
+| Flag                     | Short | Description                                                       |
+| ------------------------ | ----- | ----------------------------------------------------------------- |
+| `--config <path>`        | `-c`  | **Required** — Configuration file                                 |
+| `--html`                 | `-H`  | Generate HTML report (opens in browser)                           |
+| `--json`                 | `-J`  | Output JSON to stdout (pipe to jq)                                |
+| `--report-output <path>` |       | Save HTML report to file or directory (suppresses browser open)   |
+| `--filter <string>`      | `-f`  | Filter files by filename/content                                  |
+| `--mode <type>`          | `-m`  | Filter by change type: new, modified, deleted, all (default: all) |
+| `--my [days]`            |       | Limit to files you modified in git in the last N days             |
+
+**`list-files` — List files without processing diffs**
+
+| Flag                | Short | Description                                           |
+| ------------------- | ----- | ----------------------------------------------------- |
+| `--config <path>`   | `-c`  | **Required** — Configuration file                     |
+| `--filter <string>` | `-f`  | Filter files                                          |
+| `--my [days]`       |       | Limit to files you modified in git in the last N days |
+
+**`show-config` — Display resolved configuration**
+
+| Flag              | Short | Description                       |
+| ----------------- | ----- | --------------------------------- |
+| `--config <path>` | `-c`  | **Required** — Configuration file |
 
 ### Examples
 
 ```bash
-# Validate configuration (shows warnings)
-hed -c config.yaml --validate
+# Validate configuration (shows warnings, exits 0)
+hed validate -c config.yaml
+
+# Strict mode — exit 4 if any warnings found (CI gate)
+hed validate -c config.yaml --strict
 
 # Get smart configuration suggestions
-hed -c config.yaml --suggest
+hed suggest -c config.yaml
 
 # Get only high-confidence suggestions
-hed -c config.yaml --suggest --suggest-threshold 0.7
+hed suggest -c config.yaml --suggest-threshold 0.7
 
 # Preview files that will be synced
-hed -c config.yaml -l
+hed list-files -c config.yaml
 
 # Display resolved config (after inheritance)
-hed -c config.yaml --show-config
+hed show-config -c config.yaml
 
-# Preview with diff
-hed -c config.yaml -D -d
+# Show changes (read-only console diff)
+hed diff -c config.yaml
 
 # Visual HTML report
-hed -c config.yaml -H
+hed diff -c config.yaml --html
 
 # Save HTML report as CI/CD artifact (no browser)
-hed -c config.yaml --report-output ./reports/
+hed diff -c config.yaml --report-output ./reports/
 
 # CI/CD integration (no colors)
-hed -c config.yaml -J --no-color | jq '.summary'
+hed diff -c config.yaml --json --no-color | jq '.summary'
 
 # Execute sync
-hed -c config.yaml
+hed run -c config.yaml
+
+# Preview sync without writing
+hed run -c config.yaml --dry-run
 
 # Force override stop rules
-hed -c config.yaml --force
+hed run -c config.yaml --force
 
 # Filter to only process files matching 'prod'
-hed -c config.yaml -f prod -d
+hed diff -c config.yaml -f prod
 
 # Filter with OR: match files containing 'prod' OR 'staging'
-hed -c config.yaml -f prod,staging -l
+hed list-files -c config.yaml -f prod,staging
 
 # Filter with AND: match files containing BOTH 'values' AND 'prod'
-hed -c config.yaml -f values+prod -d
+hed diff -c config.yaml -f values+prod
 
 # Sync only new files
-hed -c config.yaml -m new
+hed run -c config.yaml -m new
 
 # Preview modified files only
-hed -c config.yaml -m modified -D -d
+hed diff -c config.yaml -m modified
 
 # Combine filter and mode
-hed -c config.yaml -f deployment -m modified -D -d
+hed diff -c config.yaml -f deployment -m modified
 
 # Sync only files you modified in the last 30 days (auto-detects your git identity)
-hed -c config.yaml --my -D -d
+hed run -c config.yaml --my --dry-run
 
 # Sync only files you modified in the last 7 days
-hed -c config.yaml --my 7 -D -d
+hed run -c config.yaml --my 7 --dry-run
 
 # Format destination files only (no sync, source not required in config)
-hed -c config.yaml --format-only
+hed format -c config.yaml
 
 # Preview format changes
-hed -c config.yaml --format-only -D
-
-# List files that would be formatted (--list-files takes precedence)
-hed -c config.yaml --format-only -l
+hed format -c config.yaml --dry-run
 
 # Format-only config example (no source needed):
 # destination: './prod'
@@ -995,13 +1079,13 @@ flowchart LR
 
 ```bash
 # 1. Preview changes
-hed -c config.yaml -D -d
+hed diff -c config.yaml
 
 # 2. Review in browser
-hed -c config.yaml -H
+hed diff -c config.yaml --html
 
 # 3. Execute sync
-hed -c config.yaml
+hed run -c config.yaml
 
 # 4. Git workflow
 git add prod/
@@ -1052,17 +1136,18 @@ git push origin main
 
 `helm-env-delta` uses granular exit codes so pipelines can act on outcomes without parsing JSON:
 
-| Code | Meaning                                         |
-| ---- | ----------------------------------------------- |
-| `0`  | No changes detected — files are already in sync |
-| `1`  | Changes synced (or formatted) successfully      |
-| `2`  | Stop rule violation(s) blocked the sync         |
-| `3`  | Configuration or CLI argument error             |
+| Code | Meaning                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| `0`  | No changes detected — files are already in sync                         |
+| `1`  | Changes synced (or formatted) successfully                              |
+| `2`  | Stop rule violation(s) blocked the sync                                 |
+| `3`  | Configuration or CLI argument error                                     |
+| `4`  | Warnings found during `validate --strict` (config is usable but impure) |
 
 **Usage in CI:**
 
 ```bash
-hed -c config.yaml
+hed run -c config.yaml
 STATUS=$?
 
 if [ $STATUS -eq 0 ]; then
@@ -1074,14 +1159,18 @@ elif [ $STATUS -eq 2 ]; then
 elif [ $STATUS -eq 3 ]; then
   echo "Config error — check your config.yaml and CLI flags."
   exit 1
+elif [ $STATUS -eq 4 ]; then
+  echo "Validation warnings found — fix them or drop --strict."
+  exit 1
 fi
 ```
 
 **Notes:**
 
-- Early exits (`--show-config`, `--validate`, `--list-files`, `--suggest`) return `0` — no sync occurred.
+- Early exits (`show-config`, `validate`, `list-files`, `suggest`) return `0` — no sync occurred.
+- `validate --strict` returns `4` when warnings are present (and `0` when clean).
 - Runtime errors (file I/O failures, YAML parse errors) return `1`.
-- `--dry-run` with changes still returns `1` (changes exist, even if not written).
+- `run --dry-run` with changes still returns `1` (changes exist, even if not written).
 
 ---
 
@@ -1089,18 +1178,18 @@ fi
 
 ```bash
 # Save to a directory — filename auto-generated with timestamp
-hed --config config.yaml --report-output ./artifacts/
+hed diff --config config.yaml --report-output ./artifacts/
 
 # Save to an exact path
-hed --config config.yaml --report-output ./artifacts/report.html
+hed diff --config config.yaml --report-output ./artifacts/report.html
 ```
 
-Browser auto-open is suppressed when `--report-output` is used. The flag also implies HTML generation, so `--diff-html` is not required alongside it.
+Browser auto-open is suppressed when `--report-output` is used. The flag also implies HTML generation, so `--html` is not required alongside it.
 
 ### JSON Output
 
 ```bash
-hed --config config.yaml --diff-json > report.json
+hed diff --config config.yaml --json > report.json
 ```
 
 **Schema:**
@@ -1194,7 +1283,7 @@ HelmEnvDelta validates that your configuration patterns actually match files and
 **Run validation:**
 
 ```bash
-helm-env-delta --config config.yaml --validate
+helm-env-delta validate --config config.yaml
 ```
 
 **What gets validated:**
@@ -1234,7 +1323,7 @@ helm-env-delta --config config.yaml --validate
 - To verify config file patterns after file reorganization
 - As part of CI/CD pre-flight checks
 
-**Important:** Warnings are non-fatal and don't block execution. They help you catch potential issues but won't stop your workflow.
+**Important:** Warnings are non-fatal by default and don't block execution. Use `--strict` to exit with code 4 when warnings are present, enabling hard enforcement in CI/CD pipelines.
 
 ---
 

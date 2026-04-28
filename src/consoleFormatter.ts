@@ -1,6 +1,6 @@
 import colors from 'ansi-colors';
 
-import { StopRuleViolation } from './pipeline/stopRulesValidator';
+import { type StopRuleViolation } from './pipeline/stopRulesValidator';
 
 // ============================================================================
 // Types

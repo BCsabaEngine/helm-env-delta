@@ -1,6 +1,6 @@
 # Format-Only Example
 
-This example demonstrates the `--format-only` flag, which formats YAML files without syncing from a source. This is useful for standardizing file formatting across your codebase.
+This example demonstrates the `format` command, which formats YAML files without syncing from a source. This is useful for standardizing file formatting across your codebase.
 
 ## Scenario
 
@@ -28,22 +28,19 @@ Run from the example directory:
 cd example/7-format-only
 
 # Preview which files would be formatted
-hed --config config.yaml --format-only --list-files
+hed list-files -c config.yaml
 
 # Preview formatting changes without writing
-hed --config config.yaml --format-only --dry-run
+hed format -c config.yaml --dry-run
 
 # Apply formatting
-hed --config config.yaml --format-only
-
-# View formatting changes in browser
-hed --config config.yaml --format-only --dry-run --diff-html
+hed format -c config.yaml
 ```
 
 Or from the project root:
 
 ```bash
-cd example/7-format-only && hed --config config.yaml --format-only --list-files
+cd example/7-format-only && hed list-files -c config.yaml
 ```
 
 ## Key Differences from Normal Sync
@@ -123,7 +120,7 @@ spec:
 
 ## Use Cases
 
-- **CI/CD formatting checks**: Run `--format-only --dry-run` to verify files are formatted
+- **CI/CD formatting checks**: Run `format --dry-run` to verify files are formatted
 - **Bulk reformatting**: Apply consistent style to existing YAML files
 - **Pre-commit hooks**: Format files before committing
 - **Standardizing Helm values**: Ensure all values files follow the same structure

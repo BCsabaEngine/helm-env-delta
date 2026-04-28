@@ -26,19 +26,19 @@ Run from the example directory:
 cd example/0-basic
 
 # Preview changes without writing
-hed --config config.yaml --dry-run --diff
+hed diff -c config.yaml
 
 # Apply changes
-hed --config config.yaml
+hed run -c config.yaml
 
 # View changes in browser
-hed --config config.yaml --diff-html
+hed diff -c config.yaml --html
 ```
 
 Or from the project root:
 
 ```bash
-cd example/0-basic && hed --config config.yaml --dry-run --diff
+cd example/0-basic && hed diff -c config.yaml
 ```
 
 ## Expected Behavior

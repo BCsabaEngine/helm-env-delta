@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import packageJson from '../../package.json';
+import type { Logger } from '../logger';
 import { createErrorClass, createErrorTypeGuard, isNewerVersion, loadTransformFiles } from '../utils';
 import {
   type BaseConfig,
@@ -102,7 +103,7 @@ const expandTransformFiles = (config: BaseConfig, configDirectory: string): Base
 export const loadConfigFile = (
   configPath: string,
   quiet = false,
-  logger?: import('../logger').Logger,
+  logger?: Logger,
   options: LoadConfigOptions = {}
 ): FinalConfig | FormatOnlyConfig => {
   const configDirectory = path.dirname(path.resolve(configPath));

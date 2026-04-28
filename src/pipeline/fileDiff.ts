@@ -1,6 +1,13 @@
 import YAML from 'yaml';
 
-import { Config, FixedValueConfig, FixedValueRule, OutputFormat, TransformConfig } from '../config';
+import {
+  type Config,
+  type FixedValueConfig,
+  type FixedValueRule,
+  type OutputFormat,
+  type TransformConfig
+} from '../config';
+import type { Logger } from '../logger';
 import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
 import { deepEqual } from '../utils/deepEqual';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
@@ -10,7 +17,7 @@ import { isFilterSegment, matchesFilter, parseFilterSegment, parseJsonPath } fro
 import { globalMatcher } from '../utils/patternMatcher';
 import { normalizeForComparison } from '../utils/serialization';
 import { applyTransforms } from '../utils/transformer';
-import { FileMap } from './fileLoader';
+import { type FileMap } from './fileLoader';
 import { formatYaml } from './yamlFormatter';
 
 // Types
@@ -30,8 +37,8 @@ export interface ChangedFile {
   processedDestContent: unknown;
   rawParsedSource: unknown;
   rawParsedDest: unknown;
-  skipPaths: string[];
-  fixedValueRules: FixedValueRule[]; // Pre-computed once in fileDiff, reused in fileUpdater
+  skipPaths?: string[];
+  fixedValueRules?: FixedValueRule[]; // Pre-computed once in fileDiff, reused in fileUpdater
   normalizedSource?: unknown;
   normalizedDest?: unknown;
   parsedSource?: unknown;
@@ -69,7 +76,7 @@ const processAddedFileContent = (
   transforms?: TransformConfig,
   fixedValues?: FixedValueConfig,
   outputFormat?: OutputFormat,
-  logger?: import('../logger').Logger
+  logger?: Logger
 ): string => {
   if (!isYamlFile(filePath)) return content;
 
@@ -105,7 +112,7 @@ const detectAddedFiles = (
   destinationFiles: FileMap,
   config: Config,
   originalPaths?: Map<string, string>,
-  logger?: import('../logger').Logger
+  logger?: Logger
 ): AddedFile[] => {
   const addedFiles: AddedFile[] = [];
 
@@ -393,7 +400,7 @@ export const computeFileDiff = (
   sourceFiles: FileMap,
   destinationFiles: FileMap,
   config: Config,
-  logger?: import('../logger').Logger,
+  logger?: Logger,
   originalPaths?: Map<string, string>
 ): FileDiffResult => {
   // Add verbose debug output

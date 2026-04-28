@@ -3,17 +3,17 @@ import path from 'node:path';
 
 import YAML from 'yaml';
 
-import { Config } from '../config';
+import { type Config } from '../config';
 import { formatProgressMessage } from '../consoleFormatter';
-import { Logger } from '../logger';
+import { type Logger } from '../logger';
 import { findMatchingTargetItem, getApplicableArrayFilters, itemMatchesAnyFilter } from '../utils/arrayMerger';
 import { isCommentOnlyContent } from '../utils/commentOnlyDetector';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
 import { isYamlFile } from '../utils/fileType';
 import { applyFixedValues, getFixedValuesForFile } from '../utils/fixedValues';
 import { applyTransforms } from '../utils/transformer';
-import { AddedFile, ChangedFile, FileDiffResult } from './fileDiff';
-import { FileMap } from './fileLoader';
+import { type AddedFile, type ChangedFile, type FileDiffResult } from './fileDiff';
+import { type FileMap } from './fileLoader';
 import { formatYaml } from './yamlFormatter';
 
 // Types
@@ -179,7 +179,10 @@ const deepMerge = (
   if (typeof filteredSource === 'object' && typeof fullTarget === 'object') {
     const sourceObject = filteredSource as Record<string, unknown>;
     const fullTargetObject = fullTarget as Record<string, unknown>;
-    const filteredTargetObject = (filteredTarget as Record<string, unknown>) || {};
+    const filteredTargetObject = (typeof filteredTarget === 'object' && filteredTarget ? filteredTarget : {}) as Record<
+      string,
+      unknown
+    >;
     const result = { ...sourceObject } as Record<string, unknown>;
 
     // Add skipPath fields from full target (fields that were filtered out)
@@ -316,7 +319,7 @@ const updateFile = async (options: UpdateFileOptions): Promise<void> => {
   }
 
   let contentToWrite: string;
-  let mergedObject: unknown | undefined;
+  let mergedObject: unknown;
 
   if (isYamlFile(changedFile.path)) {
     const mergeResult = mergeYamlContent(

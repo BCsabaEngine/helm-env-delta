@@ -1,5 +1,5 @@
-import { Config } from '../config';
-import { AddedFile, ChangedFile, FileDiffResult, ValidationResult } from '../pipeline';
+import { type Config } from '../config';
+import { type AddedFile, type ChangedFile, type FileDiffResult, type ValidationResult } from '../pipeline';
 import { deepEqual } from '../utils/deepEqual';
 import { generateUnifiedDiff } from '../utils/diffGenerator';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';

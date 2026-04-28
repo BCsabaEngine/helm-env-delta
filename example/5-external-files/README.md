@@ -143,7 +143,7 @@ stopRules:
 Preview changes before applying:
 
 ```bash
-helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
+helm-env-delta diff -c example/5-external-files/config.yaml
 ```
 
 ### Preview Files
@@ -151,7 +151,7 @@ helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff
 List files that will be synced:
 
 ```bash
-helm-env-delta --config example/5-external-files/config.yaml --list-files
+helm-env-delta list-files -c example/5-external-files/config.yaml
 ```
 
 ### HTML Diff Report
@@ -159,7 +159,7 @@ helm-env-delta --config example/5-external-files/config.yaml --list-files
 Generate browser-viewable diff:
 
 ```bash
-helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff-html
+helm-env-delta diff -c example/5-external-files/config.yaml --html
 ```
 
 ### Validate Configuration
@@ -167,7 +167,7 @@ helm-env-delta --config example/5-external-files/config.yaml --dry-run --diff-ht
 Check config and external files:
 
 ```bash
-helm-env-delta --config example/5-external-files/config.yaml --validate
+helm-env-delta validate -c example/5-external-files/config.yaml
 ```
 
 ### Apply Changes
@@ -175,7 +175,7 @@ helm-env-delta --config example/5-external-files/config.yaml --validate
 Execute the sync:
 
 ```bash
-helm-env-delta --config example/5-external-files/config.yaml
+helm-env-delta run -c example/5-external-files/config.yaml
 ```
 
 ## Expected Transformations

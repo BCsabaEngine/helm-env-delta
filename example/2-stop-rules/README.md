@@ -24,7 +24,7 @@ Demonstrates stop rule validation for dangerous changes, how violations are dete
 ### Step 1: Dry-Run (See Violations)
 
 ```bash
-helm-env-delta --config example-2-stop-rules/config.yaml --dry-run --diff
+helm-env-delta diff -c example-2-stop-rules/config.yaml
 ```
 
 **Expected output**:
@@ -65,7 +65,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --dry-run --diff
 ### Step 2: Try Without Force (Fails)
 
 ```bash
-helm-env-delta --config example-2-stop-rules/config.yaml
+helm-env-delta run -c example-2-stop-rules/config.yaml
 ```
 
 **Result**: Fails with violations error, files NOT updated
@@ -73,7 +73,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml
 ### Step 3: Override with Force
 
 ```bash
-helm-env-delta --config example-2-stop-rules/config.yaml --force
+helm-env-delta run -c example-2-stop-rules/config.yaml --force
 ```
 
 **Result**:
@@ -85,7 +85,7 @@ helm-env-delta --config example-2-stop-rules/config.yaml --force
 ### Step 4: JSON Output for CI/CD
 
 ```bash
-helm-env-delta --config example-2-stop-rules/config.yaml --diff-json | jq '.stopRuleViolations'
+helm-env-delta diff -c example-2-stop-rules/config.yaml --json | jq '.stopRuleViolations'
 ```
 
 **Output**:

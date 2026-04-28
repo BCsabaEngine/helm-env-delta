@@ -1,7 +1,7 @@
 import colors from 'ansi-colors';
 
-import { Config } from '../config';
-import { AddedFile, ChangedFile, FileDiffResult, getSkipPathsForFile } from '../pipeline';
+import { type Config } from '../config';
+import { type AddedFile, type ChangedFile, type FileDiffResult, getSkipPathsForFile } from '../pipeline';
 import { generateUnifiedDiff } from '../utils/diffGenerator';
 import { isYamlFile } from '../utils/fileType';
 import { serializeForDiff } from '../utils/serialization';

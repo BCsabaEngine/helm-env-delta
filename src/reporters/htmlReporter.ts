@@ -5,15 +5,16 @@ import path from 'node:path';
 
 import { html as diff2html } from 'diff2html';
 
-import { Config } from '../config';
+import { type Config } from '../config';
+import type { Logger } from '../logger';
 import type { ValidationResult } from '../pipeline';
-import { AddedFile, ChangedFile, FileDiffResult } from '../pipeline';
+import { type AddedFile, type ChangedFile, type FileDiffResult } from '../pipeline';
 import { generateUnifiedDiff } from '../utils/diffGenerator';
 import { createErrorClass, createErrorTypeGuard } from '../utils/errors';
 import { isYamlFile } from '../utils/fileType';
 import { serializeForDiff } from '../utils/serialization';
 import { openInBrowser } from './browserLauncher';
-import { DiffStats, generateHtmlTemplate, HtmlStopRuleViolation, ReportMetadata } from './htmlTemplate';
+import { type DiffStats, generateHtmlTemplate, type HtmlStopRuleViolation, type ReportMetadata } from './htmlTemplate';
 import { escapeHtml } from './treeRenderer';
 
 // Re-export types for backward compatibility
@@ -158,7 +159,7 @@ export const generateHtmlReport = async (
   formattedFiles: string[],
   config: Config,
   dryRun: boolean,
-  logger?: import('../logger').Logger,
+  logger?: Logger,
   validationResult?: ValidationResult,
   outputPath?: string
 ): Promise<void> => {
