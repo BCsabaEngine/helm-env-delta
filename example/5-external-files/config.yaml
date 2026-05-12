@@ -11,9 +11,6 @@ include:
   - '**/*.yaml'
   - '**/*.yml'
 
-exclude:
-  - '**/README.md'
-
 # Transform configuration using external files
 transforms:
   # Apply transforms to all YAML files
