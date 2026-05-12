@@ -9,7 +9,7 @@ include:
 # Formatting rules applied to all matched files
 outputFormat:
   indent: 2
-  keySeparator: true # Use ': ' instead of ':'
+  keySeparator: true # Insert blank line between top-level keys
 
   # Quote specific values (glob pattern -> array of JSONPaths)
   quoteValues:

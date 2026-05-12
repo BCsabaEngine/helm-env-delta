@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-05-12
+
+### Changed
+
+- Dependencies updated: `yaml` 2.8 → 2.9, `zod` 4.3 → 4.4, and dev tooling (`eslint`, `vitest`, `@types/node`).
+- CI now also tests on Node.js 26.x in addition to 22.x and 24.x.
+
 ## [2.0.0] - 2026-04-28
 
 ### Added

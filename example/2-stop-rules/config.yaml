@@ -12,15 +12,15 @@ stopRules:
   'app-version.yaml':
     # Block major version upgrades (v1.x → v2.x)
     - type: 'semverMajorUpgrade'
-      path: 'image.tag'
+      path: 'spec.image.tag'
 
     # Block version downgrades
     - type: 'semverDowngrade'
-      path: 'chart.version'
+      path: 'spec.chart.version'
 
     # Enforce strict version format (major.minor.patch only, no pre-release)
     - type: 'versionFormat'
-      path: 'app.releaseVersion'
+      path: 'spec.app.releaseVersion'
       vPrefix: 'forbidden'
 
   'scaling.yaml':
@@ -33,7 +33,7 @@ stopRules:
   'environment.yaml':
     # Reject v0.x versions (pre-release)
     - type: 'regex'
-      path: 'version'
+      path: 'spec.version'
       regex: '^v0\.'
 
   'helm-chart.yaml':
